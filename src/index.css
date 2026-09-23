@@ -1,0 +1,212 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+  --bg-page: #060b18; --bg-panel: #0a1428; --bg-panel-soft: rgba(11, 17, 31, 0.85); --bg-elevated: #0d1830;
+  --text: #e6edf6; --text-dim: #9fb0c8; --text-faint: #6b7d99; --border: rgba(148, 163, 184, 0.12); --shadow: rgba(2, 6, 23, 0.8);
+  --navy-950: 6 11 24; --navy-900: 8 16 32; --navy-850: 10 20 40; --navy-800: 13 24 48;
+  --navy-750: 15 27 54; --navy-700: 18 32 63; --navy-600: 24 42 79; --navy-500: 31 52 96;
+  --ink: 230 237 246; --ink-dim: 159 176 200; --ink-faint: 107 125 153; --line: 148 163 184;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+  height: 100%;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply antialiased;
+  background: var(--bg-page);
+  color: var(--text);
+  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  background-image:
+    radial-gradient(1100px 560px at 82% -12%, rgba(37, 99, 235, 0.10), transparent 60%),
+    radial-gradient(900px 520px at -12% 112%, rgba(14, 116, 144, 0.07), transparent 60%);
+  background-attachment: fixed;
+}
+
+body.light-mode {
+  color-scheme: light;
+  --bg-page: #eef4ff;
+  --bg-panel: #ffffff;
+  --bg-panel-soft: rgba(255, 255, 255, 0.8);
+  --bg-elevated: #f5f8ff;
+  --text: #122036;
+  --text-dim: #495f83;
+  --text-faint: #6a7d99;
+  --border: rgba(39, 56, 84, 0.12);
+  --shadow: rgba(148, 163, 184, 0.2);
+  --navy-950: 238 244 255; --navy-900: 247 250 255; --navy-850: 255 255 255; --navy-800: 245 248 255;
+  --navy-750: 239 244 252; --navy-700: 232 239 249; --navy-600: 218 228 241; --navy-500: 202 216 232;
+  --ink: 18 32 54; --ink-dim: 73 95 131; --ink-faint: 106 125 153; --line: 39 56 84;
+  background-image:
+    radial-gradient(1100px 560px at 82% -12%, rgba(96, 165, 250, 0.12), transparent 60%),
+    radial-gradient(900px 520px at -12% 112%, rgba(14, 116, 144, 0.06), transparent 60%);
+}
+
+body {
+  background-color: var(--bg-page);
+}
+
+body.light-mode .panel,
+body.light-mode .bg-navy-850,
+body.light-mode .bg-navy-900,
+body.light-mode .bg-navy-800,
+body.light-mode .bg-navy-700,
+body.light-mode .bg-navy-950,
+body.light-mode .bg-slate-900 {
+  background-color: var(--bg-panel) !important;
+}
+
+body.light-mode .bg-black\/60 { background-color: rgb(15 23 42 / 0.28) !important; }
+body.light-mode .bg-black\/70 { background-color: rgb(15 23 42 / 0.38) !important; }
+
+body.light-mode .text-ink,
+body.light-mode .text-ink-dim,
+body.light-mode .text-ink-faint {
+  color: var(--text) !important;
+}
+
+body.light-mode .text-ink-dim,
+body.light-mode .text-ink-faint {
+  color: var(--text-dim) !important;
+}
+
+body.light-mode .border-line,
+body.light-mode .border-line {
+  border-color: var(--border) !important;
+}
+
+[dir='rtl'] aside {
+  left: auto;
+  right: 0;
+  border-right-width: 0;
+  border-left-width: 1px;
+}
+
+[dir='rtl'] .lg\:pl-60 {
+  padding-left: 0;
+  padding-right: 15rem;
+}
+
+body.light-mode .shadow-card,
+body.light-mode .shadow-glow,
+body.light-mode .shadow-panel {
+  box-shadow: 0 1px 0 rgba(255,255,255,0.4) inset, 0 12px 30px -16px var(--shadow);
+}
+
+::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.16);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.3);
+  background-clip: content-box;
+}
+
+::selection {
+  background: rgba(59, 130, 246, 0.35);
+}
+
+@layer components {
+  .panel {
+    @apply rounded-2xl border border-line bg-navy-850 shadow-card;
+  }
+
+  .panel-hover {
+    @apply transition-all duration-200 hover:-translate-y-0.5 hover:border-sky-400/25 hover:shadow-glow;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-3.5 h-9 text-sm font-semibold transition-all duration-150 cursor-pointer select-none disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-primary {
+    @apply btn bg-gradient-to-b from-sky-500 to-blue-600 text-white border border-sky-400/40 shadow-[0_8px_20px_-8px_rgba(37,99,235,0.7)] hover:brightness-110 active:scale-[0.98];
+  }
+
+  .btn-ghost {
+    @apply btn bg-navy-700/40 border border-line text-ink-dim hover:text-ink hover:border-sky-400/30 hover:bg-navy-700 active:scale-[0.98];
+  }
+
+  .btn-danger {
+    @apply btn bg-red-500/10 border border-red-500/30 text-red-300 hover:bg-red-500/20 active:scale-[0.98];
+  }
+
+  .btn-sm {
+    @apply h-8 px-3 text-xs rounded-lg;
+  }
+
+  .input {
+    @apply w-full rounded-xl border border-line bg-navy-900/60 px-3.5 h-10 text-sm text-ink placeholder:text-ink-faint outline-none transition-all focus:border-sky-400/50 focus:ring-2 focus:ring-sky-500/20;
+  }
+
+  .label {
+    @apply mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-ink-faint;
+  }
+
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-lg border border-line bg-navy-700/40 px-2.5 py-1 text-[11px] font-medium text-ink-dim;
+  }
+
+  .card-grid {
+    @apply grid gap-4;
+  }
+
+  .thin-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(148, 163, 184, 0.18) transparent;
+  }
+}
+
+.recharts-default-tooltip {
+  border-radius: 10px !important;
+}
+
+:root {
+  --chart-tooltip-bg: rgba(10, 20, 40, 0.95);
+  --chart-tooltip-text: #e6edf6;
+  --chart-tooltip-muted: #9fb0c8;
+}
+
+body.light-mode {
+  --chart-tooltip-bg: rgba(255, 255, 255, 0.98);
+  --chart-tooltip-text: #122036;
+  --chart-tooltip-muted: #495f83;
+}
+
+.recharts-cartesian-axis-tick text {
+  fill: #6b7d99;
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.recharts-cartesian-grid line {
+  stroke: rgba(148, 163, 184, 0.07);
+  stroke-dasharray: 3 5;
+}
+
+body.light-mode .recharts-cartesian-axis-tick text {
+  fill: #64748b;
+}
+
+body.light-mode .recharts-cartesian-grid line {
+  stroke: rgba(100, 116, 139, 0.15);
+}

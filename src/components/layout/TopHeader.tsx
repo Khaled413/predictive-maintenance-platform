@@ -1,0 +1,148 @@
+import { useLocation, useNavigate } from 'react-router-dom'
+import { Bell, ChevronDown, Clock, Menu, RefreshCw, Zap } from 'lucide-react'
+import { PAGE_META, PAGE_META_AR } from './routes'
+import { useApp } from '../../context/AppContext'
+import { formatDateTime, cx } from '../../utils/helpers'
+import type { MachineStatus } from '../../types'
+import { usePreferences } from '../../context/PreferencesContext'
+
+interface TopHeaderProps {
+  onMenu: () => void
+}
+
+export default function TopHeader({ onMenu }: TopHeaderProps) {
+  const { lastUpdated, refreshTimestamp, notify, machines, alerts } = useApp()
+  const { language, t } = usePreferences()
+  const location = useLocation()
+  const navigate = useNavigate()
+
+  let meta = (language === 'ar' ? PAGE_META_AR : PAGE_META)[location.pathname]
+  if (!meta && location.pathname.startsWith('/machines/')) {
+    const id = decodeURIComponent(location.pathname.split('/')[2] ?? '')
+    const m = machines.find((x) => x.id === id)
+    meta = {
+      title: m ? `${m.id} · ${t('Machine Profile')}` : t('Machine Profile'),
+      subtitle: m ? `${m.name} — ${m.type}` : (language === 'ar' ? 'بيانات وتحليلات الآلة التفصيلية' : 'Detailed machine telemetry and analysis'),
+    }
+  }
+  if (!meta) meta = { title: 'Overview', subtitle: '' }
+
+  const critical = machines.filter((m) => m.status === 'Critical').length
+  const warning = machines.filter((m) => m.status === 'Warning').length
+  const status: MachineStatus =
+    critical > 0 ? 'Critical' : warning > 0 ? 'Warning' : 'Operational'
+  const statusDot =
+    status === 'Operational'
+      ? 'bg-emerald-400'
+      : status === 'Warning'
+        ? 'bg-amber-400'
+        : 'bg-red-400 animate-pulseSoft'
+  const activeAlerts = alerts.filter((a) => a.status === 'active').length
+
+  return (
+    <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b border-line bg-navy-900/70 px-4 backdrop-blur-xl sm:px-6">
+      <button
+        type="button"
+        onClick={onMenu}
+        className="rounded-lg p-2 text-ink-dim hover:bg-navy-700 hover:text-ink lg:hidden"
+        aria-label="Open menu"
+      >
+        <Menu className="h-5 w-5" />
+      </button>
+
+      <div className="min-w-0 flex-1">
+        <h1 className="truncate text-[15.5px] font-bold tracking-tight text-ink">{meta.title}</h1>
+        <p className="truncate text-[11.5px] text-ink-faint">{meta.subtitle}</p>
+      </div>
+
+      <div className="flex items-center gap-2 sm:gap-3">
+        <div className="hidden items-center gap-1.5 rounded-lg border border-line bg-navy-800/60 px-2.5 py-1.5 text-[11px] font-medium text-ink-dim xl:flex">
+          <Zap className="h-3.5 w-3.5 text-sky-400" />
+          Predict · Prevent · Optimize
+        </div>
+
+        <div className="hidden items-center gap-2 rounded-lg border border-line bg-navy-800/60 px-3 py-1.5 md:flex">
+          <Clock className="h-3.5 w-3.5 text-ink-faint" />
+          <div className="leading-none">
+            <p className="text-[9.5px] font-semibold uppercase tracking-wider text-ink-faint">
+              {t('Last Updated')}
+            </p>
+            <p className="mt-0.5 text-[11px] font-medium text-ink">{formatDateTime(lastUpdated)}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              refreshTimestamp()
+              notify('info', 'Data refreshed', 'Telemetry updated from the edge gateway.')
+            }}
+            className="rounded-md p-1 text-ink-faint transition-colors hover:bg-navy-700 hover:text-sky-300"
+            aria-label="Refresh data"
+            title="Refresh data"
+          >
+            <RefreshCw className="h-3.5 w-3.5" />
+          </button>
+        </div>
+
+        <div
+          className={cx(
+            'flex items-center gap-2 rounded-lg border px-3 py-1.5',
+            status === 'Operational'
+              ? 'border-emerald-400/25 bg-emerald-400/5'
+              : status === 'Warning'
+                ? 'border-amber-400/25 bg-amber-400/5'
+                : 'border-red-400/30 bg-red-400/10',
+          )}
+        >
+          <span className={cx('h-2 w-2 rounded-full', statusDot)} />
+          <div className="leading-none">
+            <p className="text-[9.5px] font-semibold uppercase tracking-wider text-ink-faint">
+              {t('Factory Status')}
+            </p>
+            <p
+              className={cx(
+                'mt-0.5 text-[11.5px] font-semibold',
+                status === 'Operational'
+                  ? 'text-emerald-300'
+                  : status === 'Warning'
+                    ? 'text-amber-300'
+                    : 'text-red-300',
+              )}
+            >
+              {t(status)}
+            </p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => navigate('/alerts')}
+          className="relative rounded-lg border border-line bg-navy-800/60 p-2 text-ink-dim transition-colors hover:border-sky-400/30 hover:text-ink"
+          aria-label="Open alerts"
+          title="Alerts center"
+        >
+          <Bell className="h-4 w-4" />
+          {activeAlerts > 0 && (
+            <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white ring-2 ring-navy-900">
+              {activeAlerts}
+            </span>
+          )}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => navigate('/settings')}
+          className="flex items-center gap-2 rounded-lg border border-line bg-navy-800/60 py-1 pl-1 pr-2 transition-colors hover:border-sky-400/30"
+        >
+          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-gradient-to-br from-sky-500/80 to-blue-700 text-[11px] font-bold text-white">
+            ES
+          </div>
+          <div className="hidden text-left leading-none sm:block">
+            <p className="text-[11.5px] font-semibold text-ink">Eng. Sarah</p>
+            <p className="mt-0.5 text-[10px] text-ink-faint">Maintenance Manager</p>
+          </div>
+          <ChevronDown className="hidden h-3.5 w-3.5 text-ink-faint sm:block" />
+        </button>
+      </div>
+    </header>
+  )
+}
