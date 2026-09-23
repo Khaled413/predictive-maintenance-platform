@@ -51,6 +51,7 @@ const failures = []
 try {
   const { MemoryRouter, Route, Routes } = await vite.ssrLoadModule('react-router-dom')
   const { AppProvider } = await vite.ssrLoadModule('/src/context/AppContext.tsx')
+  const { PreferencesProvider } = await vite.ssrLoadModule('/src/context/PreferencesContext.tsx')
   const { default: AppLayout } = await vite.ssrLoadModule('/src/components/layout/AppLayout.tsx')
 
   for (const [route, pattern, modulePath] of ROUTES) {
@@ -63,12 +64,16 @@ try {
           AppProvider,
           null,
           React.createElement(
-            Routes,
+            PreferencesProvider,
             null,
             React.createElement(
-              Route,
-              { element: React.createElement(AppLayout) },
-              React.createElement(Route, { path: pattern, element: React.createElement(Page) }),
+              Routes,
+              null,
+              React.createElement(
+                Route,
+                { element: React.createElement(AppLayout) },
+                React.createElement(Route, { path: pattern, element: React.createElement(Page) }),
+              ),
             ),
           ),
         ),

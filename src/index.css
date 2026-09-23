@@ -92,6 +92,10 @@ body.light-mode .border-line {
   border-left-width: 1px;
 }
 
+[dir='rtl'] .-translate-x-full {
+  transform: translateX(100%);
+}
+
 [dir='rtl'] .lg\:pl-60 {
   padding-left: 0;
   padding-right: 15rem;
