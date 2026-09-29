@@ -41,6 +41,13 @@ npm run typecheck # tsc --noEmit
 
 Node.js 18+ recommended.
 
+## Deploying on Vercel
+
+The root `vercel.json` deploys the Vite frontend as the public `app` service and
+routes all paths to it. The `ml/` directory currently contains research
+notebooks and model-workspace files, not an HTTP service, so it is not deployed
+as a service and no service bindings are needed.
+
 ---
 
 ## Pages
