@@ -134,45 +134,55 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
     const translate = () => {
       if (scanning) return
       scanning = true
-      const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT)
-      const textNodes: Text[] = []
-      let node: Node | null
-      while ((node = walker.nextNode())) {
-        const parent = node.parentElement
-        if (parent && !['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEXTAREA'].includes(parent.tagName)) {
-          textNodes.push(node as Text)
+      try {
+        const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT)
+        const textNodes: Text[] = []
+        let node: Node | null
+        while ((node = walker.nextNode())) {
+          const parent = node.parentElement
+          if (parent && !['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEXTAREA'].includes(parent.tagName)) {
+            textNodes.push(node as Text)
+          }
         }
-      }
-      textNodes.forEach((textNode) => {
-        const source = originalText.get(textNode) ?? textNode.nodeValue ?? ''
-        originalText.set(textNode, source)
-        const trimmed = source.trim()
-        if (!trimmed) return
-        const translated = translations[trimmed]
-        if (translated && language === 'ar') {
-          textNode.nodeValue = source.replace(trimmed, translated)
-        } else if (language === 'en') {
-          textNode.nodeValue = source
-        }
-      })
-      document.querySelectorAll<HTMLElement>('*').forEach((element) => {
-        if (!originalAttributes.has(element)) originalAttributes.set(element, new Map())
-        const stored = originalAttributes.get(element)!
-        attributes.forEach((attribute) => {
-          const value = element.getAttribute(attribute)
-          if (value === null) return
-          const source = stored.get(attribute) ?? value
-          stored.set(attribute, source)
-          const translated = translations[source]
-          element.setAttribute(attribute, language === 'ar' && translated ? translated : source)
+
+        textNodes.forEach((textNode) => {
+          const source = originalText.get(textNode) ?? textNode.nodeValue ?? ''
+          originalText.set(textNode, source)
+          const trimmed = source.trim()
+          if (!trimmed) return
+          const translated = translations[trimmed]
+          const target =
+            language === 'ar' && translated ? source.replace(trimmed, translated) : source
+          if (textNode.nodeValue !== target) textNode.nodeValue = target
         })
-      })
-      scanning = false
+
+        document.querySelectorAll<HTMLElement>('*').forEach((element) => {
+          if (!originalAttributes.has(element)) originalAttributes.set(element, new Map())
+          const stored = originalAttributes.get(element)!
+          attributes.forEach((attribute) => {
+            const value = element.getAttribute(attribute)
+            if (value === null) return
+            const source = stored.get(attribute) ?? value
+            stored.set(attribute, source)
+            const translated = translations[source]
+            const target = language === 'ar' && translated ? translated : source
+            if (value !== target) element.setAttribute(attribute, target)
+          })
+        })
+      } finally {
+        scanning = false
+      }
     }
 
     translate()
     const observer = new MutationObserver(translate)
-    observer.observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true })
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+      attributes: true,
+      attributeFilter: attributes,
+    })
     return () => observer.disconnect()
   }, [language])
 
