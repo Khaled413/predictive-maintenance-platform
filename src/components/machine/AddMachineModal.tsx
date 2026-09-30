@@ -12,12 +12,13 @@ import {
 } from 'lucide-react'
 import Modal from '../ui/Modal'
 import UploadZone from '../ui/UploadZone'
-import WhyCard from '../ui/WhyCard'
 import { Field, TextInput, SelectInput } from '../ui/Field'
 import { useApp } from '../../context/AppContext'
-import { cx, seededRandom, clamp } from '../../utils/helpers'
+import { cx, seededRandom } from '../../utils/helpers'
 import type { Machine, SensorReading, SensorSeries } from '../../types'
 import { formatDate } from '../../utils/helpers'
+import { requestPrediction } from '../../data/predictionApi'
+import { machineTypeCode, simulateMachineInputs } from '../../utils/simulatedInputs'
 
 const MACHINE_TYPES = [
   'CNC Lathe',
@@ -56,87 +57,59 @@ const SENSOR_PRESETS: SensorConfig[] = [
 ]
 
 const PROCESS_STEPS = [
-  'Data Validation',
-  'Feature Processing',
-  'Health Score Calculation',
-  'Failure Risk Prediction',
-  'Maintenance Recommendation',
+  'Preparing simulated sensor inputs',
+  'Sending inputs to prediction service',
+  'Running trained ML models',
+  'Receiving model outputs',
+  'Preparing machine profile',
 ]
 
-const POINTS = 30
-const STEP_DAYS = 2
-
-function buildGeneratedMachine(form: any, sensorsOn: SensorReading[], seed: number): Machine {
-  const rnd = seededRandom(seed)
-  const healthScore = clamp(Math.round(48 + rnd() * 42), 40, 95)
-  const failureRisk = clamp(Math.round(100 - healthScore + (rnd() - 0.4) * 18), 3, 95)
-
-  // Deterministic recommendation
-  let recommendation = 'Not Required'
-  let maintenanceStatus = 'On Schedule'
-  if (failureRisk > 70 || healthScore < 48) {
-    recommendation = 'Immediate — Preventive Service'
-    maintenanceStatus = 'Overdue'
-  } else if (failureRisk > 50 || healthScore < 62) {
-    recommendation = 'Inspection'
-    maintenanceStatus = 'Due Soon'
-  } else if (failureRisk > 34 || healthScore < 78) {
-    recommendation = 'Lubrication'
-    maintenanceStatus = 'Due Soon'
-  }
-
-  // Likely reason from flagged sensors
-  const bad = sensorsOn.filter((s) => s.level !== 'green')
-  let likelihood = 'No abnormal pattern detected'
-  if (bad.length >= 2) {
-    likelihood = `${bad[0].name} & ${bad[1].name.toLowerCase()} elevated`
-  } else if (bad.length === 1) {
-    likelihood = `${bad[0].name} above normal range`
-  } else if (healthScore < 65) {
-    likelihood = 'Gradual performance degradation'
-  }
-
-  const dates: string[] = []
-  for (let i = POINTS - 1; i >= 0; i--) dates.push(new Date(Date.now() - i * STEP_DAYS * 86_400_000).toISOString())
-  const history = dates.map((date, i) => {
-    const t = i / (POINTS - 1)
-    return {
-      date,
-      health: clamp(Math.round(healthScore + (90 - healthScore) * (1 - t) + (rnd() - 0.5) * 5), 15, 99),
-      risk: clamp(Math.round(failureRisk + (8 - failureRisk) * (1 - t) + (rnd() - 0.5) * 6), 2, 98),
-    }
-  })
-  const sensorHistory: SensorSeries[] = sensorsOn.map((sens) => ({
-    name: sens.name,
-    unit: sens.unit,
-    data: dates.map((date, i) => ({
-      date,
-      value: Number((sens.min + ((sens.value - sens.min) / Math.max(1, (sens.max - sens.min) / 10)) * (i / POINTS) + (rnd() - 0.5) * ((sens.max - sens.min) * 0.08)).toFixed(2)),
-    })),
+function buildGeneratedMachine(form: any, sensorsOn: SensorReading[]): Machine {
+  const modelTypeCode = machineTypeCode(form.type)
+  const predictionInputs = simulateMachineInputs(form.id, form.type)
+  const sensorSeed = [...form.id].reduce((seed, character) => seed + character.charCodeAt(0), 1)
+  const rnd = seededRandom(sensorSeed)
+  const sensorHistory: SensorSeries[] = sensorsOn.map((sensor) => ({
+    name: sensor.name,
+    unit: sensor.unit,
+    data: Array.from({ length: 30 }, (_, index) => {
+      const progress = index / 29
+      const spread = ((sensor.max - sensor.min) * 0.08) / 2
+      const value = index === 29
+        ? sensor.value
+        : sensor.min + (sensor.value - sensor.min) * progress + (rnd() - 0.5) * spread
+      return {
+        date: new Date(Date.now() - (29 - index) * 2 * 86_400_000).toISOString(),
+        value: Number(value.toFixed(2)),
+      }
+    }),
   }))
 
   return {
     id: form.id,
     name: form.name,
     type: form.type,
-    status: 'Operational' as const,
-    healthScore,
-    failureRisk,
-    maintenanceStatus,
-    recommendation,
-    likelihood,
+    status: null,
+    healthScore: null,
+    failureRisk: null,
+    maintenanceStatus: 'Prediction pending',
+    recommendation: null,
+    likelihood: null,
     location: form.location,
     manufacturer: form.manufacturer,
     model: form.model,
     installationDate: form.installationDate,
-    lastMaintenance: new Date(Date.now() - (20 + Math.round(rnd() * 30)) * 86_400_000).toISOString(),
-    nextMaintenance: new Date(Date.now() + (3 + Math.round(rnd() * 21)) * 86_400_000).toISOString(),
+    lastMaintenance: new Date().toISOString(),
+    nextMaintenance: new Date().toISOString(),
     description: form.description,
     sensors: sensorsOn,
-    history,
+    history: [],
     sensorHistory,
     events: [],
     custom: true,
+    modelTypeCode,
+    predictionStatus: 'loading',
+    predictionInputs,
   }
 }
 interface AddMachineModalProps {
@@ -166,7 +139,7 @@ export default function AddMachineModal({ open, onClose }: AddMachineModalProps)
     columns: string
     detected: string[]
     dateRange: string
-    quality: number
+    quality: string
     missing: string
     size: number
   } | null>(null)
@@ -203,17 +176,15 @@ export default function AddMachineModal({ open, onClose }: AddMachineModalProps)
 
   const handleFile = (f: File) => {
     const ext = (f.name.split('.').pop() ?? '').toLowerCase()
-    const rnd = seededRandom(f.name.length * 31 + 7)
-
     if (ext === 'xlsx' || ext === 'xls' || ext === 'json') {
       setFile({
         name: f.name,
-        rows: `${Math.round(8000 + rnd() * 12000).toLocaleString()}`,
-        columns: String(8 + Math.round(rnd() * 4)),
+        rows: '—',
+        columns: '—',
         detected: sensors.filter((s) => s.enabled).map((s) => s.name),
-        dateRange: '2025-03-04 → 2026-09-10',
-        quality: Math.round(90 + rnd() * 8),
-        missing: `${(rnd() * 2.5).toFixed(1)}%`,
+        dateRange: 'Not parsed',
+        quality: 'Not calculated',
+        missing: 'Not calculated',
         size: f.size,
       })
       return
@@ -242,9 +213,9 @@ export default function AddMachineModal({ open, onClose }: AddMachineModalProps)
           }
           finalizeParse(f, header, rows, firstDate, lastDate)
         })
-        .catch(() => finalizeParse(f, [], 4200, '', ''))
+        .catch(() => finalizeParse(f, [], 0, '', ''))
     } catch {
-      finalizeParse(f, [], 5000, '', '')
+      finalizeParse(f, [], 0, '', '')
     }
   }
 
@@ -270,17 +241,14 @@ export default function AddMachineModal({ open, onClose }: AddMachineModalProps)
     const detected = header.length
       ? header.filter((h) => known.some((k) => h.toLowerCase().includes(k)))
       : sensors.filter((s) => s.enabled).map((s) => s.name)
-    const rnd = seededRandom(f.name.length * 17 + 3)
-    const quality = Math.round(86 + rnd() * 13)
-    const missing = `${(rnd() * 4.2).toFixed(1)}%`
     setFile({
       name: f.name,
-      rows: rows > 0 ? rows.toLocaleString() : `${Math.round(3000 + rnd() * 9000).toLocaleString()}`,
-      columns: header.length ? String(header.length) : `${detected.length + 3 + Math.round(rnd() * 2)}`,
+      rows: rows > 0 ? rows.toLocaleString() : '—',
+      columns: header.length ? String(header.length) : '—',
       detected: detected.length ? detected : sensors.filter((s) => s.enabled).map((s) => s.name),
-      dateRange: firstDate && lastDate ? `${firstDate} → ${lastDate}` : '2025-11-02 → 2026-09-12',
-      quality,
-      missing,
+      dateRange: firstDate && lastDate ? `${firstDate} → ${lastDate}` : 'Not parsed',
+      quality: 'Not calculated',
+      missing: 'Not calculated',
       size: f.size,
     })
   }
@@ -309,7 +277,7 @@ const toggleSensor = (name: string) => {
   useEffect(() => {
     if (step !== 4) return
     if (processIdx >= PROCESS_STEPS.length - 1) {
-      const t = window.setTimeout(() => {
+      const t = window.setTimeout(async () => {
         const rnd = seededRandom(form.id.length * 41 + form.type.length)
         const readings: SensorReading[] = activeSensors.map((cfg) => {
           const mid = cfg.min + (cfg.max - cfg.min) * 0.55
@@ -324,7 +292,35 @@ const toggleSensor = (name: string) => {
             trend: rnd() > 0.6 ? ('up' as const) : ('flat' as const),
           }
         })
-        const machine = buildGeneratedMachine(form, readings, form.id.length * 97 + 5)
+        const machine = buildGeneratedMachine(form, readings)
+        try {
+          if (!machine.predictionInputs) {
+            throw new Error('Model inputs were not generated for this machine.')
+          }
+          const prediction = await requestPrediction(machine.predictionInputs)
+          if (prediction.machine_id !== machine.id) throw new Error('Mismatched prediction machine ID')
+          machine.prediction = prediction
+          machine.predictionStatus = 'available'
+          machine.status = prediction.status
+          machine.healthScore = prediction.health_score
+          machine.failureRisk = prediction.failure_probability * 100
+          machine.recommendation = prediction.recommendation
+          machine.likelihood = prediction.failure_type
+          machine.history = [{
+            date: prediction.timestamp,
+            health: prediction.health_score,
+            risk: prediction.failure_probability * 100,
+          }]
+        } catch (error) {
+          machine.predictionStatus = 'unavailable'
+          machine.predictionError =
+            error instanceof Error ? error.message : 'Prediction request failed unexpectedly'
+          machine.status = null
+          machine.healthScore = null
+          machine.failureRisk = null
+          machine.recommendation = null
+          machine.likelihood = null
+        }
         setResult(machine)
         setProcessing(false)
         setStep(5)
@@ -337,9 +333,12 @@ const toggleSensor = (name: string) => {
   }, [step, processIdx])
 
   const canNext = {
-    1: form.id.trim().length > 0 && form.name.trim().length > 0 && form.type.trim().length > 0,
+    1:
+      form.id.trim().length > 0 &&
+      form.name.trim().length > 0 &&
+      form.type.trim().length > 0,
     2: activeSensors.length > 0,
-    3: Boolean(file),
+    3: true,
   }[step]
 
   const onNext = () => {
@@ -360,9 +359,11 @@ const toggleSensor = (name: string) => {
     addMachine(result)
     refreshTimestamp()
     notify(
-      'success',
+      result.predictionStatus === 'available' ? 'success' : 'warning',
       `${result.id} added to fleet`,
-      `${result.name} registered with health score ${result.healthScore}%.`,
+      result.predictionStatus === 'available'
+        ? `${result.name} registered with its ML prediction.`
+        : `${result.name} registered. ${result.predictionError ?? 'ML prediction service unavailable.'}`,
     )
     onClose()
   }
@@ -467,6 +468,14 @@ return (
                 </option>
               ))}
             </SelectInput>
+          </Field>
+          <Field
+            label="Model Input Type (Automatic)"
+            hint="Assigned from the machine category; compressors/boilers use H, conveyors/packaging/labels use L, and other types use M."
+          >
+            <div className="input flex h-10 items-center text-ink-dim">
+              {machineTypeCode(form.type)} · Automatically assigned
+            </div>
           </Field>
           <Field label="Location">
             <TextInput
@@ -586,12 +595,12 @@ return (
         <div className="space-y-4">
           <p className="flex items-start gap-2 text-[12px] leading-relaxed text-ink-dim">
             <Database className="mt-0.5 h-4 w-4 shrink-0 text-sky-400" />
-            Upload historical sensor data to generate the machine health profile. Supported
-            formats: CSV, Excel and JSON.
+            The prediction service builds its input window internally. Upload is optional and used
+            for a local metadata preview only; it is not sent to the backend.
           </p>
           <UploadZone
             accept=".csv,.xlsx,.xls,.json"
-            label="Upload historical sensor data"
+            label="Optional sensor-file preview"
             hint="Drag & drop or click to browse from your computer"
             onFile={handleFile}
             compact
@@ -603,7 +612,7 @@ return (
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-[12.5px] font-semibold text-ink">{file.name}</p>
                   <p className="text-[10.5px] text-ink-faint">
-                    {(file.size / 1024).toFixed(1)} KB · detected and profiled
+                    {(file.size / 1024).toFixed(1)} KB · local preview only
                   </p>
                 </div>
                 <CheckCircle2 className="h-[18px] w-[18px] text-emerald-400" />
@@ -613,7 +622,7 @@ return (
                   ['Rows', file.rows],
                   ['Columns', file.columns],
                   ['Date Range', file.dateRange],
-                  ['Data Quality', `${file.quality}%`],
+                  ['Data Quality', file.quality],
                   ['Missing Values', file.missing],
                 ].map(([k, v]) => (
                   <div key={k} className="rounded-xl border border-line bg-navy-800/50 px-3 py-2">
@@ -641,18 +650,6 @@ return (
                   </div>
                 </div>
               </div>
-              <div className="mt-3">
-                <p className="mb-1 flex items-center justify-between text-[10px] font-semibold uppercase tracking-wider text-ink-faint">
-                  <span>Data Quality Score</span>
-                  <span className="font-mono text-emerald-300">{file.quality}%</span>
-                </p>
-                <div className="h-1.5 overflow-hidden rounded-full bg-navy-700/70">
-                  <div
-                    className="h-full rounded-full bg-emerald-400"
-                    style={{ width: `${file.quality}%` }}
-                  />
-                </div>
-              </div>
             </div>
           )}
         </div>
@@ -661,7 +658,7 @@ return (
         <div className="py-2">
           <div className="rounded-2xl border border-line bg-navy-900/50 p-4">
             <div className="mb-4 flex items-center justify-between">
-              <p className="text-[12.5px] font-semibold text-ink">Running AI health profile</p>
+              <p className="text-[12.5px] font-semibold text-ink">Requesting trained ML prediction</p>
               <span className="font-mono text-[11px] text-sky-300">
                 {Math.round(((processIdx + 1) / PROCESS_STEPS.length) * 100)}%
               </span>
@@ -714,132 +711,51 @@ return (
           </div>
           <p className="mt-3 flex items-center gap-1.5 text-[10.5px] text-ink-faint">
             <Activity className="h-3.5 w-3.5 text-sky-400" />
-            Prototype — simulated AI pipeline. Ready to connect a real model backend later.
+            DEMO MODE · simulated sensor inputs; health and risk are returned by the trained ML models.
           </p>
         </div>
       )}
 {step === 5 && result && (
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <div className="rounded-xl border border-line bg-navy-900/50 px-3 py-2.5">
-              <p className="text-[9.5px] font-semibold uppercase tracking-wider text-ink-faint">
-                Health Score
-              </p>
-              <p
-                className={cx(
-                  'mt-1 font-mono text-[20px] font-bold',
-                  result.healthScore >= 75
-                    ? 'text-emerald-300'
-                    : result.healthScore >= 60
-                      ? 'text-amber-300'
-                      : 'text-red-300',
-                )}
-              >
-                {result.healthScore}%
-              </p>
-            </div>
-            <div className="rounded-xl border border-line bg-navy-900/50 px-3 py-2.5">
-              <p className="text-[9.5px] font-semibold uppercase tracking-wider text-ink-faint">
-                Failure Risk · 7d
-              </p>
-              <p
-                className={cx(
-                  'mt-1 font-mono text-[20px] font-bold',
-                  result.failureRisk >= 70
-                    ? 'text-red-300'
-                    : result.failureRisk >= 50
-                      ? 'text-amber-300'
-                      : 'text-emerald-300',
-                )}
-              >
-                {result.failureRisk}%
-              </p>
-            </div>
-            <div className="rounded-xl border border-line bg-navy-900/50 px-3 py-2.5">
-              <p className="text-[9.5px] font-semibold uppercase tracking-wider text-ink-faint">
-                Machine Status
-              </p>
-              <p className="mt-1.5 text-[12px] font-semibold text-ink">
-                {result.failureRisk >= 70 || result.healthScore < 48 ? 'Critical' : result.failureRisk >= 50 ? 'Warning' : 'Operational'}
-              </p>
-            </div>
-            <div className="rounded-xl border border-line bg-navy-900/50 px-3 py-2.5">
-              <p className="text-[9.5px] font-semibold uppercase tracking-wider text-ink-faint">
-                Maintenance
-              </p>
-              <p className="mt-1.5 text-[12px] font-semibold text-ink">{result.recommendation}</p>
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-line bg-navy-900/50 p-4">
-            <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-ink-faint">
-              Machine Health Trend · 60 days
+          <div className="rounded-xl border border-sky-400/20 bg-sky-500/5 px-3.5 py-3">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-sky-300">
+              DEMO MODE · Simulated Sensor Inputs
             </p>
-            <svg viewBox="0 0 320 60" className="h-14 w-full" preserveAspectRatio="none">
-              {result.history
-                .filter((_, i) => i % 3 === 0)
-                .map((p, i, arr) => {
-                  const x = (i / Math.max(1, arr.length - 1)) * 320
-                  const y = 54 - (p.health / 100) * 48
-                  const poly = arr
-                    .map((pp, ii) => `${(ii / Math.max(1, arr.length - 1)) * 320},${54 - (pp.health / 100) * 48}`)
-                    .join(' ')
-                  return (
-                    <g key={p.date}>
-                      {i === 0 && <polyline points={poly} fill="none" stroke="#60A5FA" strokeWidth="2" />}
-                      {i === arr.length - 1 && (
-                        <circle cx={x} cy={y} r="3" fill={result.healthScore >= 75 ? '#34D399' : result.healthScore >= 60 ? '#FBBF24' : '#F87171'} />
-                      )}
-                    </g>
-                  )
-                })}
-            </svg>
-          </div>
-
-          <div className="rounded-xl border border-line bg-navy-900/50 px-3.5 py-3">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-ink-faint">
-              Likely Failure Factors
+            <p className="mt-1 text-[11px] text-ink-dim">
+              Model outputs below come only from the trained ML prediction service.
             </p>
-            <p className="mt-1 text-[12px] font-medium text-ink-dim">{result.likelihood}</p>
           </div>
-
-          <WhyCard
-            title={result.failureRisk >= 50 ? `Why is the failure risk ${result.failureRisk}%?` : 'Why is this machine considered healthy?'}
-            accent={result.failureRisk >= 70 ? 'danger' : result.failureRisk >= 50 ? 'warning' : 'ok'}
-            factors={[
-              {
-                label: 'Health Trend',
-                delta: result.healthScore >= 70 ? 'Stable' : '↓ Slowing',
-                tone: result.healthScore >= 70 ? 'flat' : 'down',
-                note: result.healthScore >= 70 ? 'Health stable over 30 days' : 'Health declining over last 30 days',
-              },
-              {
-                label: 'Sensor Deviation',
-                delta: result.failureRisk >= 50 ? '↑ Elevated' : 'Nominal',
-                tone: result.failureRisk >= 50 ? 'up' : 'flat',
-                note: result.failureRisk >= 50 ? 'Sensors above normal band' : 'Sensors within normal limits',
-              },
-              {
-                label: 'Experience',
-                delta: similarHistory(result.type) ? '↑ Similar' : '—',
-                tone: similarHistory(result.type) ? 'up' : 'flat',
-                note: similarHistory(result.type)
-                  ? 'Similar readings preceded failures on this asset class'
-                  : 'No prior failure pattern for this asset class',
-              },
-            ]}
-            conclusion={
-              result.failureRisk >= 50
-                ? `Recommended action: ${result.recommendation}. Schedule the work in the next maintenance window.`
-                : 'No immediate action required. Continue routine monitoring and keep the maintenance cycle on schedule.'
-            }
-          />
+          {result.predictionStatus === 'available' && result.prediction ? (
+            <>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <div className="rounded-xl border border-line bg-navy-900/50 px-3 py-2.5">
+                  <p className="text-[9.5px] font-semibold uppercase tracking-wider text-ink-faint">Health Score</p>
+                  <p className="mt-1 font-mono text-[20px] font-bold text-ink">{result.prediction.health_score}%</p>
+                </div>
+                <div className="rounded-xl border border-line bg-navy-900/50 px-3 py-2.5">
+                  <p className="text-[9.5px] font-semibold uppercase tracking-wider text-ink-faint">Failure Probability</p>
+                  <p className="mt-1 font-mono text-[20px] font-bold text-ink">{(result.prediction.failure_probability * 100).toFixed(1)}%</p>
+                </div>
+                <div className="rounded-xl border border-line bg-navy-900/50 px-3 py-2.5">
+                  <p className="text-[9.5px] font-semibold uppercase tracking-wider text-ink-faint">Machine Status</p>
+                  <p className="mt-1.5 text-[12px] font-semibold text-ink">{result.prediction.status}</p>
+                </div>
+                <div className="rounded-xl border border-line bg-navy-900/50 px-3 py-2.5">
+                  <p className="text-[9.5px] font-semibold uppercase tracking-wider text-ink-faint">Recommendation</p>
+                  <p className="mt-1.5 text-[12px] font-semibold text-ink">{result.prediction.recommendation}</p>
+                </div>
+              </div>
+              <div className="rounded-xl border border-line bg-navy-900/50 px-3.5 py-3 text-[11px] text-ink-dim">
+                Failure type: {result.prediction.failure_type ?? 'Not classified below threshold'} · Anomaly score: {(result.prediction.anomaly_score * 100).toFixed(1)}%
+              </div>
+            </>
+          ) : (
+            <div className="rounded-xl border border-red-400/25 bg-red-500/5 px-3.5 py-3 text-[12px] font-semibold text-red-300">
+              {result.predictionError ?? 'ML prediction service unavailable.'} No health, risk, status, or recommendation has been generated.
+            </div>
+          )}
         </div>
       )}
     </Modal>
   )
-}
-
-function similarHistory(type: string): boolean {
-  return !['CNC Lathe', 'Dryer', 'Conveyor Belt', 'Palletizer'].includes(type)
 }

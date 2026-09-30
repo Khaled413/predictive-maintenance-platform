@@ -24,7 +24,7 @@ export default function AppLayout() {
           </div>
         </main>
         <footer className="border-t border-line px-6 py-4 text-center text-[11px] text-ink-faint">
-          Industrial AI Platform · {language === 'ar' ? 'لوحة صحة الآلات والصيانة' : 'Machine Health & Maintenance Dashboard'} · {language === 'ar' ? 'نسخة تجريبية — البيانات محاكاة للعرض' : 'Prototype build — data is simulated for demonstration'}
+          Industrial AI Platform · {language === 'ar' ? 'لوحة صحة الآلات والصيانة' : 'Machine Health & Maintenance Dashboard'} · {language === 'ar' ? 'مدخلات محاكاة ونتائج تنبؤ من نماذج التعلم الآلي' : 'DEMO MODE · simulated sensor inputs; health and risk from trained ML models'}
         </footer>
       </div>
 

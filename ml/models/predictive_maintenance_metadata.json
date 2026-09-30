@@ -1,0 +1,30 @@
+{
+  "feature_columns": [
+    "Air temperature [K]",
+    "Process temperature [K]",
+    "Rotational speed [rpm]",
+    "Torque [Nm]",
+    "Tool wear [min]",
+    "Type_H",
+    "Type_L",
+    "Type_M",
+    "Temperature Difference [K]",
+    "Temperature Ratio",
+    "Mechanical Power Proxy",
+    "Tool Wear \u00d7 Torque",
+    "Torque Squared",
+    "Rotational Speed Squared"
+  ],
+  "failure_model": "Random Forest",
+  "failure_target": "Target",
+  "failure_type_target": "Failure Type",
+  "failure_type_trained_on": "Target == 1",
+  "failure_type_classes": [
+    "Heat Dissipation Failure",
+    "No Failure",
+    "Overstrain Failure",
+    "Power Failure",
+    "Tool Wear Failure"
+  ],
+  "random_state": 42
+}

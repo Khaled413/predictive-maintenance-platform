@@ -63,7 +63,7 @@ const translations: Record<string, string> = {
   'Result: All': 'النتيجة: الكل', 'Defect: All': 'العيب: الكل', Image: 'الصورة',
   Product: 'المنتج', Result: 'النتيجة', 'Defect Type': 'نوع العيب', Location: 'الموقع',
   'Average Health Score': 'متوسط درجة الصحة',
-  'Machines grouped by predicted 7-day failure probability': 'الآلات مجمعة حسب احتمال العطل المتوقع خلال 7 أيام',
+  'Machines grouped by model-provided failure probability': 'الآلات مجمعة حسب احتمال العطل الذي يوفره النموذج',
   'No downtime recorded': 'لا يوجد توقف مسجل', 'Maintenance Cost': 'تكلفة الصيانة',
   'Spend against completed work orders': 'الإنفاق مقابل أوامر العمل المكتملة',
   'Quality Rate': 'معدل الجودة', 'Pass vs. defect rate per inspection batch': 'معدل النجاح مقابل العيوب لكل دفعة فحص',

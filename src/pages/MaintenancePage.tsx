@@ -127,10 +127,9 @@ export default function MaintenancePage() {
       if (m) {
         updateMachine(m.id, {
           maintenanceStatus: 'On Schedule',
-          healthScore: Math.min(99, Math.round(m.healthScore + 6)),
           lastMaintenance: new Date().toISOString(),
         })
-        notify('success', 'Maintenance completed', `${r.machineId} · ${r.type} completed. Health score updated.`)
+        notify('success', 'Maintenance completed', `${r.machineId} · ${r.type} completed. Existing model output was not modified.`)
       }
     } else {
       notify('info', `Maintenance moved to “${next}”`, `${r.machineId} · ${r.type}`)

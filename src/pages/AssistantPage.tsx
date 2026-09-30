@@ -16,7 +16,7 @@ import {
 import { useApp } from '../context/AppContext'
 import Panel, { PanelHeader } from '../components/ui/Panel'
 import UploadZone from '../components/ui/UploadZone'
-import { cx, deriveMachineStatus, formatDateTime, nowIso, seededRandom, timeAgo } from '../utils/helpers'
+import { cx, formatDateTime, nowIso, seededRandom, timeAgo } from '../utils/helpers'
 import type { ChatMessage, Conversation, KnowledgeDoc, Machine, MaintenanceRecord } from '../types'
 
 type AskContext = 'factory' | 'machine' | 'knowledge' | 'document'
@@ -42,19 +42,20 @@ const DOC_TYPES = ['PDF', 'DOCX', 'TXT', 'CSV', 'XLSX']
 function summarize(
   machines: Machine[],
   maintenance: MaintenanceRecord[],
-): { atRisk: Machine[]; critical: Machine[]; vibration: Machine[]; due: MaintenanceRecord[]; avgHealth: number } {
-  const atRisk = machines.filter((m) => m.status === 'Critical' || m.status === 'Warning')
-  const critical = machines.filter((m) => m.status === 'Critical')
+): { atRisk: Machine[]; critical: Machine[]; vibration: Machine[]; due: MaintenanceRecord[]; avgHealth: number | null; predicted: Machine[] } {
+  const predicted = machines.filter((m) => m.predictionStatus === 'available' && m.healthScore !== null)
+  const atRisk = predicted.filter((m) => m.status === 'Critical' || m.status === 'Warning')
+  const critical = predicted.filter((m) => m.status === 'Critical')
   const vibration = machines.filter((m) =>
     m.sensors.some((s) => s.name.toLowerCase() === 'vibration' && s.level !== 'green'),
   )
   const due = maintenance.filter(
     (r) => r.status === 'Scheduled' || r.status === 'Recommended' || r.status === 'In Progress',
   )
-  const avgHealth = Math.round(
-    machines.reduce((a, m) => a + m.healthScore, 0) / Math.max(1, machines.length),
-  )
-  return { atRisk, critical, vibration, due, avgHealth }
+  const avgHealth = predicted.length
+    ? Math.round(predicted.reduce((a, m) => a + (m.healthScore ?? 0), 0) / predicted.length)
+    : null
+  return { atRisk, critical, vibration, due, avgHealth, predicted }
 }
 function buildReply(
   text: string,
@@ -80,8 +81,11 @@ function buildReply(
   }
 
   if (m && /(\bwhy\b|factors|affecting|vibration|risk|health)/.test(t)) {
+    if (m.predictionStatus !== 'available' || m.healthScore === null || m.failureRisk === null) {
+      return { content: `${m.id} has no current model output. ML prediction service unavailable; health, risk, status, and recommendation are not available.` }
+    }
     return {
-      content: `${m.id} (${m.name}) — ${m.type}:\n\n• Health score: ${m.healthScore}%\n• Failure risk (7d): ${m.failureRisk}%\n• Status: ${m.status}\n• Recommended maintenance: ${m.recommendation}\n\nKey factors:\n${m.sensors
+      content: `${m.id} (${m.name}) — ${m.type}:\n\n• Health score: ${m.healthScore}%\n• Failure probability: ${m.failureRisk}%\n• Status: ${m.status}\n• Recommended maintenance: ${m.recommendation}\n\nKey factors:\n${m.sensors
         .map(
           (s) =>
             `• ${s.name}: ${s.value} ${s.unit} (band ${s.min}–${s.max}) — ${s.level === 'green' ? 'normal' : s.level === 'amber' ? 'approaching limit' : 'exceeds limit'}`,
@@ -92,11 +96,15 @@ function buildReply(
 
   if (/(risk|at risk|critical|concern)/.test(t)) {
     if (!agg.atRisk.length) {
-      return { content: 'No machines are currently at risk. The entire fleet is within the normal operating envelope.' }
+      return {
+        content: agg.predicted.length
+          ? 'No currently available model predictions place a machine at risk.'
+          : 'ML prediction service unavailable. Current fleet risk status cannot be determined.',
+      }
     }
     return {
       content: `Currently ${agg.atRisk.length} machines are at risk:\n\n${agg.atRisk
-        .map((x) => `• ${x.id} — ${x.type}: health ${x.healthScore}%, failure risk ${x.failureRisk}% (${x.likelihood})`)
+        .map((x) => `• ${x.id} — ${x.type}: health ${x.healthScore}%, failure risk ${x.failureRisk}% (${x.likelihood ?? '—'})`)
         .join('\n')}\n\n${agg.critical.length
         ? `Priority: ${agg.critical.map((c) => c.id).join(', ')} should be addressed first.`
         : 'Monitoring continues — no critical threshold crossed yet.'}`,
@@ -125,7 +133,7 @@ function buildReply(
       content: `Machines with abnormal vibration:\n\n${agg.vibration
         .map(
           (x) =>
-            `• ${x.id} — ${x.name}: ${x.sensors.find((s) => s.name.toLowerCase() === 'vibration')?.value}${x.sensors.find((s) => s.name.toLowerCase() === 'vibration')?.unit} (${x.status.toLowerCase()})`,
+            `• ${x.id} — ${x.name}: ${x.sensors.find((s) => s.name.toLowerCase() === 'vibration')?.value}${x.sensors.find((s) => s.name.toLowerCase() === 'vibration')?.unit} (${x.status?.toLowerCase() ?? 'prediction unavailable'})`,
         )
         .join('\n')}\n\nRecommended action: verify mechanical coupling and schedule lubrication/inspection.`,
     }
@@ -144,8 +152,11 @@ function buildReply(
   }
 
   if (/health/.test(t)) {
+    if (agg.avgHealth === null) {
+      return { content: 'ML prediction service unavailable. No current model health scores are available.' }
+    }
     return {
-      content: `Fleet average health score is ${agg.avgHealth}%. ${machines.length} machines are registered: ${machines.filter((x) => x.healthScore >= 75).length} healthy, ${machines.filter((x) => x.healthScore >= 55 && x.healthScore < 75).length} degraded and ${machines.filter((x) => x.healthScore < 55).length} critical.`,
+      content: `Fleet average health score is ${Math.round(agg.avgHealth)}%. ${agg.predicted.length} machines have current model predictions: ${agg.predicted.filter((x) => (x.healthScore ?? 0) >= 75).length} healthy, ${agg.predicted.filter((x) => (x.healthScore ?? 0) >= 55 && (x.healthScore ?? 0) < 75).length} degraded and ${agg.predicted.filter((x) => (x.healthScore ?? 0) < 55).length} critical.`,
     }
   }
 
@@ -155,7 +166,7 @@ function buildReply(
       ? 'I used the uploaded documents to ground this answer.'
       : 'This answer is generated from live simulated telemetry.'
   return {
-    content: `Here is what I can tell you about ${machineLabel}:\n\n• Fleet average health: ${agg.avgHealth}%\n• At-risk machines: ${agg.atRisk.length} (${agg.atRisk.length ? agg.atRisk.map((x) => x.id).join(', ') : 'none'})\n• Due maintenance: ${agg.due.length} tasks\n\n${ctxNote}\n\nI can help with machine details (“Why is M-003 critical?”), weekly maintenance planning, vibration anomalies, health trends and knowledge base questions. This is a prototype — responses use simulated data.`,
+    content: `Here is what I can tell you about ${machineLabel}:\n\n• Fleet average health: ${agg.avgHealth === null ? 'ML prediction service unavailable' : `${Math.round(agg.avgHealth)}%`}\n• At-risk machines: ${agg.atRisk.length} (${agg.atRisk.length ? agg.atRisk.map((x) => x.id).join(', ') : agg.predicted.length ? 'none in current predictions' : 'prediction service unavailable'})\n• Due maintenance: ${agg.due.length} tasks\n\n${ctxNote}\n\nI can help with machine details (“Why is M-003 critical?”), weekly maintenance planning, vibration anomalies, health trends and knowledge base questions.`,
   }
 }
 type CtxMap = {
@@ -164,48 +175,6 @@ type CtxMap = {
   knowledge: { label: string; desc: string }
   document: { label: string; desc: string }
 }
-
-const DEMO_CV: Conversation[] = [
-  {
-    id: 'cv-demo-1',
-    title: 'Which machines are at risk?',
-    updated: nowIso(),
-    context: 'factory',
-    contextLabel: 'Entire Factory',
-    messages: [
-      {
-        id: 'd1',
-        role: 'assistant',
-        content:
-          'Currently 4 machines are at risk: M-003 (Compressor), M-006 (Boiler), M-012 (Air Compressor) and M-005 (Packaging Machine). M-003 has the highest failure probability at 82%.',
-        timestamp: nowIso(),
-      },
-    ],
-  },
-  {
-    id: 'cv-demo-2',
-    title: 'Why is M-003 critical?',
-    updated: nowIso(),
-    context: 'machine',
-    contextLabel: 'M-003 — Compressor',
-    messages: [
-      {
-        id: 'd2',
-        role: 'user',
-        content: 'Why is M-003 critical?',
-        timestamp: nowIso(),
-      },
-      {
-        id: 'd3',
-        role: 'assistant',
-        content:
-          'M-003 is critical because temperature increased 18% above the safe window and vibration is 63% above the normal band. A similar pattern preceded the previous bearing failure.',
-        sources: ['Maintenance Manual.pdf · Page 12'],
-        timestamp: nowIso(),
-      },
-    ],
-  },
-]
 
 export default function AssistantPage() {
   const { machines, maintenance, documents, addDocument, deleteDocument, setDocumentStatus, notify, refreshTimestamp } = useApp()
@@ -217,7 +186,7 @@ export default function AssistantPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [typing, setTyping] = useState(false)
-  const [conversations, setConversations] = useState<Conversation[]>(DEMO_CV)
+  const [conversations, setConversations] = useState<Conversation[]>([])
   const scrollRef = useRef<HTMLDivElement>(null)
 
   const ctxMeta: CtxMap = {

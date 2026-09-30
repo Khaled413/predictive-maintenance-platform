@@ -34,7 +34,7 @@ import KpiCard from '../components/ui/KpiCard'
 import { ChartCard, ChartTooltip } from '../components/ui/ChartCard'
 import { SelectInput } from '../components/ui/Field'
 import EmptyState from '../components/ui/EmptyState'
-import { cx, deriveMachineStatus, formatInt, healthTone, riskTone } from '../utils/helpers'
+import { cx, formatInt, healthTone, riskTone } from '../utils/helpers'
 
 type RangeKey = '7d' | '30d' | '3m' | 'custom'
 type SectionKey = 'overview' | 'health' | 'risk' | 'downtime' | 'maintenance' | 'quality'
@@ -64,7 +64,7 @@ const RISK_BANDS = [
 ]
 
 export default function ReportsPage() {
-  const { machines, maintenance, inspections, thresholds, notify } = useApp()
+  const { machines, maintenance, inspections, notify } = useApp()
 
   const [range, setRange] = useState<RangeKey>('30d')
   const [section, setSection] = useState<SectionKey>('overview')
@@ -91,14 +91,11 @@ export default function ReportsPage() {
   }
 
   const scopedMachines = useMemo(
-    () =>
-      (machineFilter === 'All' ? machines : machines.filter((m) => m.id === machineFilter)).map(
-        (m) => ({
-          ...m,
-          status: m.status === 'Under Maintenance' ? m.status : deriveMachineStatus(m, thresholds),
-        }),
-      ),
-    [machines, machineFilter, thresholds],
+    () => (machineFilter === 'All' ? machines : machines.filter((m) => m.id === machineFilter)),
+    [machines, machineFilter],
+  )
+  const predictedMachines = scopedMachines.filter(
+    (machine) => machine.healthScore !== null && machine.failureRisk !== null,
   )
 
   const rangeLabel =
@@ -121,10 +118,12 @@ export default function ReportsPage() {
     const insp = inspections.filter((i) => inRange(i.timestamp))
     const passed = insp.filter((i) => i.result === 'PASS').length
     const avgHealth = Math.round(
-      scopedMachines.reduce((a, m) => a + m.healthScore, 0) / Math.max(1, scopedMachines.length),
+      predictedMachines.reduce((a, m) => a + (m.healthScore ?? 0), 0) /
+        Math.max(1, predictedMachines.length),
     )
     const avgRisk = Math.round(
-      scopedMachines.reduce((a, m) => a + m.failureRisk, 0) / Math.max(1, scopedMachines.length),
+      predictedMachines.reduce((a, m) => a + (m.failureRisk ?? 0), 0) /
+        Math.max(1, predictedMachines.length),
     )
     const avgMttr = completed.length
       ? (completed.reduce((a, r) => a + parseDowntime(r.downtime), 0) / completed.length).toFixed(1)
@@ -170,8 +169,8 @@ export default function ReportsPage() {
     () =>
       RISK_BANDS.map((band) => ({
         band: band.label,
-        machines: scopedMachines.filter(
-          (m) => m.failureRisk >= band.min && m.failureRisk <= band.max,
+        machines:         predictedMachines.filter(
+              (m) => m.failureRisk !== null && m.failureRisk >= band.min && m.failureRisk <= band.max,
         ).length,
         color: band.color,
       })),
@@ -377,25 +376,24 @@ export default function ReportsPage() {
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         <KpiCard
           label="Avg. Health Score"
-          value={`${kpis.avgHealth}%`}
+          value={predictedMachines.length ? `${kpis.avgHealth}%` : '—'}
           icon={<Gauge className="h-4 w-4" />}
-          tone={
+          tone={!predictedMachines.length ? 'gray' :
             healthTone(kpis.avgHealth) === 'ok'
               ? 'green'
               : healthTone(kpis.avgHealth) === 'warn'
                 ? 'amber'
-                : 'red'
-          }
-          sub={`${scopedMachines.length} machines in scope`}
+                : 'red'}
+          sub={`${predictedMachines.length} current ML predictions`}
         />
         <KpiCard
           label="Avg. Failure Risk"
-          value={`${kpis.avgRisk}%`}
+          value={predictedMachines.length ? `${kpis.avgRisk}%` : '—'}
           icon={<AlertTriangle className="h-4 w-4" />}
-          tone={
+          tone={!predictedMachines.length ? 'gray' :
             riskTone(kpis.avgRisk) === 'ok' ? 'green' : riskTone(kpis.avgRisk) === 'warn' ? 'amber' : 'red'
           }
-          sub="Next 7-day horizon"
+          sub={predictedMachines.length ? 'Model failure probability' : 'ML prediction service unavailable'}
         />
         <KpiCard
           label="Total Downtime"
@@ -455,7 +453,7 @@ export default function ReportsPage() {
             right={
               <span className="chip font-mono text-emerald-300">
                 <Activity className="h-3 w-3" />
-                {kpis.avgHealth}% now
+                {predictedMachines.length ? `${kpis.avgHealth}% now` : 'ML prediction service unavailable'}
               </span>
             }
           >
@@ -495,7 +493,7 @@ export default function ReportsPage() {
         {showRisk && (
           <ChartCard
             title="Failure Risk Distribution"
-            subtitle="Machines grouped by predicted 7-day failure probability"
+            subtitle="Machines grouped by model-provided failure probability"
           >
             <ResponsiveContainer width="100%" height={230}>
               <BarChart data={riskDistribution} margin={{ top: 8, right: 8, bottom: 0, left: -18 }}>
@@ -802,8 +800,8 @@ export default function ReportsPage() {
                   const cost = recs
                     .filter((r) => r.status === 'Completed')
                     .reduce((a, r) => a + r.cost, 0)
-                  const hTone = healthTone(m.healthScore)
-                  const rTone = riskTone(m.failureRisk)
+                  const hTone = m.healthScore === null ? null : healthTone(m.healthScore)
+                  const rTone = m.failureRisk === null ? null : riskTone(m.failureRisk)
                   return (
                     <tr key={m.id} className="border-b border-line/60 last:border-0 hover:bg-navy-800/40">
                       <td className="px-4 py-3">
@@ -815,35 +813,37 @@ export default function ReportsPage() {
                         <span
                           className={cx(
                             'font-mono font-semibold',
-                            hTone === 'ok'
+                            hTone === null ? 'text-ink-faint' : hTone === 'ok'
                               ? 'text-emerald-300'
                               : hTone === 'warn'
                                 ? 'text-amber-300'
                                 : 'text-red-300',
                           )}
                         >
-                          {m.healthScore}%
+                          {m.healthScore === null ? '—' : `${m.healthScore}%`}
                         </span>
                       </td>
                       <td className="px-3 py-3">
                         <span
                           className={cx(
                             'font-mono font-semibold',
-                            rTone === 'ok'
+                            rTone === null ? 'text-ink-faint' : rTone === 'ok'
                               ? 'text-emerald-300'
                               : rTone === 'warn'
                                 ? 'text-amber-300'
                                 : 'text-red-300',
                           )}
                         >
-                          {m.failureRisk}%
+                          {m.failureRisk === null ? '—' : `${m.failureRisk}%`}
                         </span>
                       </td>
                       <td className="px-3 py-3">
                         <span
                           className={cx(
                             'inline-flex items-center gap-1.5 rounded-lg border px-2 py-1 text-[10.5px] font-semibold',
-                            m.status === 'Operational'
+                            m.status === null
+                              ? 'border-line text-ink-faint'
+                              : m.status === 'Operational'
                               ? 'border-emerald-400/25 bg-emerald-500/10 text-emerald-300'
                               : m.status === 'Warning'
                                 ? 'border-amber-400/25 bg-amber-500/10 text-amber-300'
@@ -852,7 +852,7 @@ export default function ReportsPage() {
                                   : 'border-red-400/30 bg-red-500/10 text-red-300',
                           )}
                         >
-                          {m.status}
+                          {m.status ?? (m.predictionStatus === 'loading' ? 'Loading…' : 'Unavailable')}
                         </span>
                       </td>
                       <td className="px-3 py-3 font-mono text-ink-dim">{recs.length}</td>

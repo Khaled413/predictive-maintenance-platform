@@ -6,7 +6,6 @@ import {
   History,
   MapPin,
   Settings2,
-  ShieldAlert,
   Wrench,
 } from 'lucide-react'
 import {
@@ -29,11 +28,10 @@ import SensorList from '../components/ui/SensorList'
 import { MachineStatusBadge, MaintenanceStatusBadge, PriorityBadge, MaintenanceRecordStatusBadge } from '../components/ui/Badges'
 import Panel, { PanelHeader } from '../components/ui/Panel'
 import { ChartCard, ChartTooltip } from '../components/ui/ChartCard'
-import WhyCard from '../components/ui/WhyCard'
 import EmptyState from '../components/ui/EmptyState'
 import Modal from '../components/ui/Modal'
 import { Field, TextInput, SelectInput } from '../components/ui/Field'
-import { cx, deriveMachineStatus, formatDate, formatInt } from '../utils/helpers'
+import { cx, formatDate, formatInt } from '../utils/helpers'
 import type { EventType } from '../types'
 
 const EVENT_COLORS: Record<EventType, string> = {
@@ -46,19 +44,23 @@ const EVENT_COLORS: Record<EventType, string> = {
 export default function MachineDetailsPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { machines, maintenance, thresholds, updateMachine, addMaintenance, notify, refreshTimestamp } = useApp()
+  const {
+    machines,
+    maintenance,
+    updateMachine,
+    addMaintenance,
+    notify,
+    refreshTimestamp,
+  } = useApp()
 
   const machine = machines.find((m) => m.id === id)
 
-  const status = useMemo(
-    () =>
-      machine
-        ? machine.status === 'Under Maintenance'
-          ? machine.status
-          : deriveMachineStatus(machine, thresholds)
-        : 'Operational',
-    [machine, thresholds],
-  )
+  const status = machine?.prediction?.status ?? null
+  const prediction = machine?.predictionStatus === 'available' ? machine.prediction : undefined
+  const healthScore = prediction?.health_score ?? null
+  const failureRisk = prediction ? prediction.failure_probability * 100 : null
+  const recommendation = prediction?.recommendation ?? null
+  const likelihood = prediction?.failure_type ?? null
 
   const machineMaintenance = useMemo(
     () =>
@@ -124,8 +126,8 @@ export default function MachineDetailsPage() {
       machineId: machine.id,
       machineName: machine.name,
       machineType: machine.type,
-      type: plan.type || machine.recommendation,
-      reason: machine.likelihood,
+      type: plan.type || recommendation || 'Inspection',
+      reason: likelihood || 'Scheduled maintenance',
       priority: status === 'Critical' ? 'High' : status === 'Warning' ? 'Medium' : 'Low',
       date: new Date(plan.date).toISOString(),
       technician: plan.technician,
@@ -136,7 +138,7 @@ export default function MachineDetailsPage() {
     })
     updateMachine(machine.id, { maintenanceStatus: 'Due Soon' })
     refreshTimestamp()
-    notify('success', 'Maintenance scheduled', `${machine.id} · ${plan.type || machine.recommendation} on ${formatDate(new Date(plan.date).toISOString())}.`)
+    notify('success', 'Maintenance scheduled', `${machine.id} · ${plan.type || recommendation || 'Inspection'} on ${formatDate(new Date(plan.date).toISOString())}.`)
     setScheduleOpen(false)
   }
 return (
@@ -160,11 +162,22 @@ return (
             <span className="rounded bg-navy-700/70 px-1.5 py-0.5 text-[9.5px] font-semibold uppercase tracking-wide text-ink-dim">
               {machine.type}
             </span>
-            <MachineStatusBadge status={status} />
+            {status ? (
+              <MachineStatusBadge status={status} />
+            ) : (
+              <span className="text-[10px] text-ink-faint">
+                {machine.predictionStatus === 'loading'
+                  ? 'Prediction loading'
+                  : machine.predictionError ?? 'ML prediction service unavailable'}
+              </span>
+            )}
             <MaintenanceStatusBadge status={machine.maintenanceStatus} />
           </div>
           <p className="mt-1 truncate text-[12px] text-ink-dim">
             {machine.name} · {machine.manufacturer} {machine.model}
+          </p>
+          <p className="mt-1 text-[10px] text-ink-faint">
+            Model input type: {machine.modelTypeCode} · auto-mapped
           </p>
         </div>
         <div className="ml-auto flex items-center gap-2.5">
@@ -183,13 +196,25 @@ return (
       {/* Summary */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Panel className="flex items-center gap-4 p-4">
-          <CircularHealth value={machine.healthScore} size={74} />
+          {healthScore !== null ? (
+            <CircularHealth value={healthScore} size={74} />
+          ) : (
+            <span className="max-w-20 text-center text-[10px] text-ink-faint">
+              {machine.predictionStatus === 'loading'
+                ? 'Loading…'
+                : machine.predictionError ?? 'ML service unavailable'}
+            </span>
+          )}
           <div className="min-w-0">
             <p className="text-[10px] font-semibold uppercase tracking-wider text-ink-faint">
               Current Health Score
             </p>
             <p className="mt-1 text-[11.5px] text-ink-dim">
-              {status === 'Critical'
+              {status === null
+                ? machine.predictionStatus === 'loading'
+                  ? 'Loading model output'
+                  : machine.predictionError ?? 'ML prediction service unavailable'
+                : status === 'Critical'
                 ? 'Critical condition'
                 : status === 'Warning'
                   ? 'Degraded condition'
@@ -199,22 +224,22 @@ return (
         </Panel>
         <Panel className="p-4">
           <p className="text-[10px] font-semibold uppercase tracking-wider text-ink-faint">
-            Failure Risk · Next 7 days
+            Failure Probability
           </p>
           <p
             className={cx(
               'mt-2 font-mono text-[22px] font-bold',
-              machine.failureRisk >= 70
+              failureRisk === null ? 'text-ink-faint' : failureRisk >= 70
                 ? 'text-red-300'
-                : machine.failureRisk >= 50
+                : failureRisk >= 50
                   ? 'text-amber-300'
                   : 'text-emerald-300',
             )}
           >
-            {machine.failureRisk}%
+            {failureRisk === null ? (machine.predictionStatus === 'loading' ? 'Loading…' : 'Unavailable') : `${failureRisk.toFixed(1)}%`}
           </p>
           <div className="mt-2.5">
-            <RiskBar value={machine.failureRisk} showLabel={false} />
+            {failureRisk !== null && <RiskBar value={failureRisk} showLabel={false} />}
           </div>
         </Panel>
         <Panel className="p-4">
@@ -252,7 +277,7 @@ return (
       <div className="grid gap-4 lg:grid-cols-2">
         <ChartCard
           title="Health Score Over Time"
-          subtitle="60-day trend with lifecycle events"
+          subtitle="Stored successful model predictions with lifecycle events"
           right={
             <div className="flex flex-wrap items-center gap-1.5">
               {Object.entries(EVENT_COLORS).map(([label, color]) => (
@@ -304,7 +329,7 @@ return (
           </ResponsiveContainer>
         </ChartCard>
 
-        <ChartCard title="Failure Risk Over Time" subtitle="Predicted probability trend">
+        <ChartCard title="Failure Probability Over Time" subtitle="Stored model probability outputs">
           <ResponsiveContainer width="100%" height={230}>
             <LineChart data={chartData} margin={{ top: 8, right: 12, bottom: 4, left: -18 }}>
               <CartesianGrid strokeDasharray="3 5" stroke="rgba(148,163,184,0.07)" vertical={false} />
@@ -329,6 +354,13 @@ return (
           </ResponsiveContainer>
         </ChartCard>
       </div>
+      {!chartData.length && (
+        <p className="rounded-xl border border-line bg-navy-900/50 px-4 py-3 text-[11px] text-ink-faint">
+          {machine.predictionStatus === 'loading'
+            ? 'Loading model predictions; trend history will appear after the first successful response.'
+            : `${machine.predictionError ?? 'ML prediction service unavailable.'} No model trend history is available.`}
+        </p>
+      )}
 {/* Sensor history */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {machine.sensorHistory.slice(0, 4).map((series) => (
@@ -357,77 +389,32 @@ return (
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="space-y-4 lg:col-span-2">
           <Panel className="overflow-hidden">
-            <PanelHeader
-              title="AI Analysis"
-              subtitle="Explainable assessment generated from live telemetry"
-              right={
-                <span
-                  className={cx(
-                    'inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[10.5px] font-semibold',
-                    machine.failureRisk >= 70
-                      ? 'border-red-400/30 bg-red-500/10 text-red-300'
-                      : machine.failureRisk >= 50
-                        ? 'border-amber-400/30 bg-amber-500/10 text-amber-300'
-                        : 'border-emerald-400/25 bg-emerald-500/10 text-emerald-300',
-                  )}
-                >
-                  <ShieldAlert className="h-3.5 w-3.5" />
-                  Risk Level: {machine.failureRisk >= 70 ? 'High' : machine.failureRisk >= 50 ? 'Medium' : 'Low'}
-                </span>
-              }
-            />
-            <div className="px-4 py-4 text-[12.5px] leading-relaxed text-ink-dim sm:px-5">
-              <p className="mb-1 font-semibold uppercase tracking-wider text-[10px] text-ink-faint">
-                Contributing Factors
-              </p>
-              <ul className="mt-1 list-disc space-y-1 pl-5">
-                {machine.sensors
-                  .filter((s) => s.level !== 'green')
-                  .map((s) => (
-                    <li key={s.name}>
-                      {s.name.toLowerCase()} is {s.level === 'red' ? 'above' : 'approaching'} the safe
-                      range ({s.value} {s.unit} vs limit {s.max} {s.unit})
-                    </li>
-                  ))}
-                {machine.sensors.filter((s) => s.level === 'green').length === machine.sensors.length && (
-                  <li>All sensors are within the normal operating band</li>
-                )}
-                <li>{machine.likelihood.toLowerCase()}</li>
-              </ul>
-              <div className="mt-3.5 rounded-xl border border-sky-400/20 bg-sky-500/5 px-3.5 py-3">
-                <p className="mb-1 font-semibold uppercase tracking-wider text-[10px] text-sky-400/90">
-                  AI Recommendation
-                </p>
-                <p className="mt-1 text-[13px] font-medium text-ink">
-                  {machine.failureRisk >= 50
-                    ? `Schedule ${machine.recommendation.toLowerCase()} within the next maintenance window (${formatDate(machine.nextMaintenance)}).`
-                    : 'Maintain the regular schedule. No preventive action required within the next 7 days.'}
-                </p>
+            <PanelHeader title="ML Prediction" subtitle="Trained model outputs · demo-mode simulated sensor inputs" />
+            {prediction ? (
+              <div className="grid gap-3 px-4 py-4 sm:grid-cols-2">
+                <div className="rounded-xl border border-line bg-navy-900/50 p-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-ink-faint">Failure Type</p>
+                  <p className="mt-1 text-[12px] font-semibold text-ink">
+                    {prediction.failure_type ?? 'Not classified below threshold'}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-line bg-navy-900/50 p-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-ink-faint">Anomaly Score</p>
+                  <p className="mt-1 text-[12px] font-semibold text-ink">{(prediction.anomaly_score * 100).toFixed(1)}% · {prediction.anomaly_flag ? 'Flagged' : 'Not flagged'}</p>
+                </div>
+                <div className="rounded-xl border border-line bg-navy-900/50 p-3 sm:col-span-2">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-ink-faint">Recommendation</p>
+                  <p className="mt-1 text-[12px] font-semibold text-ink">{prediction.recommendation}</p>
+                </div>
               </div>
-            </div>
+            ) : (
+              <p className="px-4 py-5 text-[12px] text-red-300">
+                {machine.predictionStatus === 'loading'
+                  ? 'Loading ML prediction…'
+                  : `${machine.predictionError ?? 'ML prediction service unavailable.'} No model analysis is available.`}
+              </p>
+            )}
           </Panel>
-
-          <WhyCard
-            title={machine.failureRisk >= 50 ? 'Why is the failure risk high?' : 'Why is this machine healthy?'}
-            accent={machine.failureRisk >= 70 ? 'danger' : machine.failureRisk >= 50 ? 'warning' : 'ok'}
-            factors={machine.sensors.slice(0, 3).map((s) => {
-              const pct = Math.round(((s.value - s.min) / (s.max - s.min)) * 100)
-              return {
-                label: s.name,
-                delta: s.level === 'green' ? `${pct}% of band` : `${s.level === 'red' ? '+' : '~'} ${Math.abs(Math.round(((s.value - s.max) / s.max) * 100))}% vs max`,
-                tone: s.level === 'green' ? ('flat' as const) : ('up' as const),
-                note:
-                  s.level === 'green'
-                    ? 'Within normal operating band'
-                    : `${s.value} ${s.unit} exceeds the safe limit of ${s.max} ${s.unit}`,
-              }
-            })}
-            conclusion={
-              machine.failureRisk >= 50
-                ? 'Historical pattern: similar readings preceded previous failures on this asset class.'
-                : 'Historical pattern: no prior failures on this asset class with similar readings.'
-            }
-          />
         </div>
 
         {/* Sensor current state */}
@@ -544,7 +531,7 @@ return (
         <div className="grid gap-3.5 sm:grid-cols-2">
           <Field label="Maintenance Type">
             <TextInput
-              value={plan.type || machine.recommendation}
+              value={plan.type || recommendation || ''}
               onChange={(e) => setPlan({ ...plan, type: e.target.value })}
               placeholder="e.g. Inspection"
             />

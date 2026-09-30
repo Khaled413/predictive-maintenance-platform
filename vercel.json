@@ -4,12 +4,25 @@
     "app": {
       "root": ".",
       "framework": "vite",
+      "bindings": [
+        {
+          "type": "service",
+          "service": "ml",
+          "format": "url",
+          "env": "ML_SERVICE_URL"
+        }
+      ],
       "rewrites": [
         {
-          "source": "/(.*)",
+          "source": "/((?!api/).*)",
           "destination": "/"
         }
       ]
+    },
+    "ml": {
+      "root": "ml",
+      "runtime": "python",
+      "entrypoint": "main:app"
     }
   },
   "rewrites": [

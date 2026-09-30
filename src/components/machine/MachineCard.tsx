@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { ChevronRight, MapPin, Wrench } from 'lucide-react'
+import { ChevronRight, MapPin, Wrench, Loader2 } from 'lucide-react'
 import type { Machine } from '../../types'
 import MachineVisual from '../ui/MachineVisual'
 import CircularHealth from '../ui/CircularHealth'
@@ -29,13 +29,30 @@ export default function MachineCard({ machine }: { machine: Machine }) {
             </span>
           </div>
           <p className="mt-1 truncate text-[11.5px] text-ink-dim">{machine.name}</p>
+          <p className="mt-1 text-[9px] text-ink-faint">
+            Model input type: {machine.modelTypeCode} · auto
+          </p>
           <div className="mt-1 flex flex-wrap items-center gap-2">
-            <MachineStatusBadge status={machine.status} />
+            {machine.status ? (
+              <MachineStatusBadge status={machine.status} />
+            ) : (
+              <span className="rounded-full border border-line px-2 py-0.5 text-[10px] text-ink-faint">
+                {machine.predictionStatus === 'loading'
+                  ? 'Prediction loading'
+                  : machine.predictionError ?? 'ML prediction service unavailable'}
+              </span>
+            )}
             <MaintenanceStatusBadge status={machine.maintenanceStatus} />
           </div>
         </div>
         <div className="shrink-0">
-          <CircularHealth value={machine.healthScore} size={58} />
+          {machine.healthScore !== null ? (
+            <CircularHealth value={machine.healthScore} size={58} />
+          ) : machine.predictionStatus === 'loading' ? (
+            <Loader2 className="m-4 h-5 w-5 animate-spin text-sky-300" />
+          ) : (
+            <span className="block w-[58px] text-center text-[9px] leading-tight text-red-300">ML service<br />unavailable</span>
+          )}
         </div>
       </div>
 
@@ -49,7 +66,15 @@ export default function MachineCard({ machine }: { machine: Machine }) {
 
       {/* Risk */}
       <div className="mt-4 px-4">
-        <RiskBar value={machine.failureRisk} />
+        {machine.failureRisk !== null ? (
+          <RiskBar value={machine.failureRisk} />
+        ) : (
+          <p className="text-[11px] text-ink-faint">
+            {machine.predictionStatus === 'loading'
+              ? 'Loading model risk prediction…'
+              : machine.predictionError ?? 'ML prediction service unavailable'}
+          </p>
+        )}
       </div>
 
       {/* Recommendation */}
@@ -64,14 +89,17 @@ export default function MachineCard({ machine }: { machine: Machine }) {
           <p
             className={cx(
               'mt-0.5 truncate text-[12px] font-semibold',
-              machine.recommendation.startsWith('Immediate')
+              (machine.recommendation ?? '').startsWith('Immediate')
                 ? 'text-red-300'
                 : machine.recommendation === 'Not Required'
                   ? 'text-emerald-300'
                   : 'text-amber-300',
             )}
           >
-            {machine.recommendation}
+            {machine.recommendation ??
+              (machine.predictionStatus === 'loading'
+                ? 'Awaiting model recommendation'
+                : machine.predictionError ?? 'ML prediction service unavailable')}
           </p>
         </div>
       </div>
@@ -84,7 +112,7 @@ export default function MachineCard({ machine }: { machine: Machine }) {
           </p>
           <p className="mt-0.5 flex items-start gap-1.5 text-[11px] leading-snug text-ink-dim">
             <MapPin className="mt-0.5 h-3 w-3 shrink-0 text-ink-faint" />
-            <span className="truncate">{machine.likelihood}</span>
+            <span className="truncate">{machine.likelihood ?? 'Available after a successful model prediction'}</span>
           </p>
         </div>
         <div className="shrink-0 text-right">

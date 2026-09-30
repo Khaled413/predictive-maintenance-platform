@@ -18,7 +18,7 @@ import { useApp } from '../context/AppContext'
 import Panel, { PanelHeader } from '../components/ui/Panel'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
 import { Field, SelectInput, TextInput, Toggle } from '../components/ui/Field'
-import { cx, deriveMachineStatus } from '../utils/helpers'
+import { cx } from '../utils/helpers'
 import type { MachineStatus, Thresholds } from '../types'
 import { usePreferences } from '../context/PreferencesContext'
 
@@ -34,11 +34,6 @@ const SECTIONS: { key: SectionKey; label: string; desc: string; icon: React.Reac
 
 const TIMEZONES = ['Asia/Riyadh (GMT+3)', 'Asia/Dubai (GMT+4)', 'Europe/Berlin (GMT+2)', 'UTC']
 const PLANT_OPTIONS = ['Plant A — Riyadh', 'Plant B — Dammam', 'Plant C — Jeddah', 'Distribution Center 1']
-const MODEL_OPTIONS = [
-  'IndustrialHealth v2.4 (ensemble: XGBoost + LSTM)',
-  'IndustrialHealth v2.1 (gradient boosting)',
-  'RiskNet v1.8 (temporal CNN)',
-]
 
 export default function SettingsPage() {
   const { t } = usePreferences()
@@ -76,11 +71,7 @@ export default function SettingsPage() {
   })
 
   // AI
-  const [model, setModel] = useState(MODEL_OPTIONS[0])
-  const [confidence, setConfidence] = useState(85)
   const [ragEnabled, setRagEnabled] = useState(true)
-  const [autoRecommend, setAutoRecommend] = useState(true)
-  const [explainability, setExplainability] = useState(true)
 
   useEffect(() => {
     setDraft(thresholds)
@@ -98,7 +89,7 @@ export default function SettingsPage() {
     draft.healthCritical < 0 ||
     draft.riskCritical > 100
 
-  const statusCounts = (t: Thresholds): Record<MachineStatus, number> => {
+  const statusCounts = (): Record<MachineStatus, number> => {
     const counts: Record<MachineStatus, number> = {
       Operational: 0,
       Warning: 0,
@@ -106,17 +97,12 @@ export default function SettingsPage() {
       'Under Maintenance': 0,
     }
     machines.forEach((m) => {
-      const s = m.status === 'Under Maintenance' ? 'Under Maintenance' : deriveMachineStatus(m, t)
-      counts[s] += 1
+      if (m.status) counts[m.status] += 1
     })
     return counts
   }
-  const beforeCounts = statusCounts(thresholds)
-  const afterCounts = statusCounts(draft)
-  const changedCount = machines.filter((m) => {
-    if (m.status === 'Under Maintenance') return false
-    return deriveMachineStatus(m, thresholds) !== deriveMachineStatus(m, draft)
-  }).length
+  const beforeCounts = statusCounts()
+  const afterCounts = beforeCounts
 
   const applyThresholds = () => {
     if (invalid) {
@@ -127,7 +113,7 @@ export default function SettingsPage() {
     notify(
       'success',
       'Thresholds updated',
-      `Health <${draft.healthWarning}% warn · <${draft.healthCritical}% critical — statuses recalculated across ${machines.length} machines.`,
+      `Reference thresholds saved for ${machines.length} machines. ML-provided health and status are unchanged.`,
     )
   }
 
@@ -237,7 +223,7 @@ export default function SettingsPage() {
                 </span>
                 <span className="chip">
                   <Check className="h-3 w-3 text-emerald-400" />
-                  Data source: prototype (mock generator)
+                  Data source: simulated inputs · trained ML model predictions
                 </span>
               </div>
             </Panel>
@@ -246,7 +232,7 @@ export default function SettingsPage() {
             <Panel>
               <PanelHeader
                 title="Health & Failure Risk Thresholds"
-                subtitle="These limits drive status classification, alert generation and maintenance recommendations across the platform."
+                subtitle="Reference limits for review; health, status, alerts, and recommendations come from the trained ML service."
                 right={
                   <div className="flex items-center gap-2">
                     {dirty && (
@@ -275,7 +261,7 @@ export default function SettingsPage() {
               <div className="grid gap-4 px-4 py-4 sm:px-5 lg:grid-cols-2">
                 <ThresholdSlider
                   title="Health Score — Warning"
-                  description="Machines below this score are flagged as Warning."
+                  description="Reference only; machine status is provided by the ML prediction service."
                   value={draft.healthWarning}
                   min={40}
                   max={95}
@@ -285,7 +271,7 @@ export default function SettingsPage() {
                 />
                 <ThresholdSlider
                   title="Health Score — Critical"
-                  description="Machines below this score are flagged as Critical."
+                  description="Reference only; machine status is provided by the ML prediction service."
                   value={draft.healthCritical}
                   min={20}
                   max={80}
@@ -295,7 +281,7 @@ export default function SettingsPage() {
                 />
                 <ThresholdSlider
                   title="Failure Risk — Warning"
-                  description="Predicted 7-day failure probability above this level triggers a warning."
+                  description="Reference only; model-provided failure probability is displayed as returned."
                   value={draft.riskWarning}
                   min={20}
                   max={80}
@@ -305,7 +291,7 @@ export default function SettingsPage() {
                 />
                 <ThresholdSlider
                   title="Failure Risk — Critical"
-                  description="Risk above this level escalates the machine to Critical."
+                  description="Reference only; model-provided status is displayed as returned."
                   value={draft.riskCritical}
                   min={40}
                   max={95}
@@ -327,13 +313,11 @@ export default function SettingsPage() {
               <div className="border-t border-line px-4 py-4 sm:px-5">
                 <div className="mb-3 flex items-center justify-between gap-3">
                   <h4 className="text-[12px] font-semibold uppercase tracking-wider text-ink-faint">
-                    Impact preview
+                    Current ML Status Distribution
                   </h4>
-                  {dirty && changedCount > 0 && (
-                    <span className="chip text-amber-300">
-                      {changedCount} machine{changedCount === 1 ? '' : 's'} would change status
-                    </span>
-                  )}
+                  <span className="text-[10px] text-ink-faint">
+                    Status is returned by the trained ML model; these reference thresholds do not override it.
+                  </span>
                 </div>
                 <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
                   {(
@@ -368,35 +352,22 @@ export default function SettingsPage() {
                         <th className="py-2 pr-3 font-semibold">Machine</th>
                         <th className="px-3 py-2 font-semibold">Health</th>
                         <th className="px-3 py-2 font-semibold">Risk</th>
-                        <th className="px-3 py-2 font-semibold">Current</th>
-                        <th className="px-3 py-2 font-semibold">With new limits</th>
+                        <th className="px-3 py-2 font-semibold">ML Model Status</th>
+                        <th className="px-3 py-2 font-semibold">Prediction Service</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {machines.slice(0, 8).map((m) => {
-                        const before =
-                          m.status === 'Under Maintenance'
-                            ? m.status
-                            : deriveMachineStatus(m, thresholds)
-                        const after =
-                          m.status === 'Under Maintenance' ? m.status : deriveMachineStatus(m, draft)
-                        return (
+                      {machines.slice(0, 8).map((m) => (
                           <tr key={m.id} className="border-b border-line/60 last:border-0">
                             <td className="py-2.5 pr-3 font-mono text-[11.5px] text-ink-dim">{m.id}</td>
-                            <td className="px-3 py-2.5 font-mono text-ink-dim">{m.healthScore}%</td>
-                            <td className="px-3 py-2.5 font-mono text-ink-dim">{m.failureRisk}%</td>
-                            <td className="px-3 py-2.5 text-ink-faint">{before}</td>
-                            <td
-                              className={cx(
-                                'px-3 py-2.5 font-semibold',
-                                after === before ? 'text-ink-dim' : 'text-amber-300',
-                              )}
-                            >
-                              {after}
+                            <td className="px-3 py-2.5 font-mono text-ink-dim">{m.healthScore === null ? '—' : `${m.healthScore}%`}</td>
+                            <td className="px-3 py-2.5 font-mono text-ink-dim">{m.failureRisk === null ? '—' : `${m.failureRisk.toFixed(1)}%`}</td>
+                            <td className="px-3 py-2.5 text-ink-faint">{m.status ?? (m.predictionStatus === 'loading' ? 'Loading…' : 'Unavailable')}</td>
+                            <td className="px-3 py-2.5 text-ink-faint">
+                              {m.predictionStatus === 'available' ? 'Model output' : 'Not available'}
                             </td>
                           </tr>
-                        )
-                      })}
+                      ))}
                     </tbody>
                   </table>
                 </div>
@@ -579,7 +550,7 @@ export default function SettingsPage() {
                       notify(
                         'success',
                         'AI configuration saved',
-                        `${model} · min. confidence ${confidence}% · RAG ${ragEnabled ? 'enabled' : 'disabled'}.`,
+                        `Prediction service: /api/predict · RAG ${ragEnabled ? 'enabled' : 'disabled'}.`,
                       )
                     }
                   >
@@ -592,45 +563,13 @@ export default function SettingsPage() {
                 <Field
                   label="Prediction Model"
                   className="sm:col-span-2"
-                  hint="Prototype note: predictions are produced by deterministic mock logic — no backend model is running."
+                  hint="DEMO MODE uses simulated sensor inputs; health and risk outputs come from the trained ML prediction service."
                 >
-                  <SelectInput value={model} onChange={(e) => setModel(e.target.value)}>
-                    {MODEL_OPTIONS.map((m) => (
-                      <option key={m} value={m}>
-                        {m}
-                      </option>
-                    ))}
-                  </SelectInput>
+                  <TextInput value="Trained ML Models · same-origin /api/predict" readOnly />
                 </Field>
-                <Field label="Prediction Horizon">
-                  <SelectInput defaultValue="Next 7 days">
-                    <option>Next 7 days</option>
-                    <option>Next 14 days</option>
-                    <option>Next 30 days</option>
-                  </SelectInput>
+                <Field label="Prediction Inputs">
+                  <TextInput value="DEMO MODE · correlated simulated sensor inputs" readOnly />
                 </Field>
-                <Field label="Sensitivity">
-                  <SelectInput defaultValue="Balanced">
-                    <option>Conservative (fewer alerts)</option>
-                    <option>Balanced</option>
-                    <option>Aggressive (earlier warnings)</option>
-                  </SelectInput>
-                </Field>
-                <div className="sm:col-span-2">
-                  <label className="label">Minimum Model Confidence — {confidence}%</label>
-                  <input
-                    type="range"
-                    min={50}
-                    max={99}
-                    value={confidence}
-                    onChange={(e) => setConfidence(Number(e.target.value))}
-                    className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-navy-600 accent-sky-500"
-                  />
-                  <p className="mt-1 text-[10.5px] text-ink-faint">
-                    Predictions below this confidence are reported as low-confidence and flagged for manual
-                    review.
-                  </p>
-                </div>
               </div>
               <div className="space-y-2.5 border-t border-line px-4 py-4 sm:px-5">
                 <ToggleRow
@@ -638,18 +577,6 @@ export default function SettingsPage() {
                   hint="Ground assistant answers in the uploaded knowledge base with source citations."
                   checked={ragEnabled}
                   onChange={setRagEnabled}
-                />
-                <ToggleRow
-                  label="Automatic maintenance recommendations"
-                  hint="Generate a recommended action whenever risk crosses the warning threshold."
-                  checked={autoRecommend}
-                  onChange={setAutoRecommend}
-                />
-                <ToggleRow
-                  label="Explainable AI (Why?) panels"
-                  hint="Show contributing factors and trend contributions behind every prediction."
-                  checked={explainability}
-                  onChange={setExplainability}
                 />
               </div>
               <div className="flex flex-wrap items-center gap-2 border-t border-line px-4 py-3.5 sm:px-5">

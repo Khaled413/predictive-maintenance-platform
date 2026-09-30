@@ -2,7 +2,6 @@ import React, { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   AlertOctagon,
-  BellRing,
   CheckCheck,
   ChevronRight,
   Eye,
@@ -32,7 +31,7 @@ const isQualityAlert = (type: string) => /quality|defect/i.test(type)
 
 
 export default function AlertsPage() {
-  const { alerts, setAlertStatus, addAlert, notify, refreshTimestamp } = useApp()
+  const { alerts, setAlertStatus, notify, refreshTimestamp } = useApp()
   const navigate = useNavigate()
 
   const [filter, setFilter] = useState<Severity | 'all'>('all')
@@ -89,31 +88,6 @@ return (
           />
           Hide resolved alerts
         </label>
-        <div className="ml-auto">
-          <button
-            type="button"
-            className="btn-ghost"
-            onClick={() => {
-              const id = `AL-${String(Date.now() % 10000).padStart(4, '0')}`
-              addAlert({
-                id,
-                machineId: 'M-003',
-                machineName: 'Compressor — Air Supply 1',
-                severity: 'warning',
-                type: 'Test Alert',
-                message: 'Vibration is trending upward again after maintenance.',
-                timestamp: new Date().toISOString(),
-                status: 'active',
-                recommendedAction: 'Monitor vibration for the next 24 hours.',
-              })
-              refreshTimestamp()
-              notify('info', 'Alert created', 'Test alert added to the center.')
-            }}
-          >
-            <BellRing className="h-4 w-4" />
-            Simulate Alert
-          </button>
-        </div>
       </div>
 {list.length === 0 ? (
         <EmptyState

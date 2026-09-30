@@ -10,7 +10,7 @@ export default function RiskBar({ value, showLabel = true }: { value: number; sh
       {showLabel && (
         <div className="mb-1 flex items-center justify-between">
           <span className="text-[10px] font-semibold uppercase tracking-wider text-ink-faint">
-            Failure Risk · Next 7 days
+            Model Failure Probability
           </span>
           <span className={cx('font-mono text-[11.5px] font-semibold', text)}>{value}%</span>
         </div>

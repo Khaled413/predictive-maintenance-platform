@@ -29,8 +29,15 @@ export default function TopHeader({ onMenu }: TopHeaderProps) {
 
   const critical = machines.filter((m) => m.status === 'Critical').length
   const warning = machines.filter((m) => m.status === 'Warning').length
-  const status: MachineStatus =
-    critical > 0 ? 'Critical' : warning > 0 ? 'Warning' : 'Operational'
+  const predicted = machines.filter((machine) => machine.status !== null).length
+  const status: MachineStatus | null =
+    predicted !== machines.length || predicted === 0
+      ? null
+      : critical > 0
+        ? 'Critical'
+        : warning > 0
+          ? 'Warning'
+          : 'Operational'
   const statusDot =
     status === 'Operational'
       ? 'bg-emerald-400'
@@ -56,6 +63,9 @@ export default function TopHeader({ onMenu }: TopHeaderProps) {
       </div>
 
       <div className="flex items-center gap-2 sm:gap-3">
+        <span className="hidden rounded-lg border border-amber-400/25 bg-amber-400/5 px-2 py-1.5 text-[9px] font-bold uppercase tracking-wider text-amber-300 sm:inline">
+          DEMO MODE · simulated inputs / model outputs
+        </span>
         <div className="hidden items-center gap-1.5 rounded-lg border border-line bg-navy-800/60 px-2.5 py-1.5 text-[11px] font-medium text-ink-dim xl:flex">
           <Zap className="h-3.5 w-3.5 text-sky-400" />
           Predict · Prevent · Optimize
@@ -86,29 +96,35 @@ export default function TopHeader({ onMenu }: TopHeaderProps) {
         <div
           className={cx(
             'flex items-center gap-2 rounded-lg border px-3 py-1.5',
-            status === 'Operational'
+            status === null
+              ? 'border-amber-400/25 bg-amber-400/5'
+              : status === 'Operational'
               ? 'border-emerald-400/25 bg-emerald-400/5'
               : status === 'Warning'
                 ? 'border-amber-400/25 bg-amber-400/5'
                 : 'border-red-400/30 bg-red-400/10',
           )}
         >
-          <span className={cx('h-2 w-2 rounded-full', statusDot)} />
+          <span className={cx('h-2 w-2 rounded-full', status === null ? 'bg-amber-400 animate-pulseSoft' : statusDot)} />
           <div className="leading-none">
             <p className="text-[9.5px] font-semibold uppercase tracking-wider text-ink-faint">
-              {t('Factory Status')}
+              {status ? t('Factory Status') : 'Model Predictions'}
             </p>
             <p
               className={cx(
                 'mt-0.5 text-[11.5px] font-semibold',
-                status === 'Operational'
+                status === null
+                  ? 'text-amber-300'
+                  : status === 'Operational'
                   ? 'text-emerald-300'
                   : status === 'Warning'
                     ? 'text-amber-300'
                     : 'text-red-300',
               )}
             >
-              {t(status)}
+              {status ?? (machines.some((machine) => machine.predictionStatus === 'loading')
+                ? 'Loading predictions'
+                : 'ML prediction service unavailable')}
             </p>
           </div>
         </div>

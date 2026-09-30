@@ -3,6 +3,9 @@
 // ---------------------------------------------------------------------------
 
 export type MachineStatus = 'Operational' | 'Warning' | 'Critical' | 'Under Maintenance'
+export type PredictionStatus = 'loading' | 'available' | 'unavailable'
+export type MachineTypeCode = 'H' | 'L' | 'M'
+export type SimulationState = 'NORMAL' | 'DEGRADING' | 'CRITICAL'
 export type Severity = 'critical' | 'warning' | 'info' | 'success'
 export type SensorLevel = 'green' | 'amber' | 'red'
 export type MaintenanceStatus = 'Recommended' | 'Scheduled' | 'In Progress' | 'Completed'
@@ -24,6 +27,32 @@ export interface HistoryPoint {
   risk: number
 }
 
+export interface PredictionInputs {
+  machine_id: string
+  type: MachineTypeCode
+  air_temperature: number
+  process_temperature: number
+  rotational_speed: number
+  torque: number
+  tool_wear: number
+  simulation_state: SimulationState
+}
+
+export interface PredictionResponse {
+  machine_id: string
+  inputs: Omit<PredictionInputs, 'machine_id'>
+  failure_probability: number
+  failure_type: string | null
+  anomaly_score: number
+  anomaly_flag: boolean
+  health_score: number
+  status: Exclude<MachineStatus, 'Under Maintenance'>
+  recommendation: string
+  prediction_source: 'Trained ML Models'
+  data_source: 'Simulated Sensor Data' | 'Provided Sensor Data'
+  timestamp: string
+}
+
 export interface SensorSeries {
   name: string
   unit: string
@@ -42,12 +71,12 @@ export interface Machine {
   id: string
   name: string
   type: string
-  status: MachineStatus
-  healthScore: number
-  failureRisk: number
+  status: MachineStatus | null
+  healthScore: number | null
+  failureRisk: number | null
   maintenanceStatus: string
-  recommendation: string
-  likelihood: string
+  recommendation: string | null
+  likelihood: string | null
   location: string
   manufacturer: string
   model: string
@@ -60,6 +89,11 @@ export interface Machine {
   sensorHistory: SensorSeries[]
   events: EventMarker[]
   custom?: boolean
+  modelTypeCode: MachineTypeCode
+  predictionStatus: PredictionStatus
+  predictionError?: string
+  prediction?: PredictionResponse
+  predictionInputs: PredictionInputs
 }
 
 export interface MaintenanceRecord {

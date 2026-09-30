@@ -1,9 +1,7 @@
 import type {
-  Machine,
   MachineStatus,
   SensorLevel,
   Severity,
-  Thresholds,
 } from '../types'
 
 export function cx(...parts: Array<string | false | null | undefined>): string {
@@ -61,15 +59,6 @@ export function seededRandom(seed: number): () => number {
 // ---------------------------------------------------------------------------
 // Status / tone helpers
 // ---------------------------------------------------------------------------
-
-export function deriveMachineStatus(
-  m: Pick<Machine, 'healthScore' | 'failureRisk'>,
-  t: Thresholds,
-): MachineStatus {
-  if (m.healthScore < t.healthCritical || m.failureRisk > t.riskCritical) return 'Critical'
-  if (m.healthScore < t.healthWarning || m.failureRisk > t.riskWarning) return 'Warning'
-  return 'Operational'
-}
 
 export function healthTone(score: number): 'ok' | 'warn' | 'danger' {
   if (score >= 75) return 'ok'

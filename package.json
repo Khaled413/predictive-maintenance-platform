@@ -4,11 +4,15 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "node scripts/dev.mjs",
+    "dev:app": "vite",
+    "dev:ml": "python -m uvicorn main:app --app-dir ml --host 127.0.0.1 --port 8001",
+    "setup:ml": "python -m pip install -r ml/requirements.txt",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "smoke": "node scripts/smoke.mjs"
+    "smoke": "node scripts/smoke.mjs",
+    "test:api": "node --test scripts/api-proxy.test.mjs"
   },
   "dependencies": {
     "lucide-react": "^0.441.0",

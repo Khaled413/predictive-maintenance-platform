@@ -13,7 +13,7 @@ import KpiCard from '../components/ui/KpiCard'
 import MachineCard from '../components/machine/MachineCard'
 import EmptyState from '../components/ui/EmptyState'
 import { SelectInput, TextInput } from '../components/ui/Field'
-import { deriveMachineStatus, healthTone } from '../utils/helpers'
+import { healthTone } from '../utils/helpers'
 import type { Machine } from '../types'
 
 function parseDowntime(d: string): number {
@@ -22,25 +22,19 @@ function parseDowntime(d: string): number {
 }
 
 export default function OverviewPage() {
-  const { machines, maintenance, thresholds } = useApp()
+  const { machines, maintenance } = useApp()
   const navigate = useNavigate()
 
   const [typeFilter, setTypeFilter] = useState('All')
   const [statusFilter, setStatusFilter] = useState('All')
   const [search, setSearch] = useState('')
 
-  const machinesWithStatus: Machine[] = useMemo(
-    () =>
-      machines.map((m) => ({
-        ...m,
-        status: m.status === 'Under Maintenance' ? m.status : deriveMachineStatus(m, thresholds),
-      })),
-    [machines, thresholds],
-  )
+  const machinesWithStatus: Machine[] = machines
 
   const kpis = useMemo(() => {
     const total = machinesWithStatus.length
-    const atRisk = machinesWithStatus.filter(
+    const predicted = machinesWithStatus.filter((m) => m.predictionStatus === 'available')
+    const atRisk = predicted.filter(
       (m) => m.status === 'Critical' || m.status === 'Warning',
     ).length
     const upcoming = maintenance.filter((r) => {
@@ -52,9 +46,9 @@ export default function OverviewPage() {
         d <= now + 14 * 86_400_000
       )
     }).length
-    const avgHealth = Math.round(
-      machinesWithStatus.reduce((acc, m) => acc + m.healthScore, 0) / Math.max(1, total),
-    )
+    const avgHealth = predicted.length
+      ? Math.round(predicted.reduce((acc, m) => acc + (m.healthScore ?? 0), 0) / predicted.length)
+      : null
     const downtime = maintenance
       .filter((r) => {
         const d = new Date(r.date).getTime()
@@ -65,7 +59,7 @@ export default function OverviewPage() {
         )
       })
       .reduce((acc, r) => acc + parseDowntime(r.downtime), 0)
-    return { total, atRisk, upcoming, avgHealth, downtime }
+    return { total, atRisk, upcoming, avgHealth, downtime, predictedCount: predicted.length }
   }, [machinesWithStatus, maintenance])
 
   const types = useMemo(
@@ -97,10 +91,12 @@ export default function OverviewPage() {
         />
         <KpiCard
           label="Machines at Risk"
-          value={kpis.atRisk}
+          value={kpis.predictedCount === kpis.total ? kpis.atRisk : '—'}
           icon={<AlertTriangle className="h-4 w-4" />}
-          tone={kpis.atRisk > 0 ? 'red' : 'green'}
-          delta={kpis.atRisk ? `${kpis.atRisk} need attention` : 'Fleet nominal'}
+          tone={kpis.predictedCount !== kpis.total ? 'gray' : kpis.atRisk > 0 ? 'red' : 'green'}
+          delta={kpis.predictedCount === kpis.total
+            ? (kpis.atRisk ? `${kpis.atRisk} need attention` : 'Fleet nominal')
+            : `${kpis.predictedCount}/${kpis.total} ML predictions available`}
           onClick={() => navigate('/alerts')}
         />
         <KpiCard
@@ -113,16 +109,16 @@ export default function OverviewPage() {
         />
         <KpiCard
           label="Avg. Health Score"
-          value={`${kpis.avgHealth}%`}
+          value={machinesWithStatus.some((m) => m.healthScore !== null) ? `${kpis.avgHealth}%` : '—'}
           icon={<Gauge className="h-4 w-4" />}
-          tone={
+          tone={kpis.avgHealth === null ? 'gray' :
             healthTone(kpis.avgHealth) === 'ok'
               ? 'green'
               : healthTone(kpis.avgHealth) === 'warn'
                 ? 'amber'
                 : 'red'
           }
-          sub={healthTone(kpis.avgHealth) === 'ok' ? 'Fleet healthy' : 'Monitor closely'}
+          sub={kpis.avgHealth === null ? 'ML prediction service unavailable' : healthTone(kpis.avgHealth) === 'ok' ? 'Fleet healthy' : 'Monitor closely'}
           onClick={() => navigate('/reports')}
         />
         <KpiCard

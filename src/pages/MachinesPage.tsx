@@ -8,12 +8,12 @@ import { MachineStatusBadge, MaintenanceStatusBadge } from '../components/ui/Bad
 import { SelectInput, TextInput } from '../components/ui/Field'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
 import EmptyState from '../components/ui/EmptyState'
-import { cx, deriveMachineStatus, healthTone, riskTone, riskTextColors, riskBarColors } from '../utils/helpers'
+import { cx, healthTone, riskTone, riskTextColors, riskBarColors } from '../utils/helpers'
 import { formatDate } from '../utils/helpers'
 import type { Machine } from '../types'
 
 export default function MachinesPage() {
-  const { machines, thresholds, deleteMachine, notify, refreshTimestamp } = useApp()
+  const { machines, deleteMachine, notify, refreshTimestamp } = useApp()
   const navigate = useNavigate()
 
   const [search, setSearch] = useState('')
@@ -23,14 +23,7 @@ export default function MachinesPage() {
   const [addOpen, setAddOpen] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<Machine | null>(null)
 
-  const derived = useMemo(
-    () =>
-      machines.map((m) => ({
-        ...m,
-        status: m.status === 'Under Maintenance' ? m.status : deriveMachineStatus(m, thresholds),
-      })),
-    [machines, thresholds],
-  )
+  const derived = machines
 
   const types = useMemo(() => ['All', ...Array.from(new Set(machines.map((m) => m.type)))], [machines])
   const maintStatuses = useMemo(
@@ -60,7 +53,7 @@ export default function MachinesPage() {
 const summary = useMemo(() => {
     const counts = { Operational: 0, Warning: 0, Critical: 0 }
     derived.forEach((m) => {
-      if (m.status in counts) counts[m.status as keyof typeof counts]++
+      if (m.status && m.status in counts) counts[m.status as keyof typeof counts]++
     })
     return counts
   }, [derived])
@@ -177,33 +170,41 @@ const summary = useMemo(() => {
                       </div>
                     </td>
                     <td className="px-3 py-3">
-                      <MachineStatusBadge status={m.status} />
+                      {m.status ? (
+                        <MachineStatusBadge status={m.status} />
+                      ) : (
+                        <span className="text-[10px] text-ink-faint">
+                          {m.predictionStatus === 'loading'
+                            ? 'Loading prediction…'
+                            : m.predictionError ?? 'ML prediction service unavailable'}
+                        </span>
+                      )}
                     </td>
 <td className="px-3 py-3">
                       <div className="flex items-center gap-2">
                         <span
                           className={cx(
                             'font-mono text-[12px] font-bold',
-                            healthTone(m.healthScore) === 'ok'
+                            m.healthScore === null ? 'text-ink-faint' : healthTone(m.healthScore) === 'ok'
                               ? 'text-emerald-300'
                               : healthTone(m.healthScore) === 'warn'
                                 ? 'text-amber-300'
                                 : 'text-red-300',
                           )}
                         >
-                          {m.healthScore}%
+                          {m.healthScore === null ? '—' : `${m.healthScore}%`}
                         </span>
                         <div className="h-1 w-14 overflow-hidden rounded-full bg-navy-700/70">
                           <div
                             className={cx(
                               'h-full rounded-full',
-                              healthTone(m.healthScore) === 'ok'
+                              m.healthScore !== null && healthTone(m.healthScore) === 'ok'
                                 ? 'bg-emerald-400'
-                                : healthTone(m.healthScore) === 'warn'
+                                : m.healthScore !== null && healthTone(m.healthScore) === 'warn'
                                   ? 'bg-amber-400'
                                   : 'bg-red-400',
                             )}
-                            style={{ width: `${m.healthScore}%` }}
+                            style={{ width: `${m.healthScore ?? 0}%` }}
                           />
                         </div>
                       </div>
@@ -211,21 +212,27 @@ const summary = useMemo(() => {
                     <td className="px-3 py-3">
                       <div className="w-28">
                         <div className="mb-1 flex items-center justify-between">
-                          <span
+                          {m.failureRisk !== null ? <span
                             className={cx(
                               'font-mono text-[11px] font-semibold',
                               riskTextColors[riskTone(m.failureRisk)],
                             )}
                           >
                             {m.failureRisk}%
-                          </span>
+                          </span> : <span className="text-[10px] text-ink-faint">
+                            {m.predictionStatus === 'loading'
+                              ? 'Loading…'
+                              : m.predictionError ?? 'Unavailable'}
+                          </span>}
                         </div>
-                        <div className="h-1.5 overflow-hidden rounded-full bg-navy-700/70">
-                          <div
-                            className={cx('h-full rounded-full', riskBarColors[riskTone(m.failureRisk)])}
-                            style={{ width: `${m.failureRisk}%` }}
-                          />
-                        </div>
+                        {m.failureRisk !== null && (
+                          <div className="h-1.5 overflow-hidden rounded-full bg-navy-700/70">
+                            <div
+                              className={cx('h-full rounded-full', riskBarColors[riskTone(m.failureRisk)])}
+                              style={{ width: `${m.failureRisk}%` }}
+                            />
+                          </div>
+                        )}
                       </div>
                     </td>
                     <td className="px-3 py-3 font-mono text-[11px] text-ink-dim">

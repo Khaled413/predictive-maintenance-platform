@@ -1,7 +1,6 @@
 import type {
   Alert,
   EventMarker,
-  HistoryPoint,
   Inspection,
   KnowledgeDoc,
   Machine,
@@ -12,18 +11,19 @@ import type {
   SensorSeries,
   Thresholds,
 } from '../types'
-import { clamp, daysAgo, hoursAgo, seededRandom } from '../utils/helpers'
+import { daysAgo, hoursAgo, seededRandom } from '../utils/helpers'
+import { machineTypeCode, simulateMachineInputs } from '../utils/simulatedInputs'
 
 // ---------------------------------------------------------------------------
 // Synthetic data generators (deterministic per seed)
 // ---------------------------------------------------------------------------
 
-const POINTS = 30
-const STEP_DAYS = 2 // 60 days of history at 2-day resolution
+const SENSOR_POINTS = 30
+const SENSOR_STEP_DAYS = 2
 
 export const DEFAULT_THRESHOLDS: Thresholds = {
-  healthWarning: 60,
-  healthCritical: 45,
+  healthWarning: 70,
+  healthCritical: 40,
   riskWarning: 50,
   riskCritical: 70,
 }
@@ -63,44 +63,21 @@ function buildMachine(
   custom = false,
 ): Machine {
   const rnd = seededRandom(seed)
-  const dates: string[] = []
-  for (let i = POINTS - 1; i >= 0; i--) dates.push(daysAgo(i * STEP_DAYS))
-
-  // Health path drifts from a healthier past to the current value.
-  const healthPath: number[] = []
-  const riskPath: number[] = []
-  const healthStart = clamp(healthScore + 24 + (rnd() - 0.5) * 12, 45, 99)
-  const riskOffset = failureRisk - (100 - healthScore)
-  for (let i = 0; i < POINTS; i++) {
-    const t = i / (POINTS - 1)
-    const h = clamp(healthStart + (healthScore - healthStart) * t + (rnd() - 0.5) * 4.5, 8, 99)
-    const r = clamp(100 - h + riskOffset + (rnd() - 0.5) * 6, 2, 98)
-    healthPath.push(Math.round(h))
-    riskPath.push(Math.round(r))
-  }
-  const history: HistoryPoint[] = dates.map((date, i) => ({
-    date,
-    health: healthPath[i],
-    risk: riskPath[i],
-  }))
-
-  const sensorHistory: SensorSeries[] = sensors.map((sens, si) => {
-    const amp = ((sens.max - sens.min) * 0.12) / 2
-    const values: number[] = []
-    for (let i = 0; i < POINTS; i++) {
-      const t = i / (POINTS - 1)
-      // The final point lands exactly on the current reading.
-      const drift = sens.value - sens.min
-      const path = sens.min + drift * t
-      values.push(Number((path + (rnd() - 0.5) * amp).toFixed(2)))
-    }
+  const sensorHistory: SensorSeries[] = sensors.map((sensor) => {
+    const amplitude = ((sensor.max - sensor.min) * 0.12) / 2
     return {
-      name: sens.name,
-      unit: sens.unit,
-      data: dates.map((date, i) => ({ date, value: values[i] })),
+      name: sensor.name,
+      unit: sensor.unit,
+      data: Array.from({ length: SENSOR_POINTS }, (_, index) => {
+        const date = daysAgo((SENSOR_POINTS - index - 1) * SENSOR_STEP_DAYS)
+        const progress = index / (SENSOR_POINTS - 1)
+        const value = index === SENSOR_POINTS - 1
+          ? sensor.value
+          : sensor.min + (sensor.value - sensor.min) * progress + (rnd() - 0.5) * amplitude
+        return { date, value: Number(value.toFixed(2)) }
+      }),
     }
   })
-
   const eventMarkers: EventMarker[] = events.map(([ago, type, note]) => ({
     date: daysAgo(ago),
     type,
@@ -111,12 +88,12 @@ function buildMachine(
     id,
     name,
     type,
-    status,
-    healthScore,
-    failureRisk,
+    status: null,
+    healthScore: null,
+    failureRisk: null,
     maintenanceStatus,
-    recommendation,
-    likelihood,
+    recommendation: null,
+    likelihood: null,
     location,
     manufacturer,
     model,
@@ -125,10 +102,13 @@ function buildMachine(
     nextMaintenance: new Date(Date.now() + nextMaintenanceInDays * 86_400_000).toISOString(),
     description,
     sensors,
-    history,
+    history: [],
     sensorHistory,
     events: eventMarkers,
     custom,
+    modelTypeCode: machineTypeCode(type),
+    predictionStatus: 'loading',
+    predictionInputs: simulateMachineInputs(id, type),
   }
 }
 
@@ -728,118 +708,7 @@ export const SEED_MAINTENANCE: MaintenanceRecord[] = [
 // Alerts
 // ---------------------------------------------------------------------------
 
-export const SEED_ALERTS: Alert[] = [
-  {
-    id: 'AL-01',
-    machineId: 'M-003',
-    machineName: 'Compressor — Air Supply 1',
-    severity: 'critical',
-    type: 'Critical Machine Health',
-    message: 'Health score dropped to 49% with rising vibration and discharge temperature.',
-    timestamp: hoursAgo(3),
-    status: 'active',
-    recommendedAction: 'Schedule immediate inspection and prepare replacement bearings.',
-  },
-  {
-    id: 'AL-02',
-    machineId: 'M-012',
-    machineName: 'Air Compressor — Tool Air 2',
-    severity: 'critical',
-    type: 'High Failure Probability',
-    message: 'Predicted failure probability is 78% within the next 7 days.',
-    timestamp: hoursAgo(6),
-    status: 'active',
-    recommendedAction: 'Perform valve service before the next shift; monitor discharge temperature.',
-  },
-  {
-    id: 'AL-03',
-    machineId: 'M-006',
-    machineName: 'Boiler — Steam Unit B',
-    severity: 'critical',
-    type: 'Temperature Anomaly',
-    message: 'Steam temperature of 208°C exceeds the safe limit of 190°C.',
-    timestamp: hoursAgo(9),
-    status: 'active',
-    recommendedAction: 'Begin tube inspection and reduce firing rate immediately.',
-  },
-  {
-    id: 'AL-04',
-    machineId: 'M-005',
-    machineName: 'Packaging — Wrapper 1',
-    severity: 'warning',
-    type: 'Vibration Anomaly',
-    message: 'Vibration level of 6.4 mm/s is above the normal threshold.',
-    timestamp: hoursAgo(14),
-    status: 'active',
-    recommendedAction: 'Inspect gripper jaw and coupling for wear.',
-  },
-  {
-    id: 'AL-05',
-    machineId: 'M-002',
-    machineName: 'Injection Molding — Press 2',
-    severity: 'warning',
-    type: 'Maintenance Due',
-    message: 'Scheduled pressure valve inspection is due within 24 hours.',
-    timestamp: hoursAgo(26),
-    status: 'active',
-    recommendedAction: 'Confirm valve inspection slot with the maintenance team.',
-  },
-  {
-    id: 'AL-06',
-    machineId: 'M-008',
-    machineName: 'Filler — Bottling Line 1',
-    severity: 'warning',
-    type: 'Health Score Decline',
-    message: 'Health score declined 11 points over the last 30 days.',
-    timestamp: hoursAgo(48),
-    status: 'acknowledged',
-    recommendedAction: 'Schedule nozzle clean & inspect; monitor pressure sensors.',
-  },
-  {
-    id: 'AL-07',
-    machineId: 'M-010',
-    machineName: 'Labeler — Bottling Line 2',
-    severity: 'warning',
-    type: 'Vibration Anomaly',
-    message: 'Vibration trending up 0.9 mm/s over the last 7 days.',
-    timestamp: hoursAgo(30),
-    status: 'acknowledged',
-    recommendedAction: 'Verify label head alignment and bearing condition.',
-  },
-  {
-    id: 'AL-08',
-    machineId: 'M-004',
-    machineName: 'Conveyor — Assembly Line 3',
-    severity: 'info',
-    type: 'Inspection Completed',
-    message: 'Quarterly inspection passed with no findings.',
-    timestamp: hoursAgo(50),
-    status: 'resolved',
-    recommendedAction: 'No action required.',
-  },
-  {
-    id: 'AL-09',
-    machineId: 'M-009',
-    machineName: 'Dryer — Tumble Unit 1',
-    severity: 'info',
-    type: 'Maintenance Completed',
-    message: 'Exhaust filter replacement completed successfully.',
-    timestamp: hoursAgo(120),
-    status: 'resolved',
-    recommendedAction: 'No action required.',
-  },
-  {
-    id: 'AL-10',
-    machineId: 'M-002',
-    machineName: 'Injection Molding — Press 2',
-    severity: 'warning',
-    type: 'Quality Defect Detected',
-    message: 'Computer-vision inspection flagged a surface crack on product PRD-2207 (94.1% confidence).',
-    timestamp: hoursAgo(11),
-    status: 'active',
-    recommendedAction: 'Open the quality inspection record and verify mould temperature and clamp pressure.',
-  },
-]
+export const SEED_ALERTS: Alert[] = []
 // ---------------------------------------------------------------------------
 // Quality inspections
 // ---------------------------------------------------------------------------
@@ -945,7 +814,7 @@ export const DEMO_CONVERSATIONS = [
         id: 'm1',
         role: 'assistant' as const,
         content:
-          'I analyzed all 12 machines in the factory. Currently 4 machines are at risk: M-003 (Compressor), M-012 (Air Compressor), M-006 (Boiler) and M-005 (Packaging Machine). M-003 has the highest failure probability at 82% and should be attended first.',
+          'ML prediction service unavailable. Current machine risk will be shown only after successful model predictions.',
         timestamp: hoursAgo(5),
       },
       {
@@ -958,14 +827,14 @@ export const DEMO_CONVERSATIONS = [
         id: 'm3',
         role: 'assistant' as const,
         content:
-          'Loading real-time telemetry… Computed failure risk for the next 7 days using health trend and sensor deviation. See the overview for the full breakdown.',
+          'DEMO MODE uses simulated sensor inputs; risk and health are provided by the trained ML prediction service.',
         timestamp: hoursAgo(5),
       },
     ],
   },
   {
     id: 'CV-02',
-    title: 'Why is M-003 critical? Explainable analysis',
+    title: 'Machine prediction availability',
     updated: hoursAgo(26),
     context: 'machine' as const,
     contextLabel: 'M-003 — Compressor',
@@ -973,14 +842,14 @@ export const DEMO_CONVERSATIONS = [
       {
         id: 'm1',
         role: 'user' as const,
-        content: 'Why is M-003 critical?',
+        content: 'What is the current model output for M-003?',
         timestamp: hoursAgo(26),
       },
       {
         id: 'm2',
         role: 'assistant' as const,
         content:
-          'M-003 (Compressor — Air Supply 1) is critical because:\n\n• Temperature increased 18% above the safe window (96.2°C vs 90°C limit).\n• Vibration amplitude is 63% above the normal band.\n• A similar reading pattern preceded the previous bearing failure on this unit.\n\nRecommended action: Immediate service — schedule within the next maintenance window.',
+          'ML prediction service unavailable. No health, risk, status, or recommendation is available until the model returns a successful response.',
         timestamp: hoursAgo(26),
         sources: ['Machine Specifications.pdf', 'Maintenance Manual.pdf'],
       },
