@@ -218,7 +218,7 @@ const summary = useMemo(() => {
                               riskTextColors[riskTone(m.failureRisk)],
                             )}
                           >
-                            {m.failureRisk}%
+                            {m.failureRisk.toFixed(1)}%
                           </span> : <span className="text-[10px] text-ink-faint">
                             {m.predictionStatus === 'loading'
                               ? 'Loading…'
@@ -240,6 +240,11 @@ const summary = useMemo(() => {
                     </td>
                     <td className="px-3 py-3 font-mono text-[11px] text-ink-dim">
                       {formatDate(m.nextMaintenance)}
+                      {m.maintenanceStatus === 'Overdue' && (
+                        <span className="mt-1 block font-sans text-[10px] font-semibold text-red-300">
+                          Maintenance overdue
+                        </span>
+                      )}
                     </td>
 <td className="px-3 py-3">
                       <div

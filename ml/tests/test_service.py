@@ -177,6 +177,8 @@ class SchemaAndLoadingTests(unittest.TestCase):
             "Rotational speed [rpm]": 1500,
             "Torque [Nm]": 40,
             "Tool wear [min]": 20,
+            "machine_input_source": "simulated",
+            "sensor_input_source": "simulated",
         }
         self.assertEqual(PredictionRequest.model_validate(payload).machine_type, "M")
         for change in (
@@ -184,15 +186,36 @@ class SchemaAndLoadingTests(unittest.TestCase):
             {"Torque [Nm]": -1},
             {"Air temperature [K]": float("nan")},
             {"machine_id": ""},
+            {"Air temperature [°C]": 25},
             {
+                "sensor_input_source": "provided",
                 "sensor_window": [
                     {"timestamp": "2026-09-30T12:00:00Z", "sensor_00": 1},
                     {"timestamp": "2026-09-30T12:02:00Z", "sensor_00": 2},
                 ]
             },
+            {
+                "sensor_input_source": "provided",
+                "sensor_window": [{"Temperature": 25, "unit": "°C"}],
+            },
+            {"machine_input_source": None},
+            {"sensor_input_source": None},
         ):
             with self.subTest(change=change), self.assertRaises(ValidationError):
                 PredictionRequest.model_validate({**payload, **change})
+        with self.assertRaisesRegex(ValidationError, "sensor_window is required"):
+            PredictionRequest.model_validate(
+                {**payload, "sensor_input_source": "provided"}
+            )
+        with self.assertRaisesRegex(ValidationError, "sensor_window must be omitted"):
+            PredictionRequest.model_validate(
+                {
+                    **payload,
+                    "sensor_window": [
+                        {"timestamp": "2026-09-30T12:00:00Z", "sensor_00": 1}
+                    ],
+                }
+            )
 
     def test_loader_fails_clearly_when_artifacts_are_absent(self):
         with TemporaryDirectory() as directory:
@@ -254,6 +277,8 @@ class ApiTests(unittest.TestCase):
             "Rotational speed [rpm]": 1500,
             "Torque [Nm]": 40,
             "Tool wear [min]": 20,
+            "machine_input_source": "simulated",
+            "sensor_input_source": "simulated",
             "simulation_state": "DEGRADING",
         }
         result = predict_route.endpoint(PredictionRequest.model_validate(payload))
@@ -262,11 +287,97 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(result["failure_probability"], 0.75)
         self.assertTrue(result["sensor_inputs_simulated"])
         self.assertEqual(result["data_source"], "Simulated Sensor Data")
+        self.assertEqual(result["anomaly_input_reading_count"], 120)
+        self.assertEqual(result["anomaly_model_inputs"]["sensor_mean"], result["anomaly_model_inputs"]["sensor_mean"])
         self.assertEqual(result["prediction_source"], "Trained ML Models")
         self.assertIn(result["status"], {"Operational", "Warning", "Critical"})
         self.assertEqual(result["inputs"]["air_temperature"], 300)
+        self.assertEqual(result["machine_input_source"], "simulated")
+        self.assertEqual(result["sensor_input_source"], "simulated")
+        self.assertTrue(result["machine_inputs_simulated"])
+        self.assertTrue(result["sensor_inputs_simulated"])
+        self.assertEqual(result["inputs"]["machine_input_source"], "simulated")
+        self.assertEqual(result["inputs"]["sensor_input_source"], "simulated")
+        self.assertEqual(result["anomaly_features_used"], ["sensor_mean"])
         self.assertIn("timestamp", result)
+        simulated_window = simulate_sensor_window(
+            "machine-1", "DEGRADING", 300, 310, 1500, 40, 20
+        )
+        expected_features, _ = anomaly_feature_values(simulated_window)
+        self.assertEqual(
+            result["anomaly_model_inputs"]["sensor_mean"],
+            expected_features["sensor_mean"],
+        )
+        self.assertEqual(
+            set(result["anomaly_model_inputs"]),
+            set(result["anomaly_features_used"]),
+        )
         self.assertEqual(health_route.endpoint()["status"], "ok")
+
+    def test_provided_machine_and_sensor_inputs_are_not_replaced_by_simulation(self):
+        from app.api import create_app
+
+        application = create_app(Path(__file__).resolve().parents[1] / "models")
+        application.state.model_bundle = fake_bundle()
+        predict_route = next(
+            route
+            for route in application.routes
+            if getattr(route, "path", None) == "/api/predict"
+        )
+        payload = {
+            "machine_id": "machine-provided",
+            "type": "M",
+            "Air temperature [K]": 298.1,
+            "Process temperature [K]": 308.6,
+            "Rotational speed [rpm]": 1551,
+            "Torque [Nm]": 42.8,
+            "Tool wear [min]": 0,
+            "machine_input_source": "provided",
+            "sensor_input_source": "provided",
+            "sensor_window": [{"timestamp": "2026-09-30T12:00:00Z", "sensor_00": 2.5}],
+        }
+        with patch("app.api.simulate_sensor_window", side_effect=AssertionError("must not simulate")):
+            request = PredictionRequest.model_validate(payload)
+            result = predict_route.endpoint(request)
+
+        PredictionResponse.model_validate(result)
+        self.assertEqual(result["machine_input_source"], "provided")
+        self.assertEqual(result["sensor_input_source"], "provided")
+        self.assertFalse(result["machine_inputs_simulated"])
+        self.assertFalse(result["sensor_inputs_simulated"])
+        self.assertEqual(result["data_source"], "Provided Sensor Data")
+        self.assertEqual(result["inputs"]["air_temperature"], 298.1)
+        self.assertEqual(result["inputs"]["rotational_speed"], 1551)
+        self.assertEqual(result["anomaly_input_reading_count"], 1)
+        self.assertEqual(set(result["anomaly_model_inputs"]), set(result["anomaly_features_used"]))
+        self.assertEqual(result["anomaly_model_inputs"]["sensor_mean"], 2.5)
+
+    def test_successful_prediction_without_failure_type_keeps_exact_probability(self):
+        from app.api import create_app
+
+        application = create_app(Path(__file__).resolve().parents[1] / "models")
+        application.state.model_bundle = fake_bundle(probability=0.49949)
+        predict_route = next(
+            route
+            for route in application.routes
+            if getattr(route, "path", None) == "/api/predict"
+        )
+        payload = {
+            "machine_id": "machine-no-failure-type",
+            "type": "M",
+            "Air temperature [K]": 300,
+            "Process temperature [K]": 310,
+            "Rotational speed [rpm]": 1500,
+            "Torque [Nm]": 40,
+            "Tool wear [min]": 20,
+            "machine_input_source": "simulated",
+            "sensor_input_source": "simulated",
+        }
+        result = predict_route.endpoint(PredictionRequest.model_validate(payload))
+
+        PredictionResponse.model_validate(result)
+        self.assertEqual(result["failure_probability"], 0.49949)
+        self.assertIsNone(result["failure_type"])
 
 
 if __name__ == "__main__":

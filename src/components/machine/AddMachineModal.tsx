@@ -57,8 +57,8 @@ const SENSOR_PRESETS: SensorConfig[] = [
 ]
 
 const PROCESS_STEPS = [
-  'Preparing simulated sensor inputs',
-  'Sending inputs to prediction service',
+  'Generating illustrative sensor display values',
+  'Preparing separate simulated model inputs',
   'Running trained ML models',
   'Receiving model outputs',
   'Preparing machine profile',
@@ -519,7 +519,7 @@ return (
         <div>
           <p className="mb-3 flex items-center gap-2 text-[12px] text-ink-dim">
             <Cpu className="h-4 w-4 text-sky-400" />
-            Select the sensors connected to this machine.
+            Select display-only sensor presets. These values are not mapped to the model features and will not be used in prediction.
           </p>
           <div className="grid gap-2 sm:grid-cols-2">
             {sensors.map((s) => (
@@ -711,7 +711,7 @@ return (
           </div>
           <p className="mt-3 flex items-center gap-1.5 text-[10.5px] text-ink-faint">
             <Activity className="h-3.5 w-3.5 text-sky-400" />
-            DEMO MODE · simulated sensor inputs; health and risk are returned by the trained ML models.
+            DEMO MODE · predictions use simulated model inputs; selected sensor presets are display-only.
           </p>
         </div>
       )}
@@ -719,10 +719,10 @@ return (
         <div className="space-y-4">
           <div className="rounded-xl border border-sky-400/20 bg-sky-500/5 px-3.5 py-3">
             <p className="text-[10px] font-semibold uppercase tracking-wider text-sky-300">
-              DEMO MODE · Simulated Sensor Inputs
+              DEMO MODE · Simulated Model Inputs
             </p>
             <p className="mt-1 text-[11px] text-ink-dim">
-              Model outputs below come only from the trained ML prediction service.
+              The failure model uses the five simulated inputs in its documented training units. The selected display-only sensor presets are not used. The anomaly model receives a separate simulated sensor window.
             </p>
           </div>
           {result.predictionStatus === 'available' && result.prediction ? (
@@ -741,13 +741,16 @@ return (
                   <p className="mt-1.5 text-[12px] font-semibold text-ink">{result.prediction.status}</p>
                 </div>
                 <div className="rounded-xl border border-line bg-navy-900/50 px-3 py-2.5">
-                  <p className="text-[9.5px] font-semibold uppercase tracking-wider text-ink-faint">Recommendation</p>
+                  <p className="text-[9.5px] font-semibold uppercase tracking-wider text-ink-faint">Model Recommendation</p>
                   <p className="mt-1.5 text-[12px] font-semibold text-ink">{result.prediction.recommendation}</p>
                 </div>
               </div>
               <div className="rounded-xl border border-line bg-navy-900/50 px-3.5 py-3 text-[11px] text-ink-dim">
-                Failure type: {result.prediction.failure_type ?? 'Not classified below threshold'} · Anomaly score: {(result.prediction.anomaly_score * 100).toFixed(1)}%
+                Failure type: {result.prediction.failure_type ?? 'No failure type classified by the model'} · Anomaly score: {(result.prediction.anomaly_score * 100).toFixed(1)}%
               </div>
+              <p className="rounded-xl border border-line bg-navy-900/50 px-3.5 py-3 text-[10.5px] leading-relaxed text-ink-faint">
+                Failure-model inputs used: air {result.prediction.inputs.air_temperature} K · process {result.prediction.inputs.process_temperature} K · speed {result.prediction.inputs.rotational_speed} rpm · torque {result.prediction.inputs.torque} Nm · tool wear {result.prediction.inputs.tool_wear} min. Anomaly features: {result.prediction.anomaly_features_used.length} from a {result.prediction.data_source.toLowerCase()} window. The selected sensor presets above were not used.
+              </p>
             </>
           ) : (
             <div className="rounded-xl border border-red-400/25 bg-red-500/5 px-3.5 py-3 text-[12px] font-semibold text-red-300">

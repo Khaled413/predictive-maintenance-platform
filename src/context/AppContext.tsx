@@ -75,11 +75,18 @@ function loadState(): PersistedState {
           machines: parsed.machines.map((machine) => {
             const modelTypeCode = machineTypeCode(machine.type)
             const predictionInputs =
-              machine.predictionInputs?.type === modelTypeCode
+              machine.predictionInputs?.type === modelTypeCode &&
+              machine.predictionInputs.machine_input_source === 'simulated' &&
+              machine.predictionInputs.sensor_input_source === 'simulated'
                 ? machine.predictionInputs
                 : simulateMachineInputs(machine.id, machine.type)
             const prediction =
-              machine.prediction?.prediction_source === 'Trained ML Models'
+              machine.prediction?.prediction_source === 'Trained ML Models' &&
+              typeof machine.prediction.machine_inputs_simulated === 'boolean' &&
+              typeof machine.prediction.sensor_inputs_simulated === 'boolean' &&
+              Array.isArray(machine.prediction.anomaly_features_used) &&
+              typeof machine.prediction.anomaly_model_inputs === 'object' &&
+              typeof machine.prediction.anomaly_input_reading_count === 'number'
               ? machine.prediction
               : undefined
             return {
@@ -121,7 +128,10 @@ function loadState(): PersistedState {
 function predictionAlert(machine: Machine, prediction: PredictionResponse): Alert | null {
   if (!prediction.anomaly_flag && prediction.failure_probability < 0.5) return null
   const type = prediction.anomaly_flag ? 'ML Anomaly Detected' : 'ML Failure Risk'
-  const failureType = prediction.failure_type ?? 'Not classified below the failure threshold'
+  const failureType = prediction.failure_type ?? 'No failure type classified by the model'
+  const maintenanceNote = machine.maintenanceStatus === 'Overdue'
+    ? ' Maintenance is overdue; the model recommendation does not update the maintenance schedule.'
+    : ''
   return {
     id: `ML-${machine.id}-${prediction.timestamp.replace(/[^0-9]/g, '')}`,
     machineId: machine.id,
@@ -129,8 +139,8 @@ function predictionAlert(machine: Machine, prediction: PredictionResponse): Aler
     severity: prediction.status === 'Critical' ? 'critical' : 'warning',
     type,
     message: prediction.anomaly_flag
-      ? `Model anomaly score ${(prediction.anomaly_score * 100).toFixed(1)}%. Failure type: ${failureType}.`
-      : `Model estimates ${(prediction.failure_probability * 100).toFixed(1)}% failure probability. Failure type: ${failureType}.`,
+      ? `Model anomaly score ${(prediction.anomaly_score * 100).toFixed(1)}%. Failure type: ${failureType}.${maintenanceNote}`
+      : `Model estimates ${(prediction.failure_probability * 100).toFixed(1)}% failure probability. Failure type: ${failureType}.${maintenanceNote}`,
     timestamp: prediction.timestamp,
     status: 'active',
     recommendedAction: prediction.recommendation,
@@ -178,6 +188,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (prediction.machine_id !== id) throw new Error('Prediction response machine ID did not match')
       if (prediction.inputs.type !== inputs.type) {
         throw new Error('Prediction response model type did not match')
+      }
+      if (
+        prediction.machine_input_source !== inputs.machine_input_source ||
+        prediction.sensor_input_source !== inputs.sensor_input_source
+      ) {
+        throw new Error('Prediction response input sources did not match')
       }
       setState((s) => {
         const machine = s.machines.find((item) => item.id === id)

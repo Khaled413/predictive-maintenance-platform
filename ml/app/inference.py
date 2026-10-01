@@ -300,4 +300,8 @@ def infer(
         "anomaly_flag": bool(decision < bundle.anomaly_threshold),
         "anomaly_decision_value": decision,
         "anomaly_feature_names": names,
+        "anomaly_model_inputs": {
+            name: float(value) if np.isfinite(value) else None
+            for name, value in zip(names, anomaly_values)
+        },
     }

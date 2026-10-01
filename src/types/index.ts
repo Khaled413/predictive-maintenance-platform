@@ -35,12 +35,17 @@ export interface PredictionInputs {
   rotational_speed: number
   torque: number
   tool_wear: number
+  machine_input_source: 'simulated' | 'provided'
+  sensor_input_source: 'simulated' | 'provided'
   simulation_state: SimulationState
+  sensor_window?: { timestamp?: string; [channel: string]: number | string | null | undefined }[]
 }
 
 export interface PredictionResponse {
   machine_id: string
-  inputs: Omit<PredictionInputs, 'machine_id'>
+  inputs: Omit<PredictionInputs, 'machine_id' | 'sensor_window'>
+  machine_input_source: 'simulated' | 'provided'
+  sensor_input_source: 'simulated' | 'provided'
   failure_probability: number
   failure_type: string | null
   anomaly_score: number
@@ -50,6 +55,11 @@ export interface PredictionResponse {
   recommendation: string
   prediction_source: 'Trained ML Models'
   data_source: 'Simulated Sensor Data' | 'Provided Sensor Data'
+  machine_inputs_simulated: boolean
+  sensor_inputs_simulated: boolean
+  anomaly_features_used: string[]
+  anomaly_model_inputs: Record<string, number | null>
+  anomaly_input_reading_count: number
   timestamp: string
 }
 

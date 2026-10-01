@@ -82,6 +82,17 @@ try {
       const ok = html.length > 500
       console.log(`${ok ? 'PASS ' : 'EMPTY'} ${route.padEnd(16)} ${String(html.length).padStart(7)} bytes`)
       if (!ok) failures.push(route)
+      if (route === '/machines/M-003') {
+        const hasMaintenanceSeparation =
+          html.includes('Maintenance is overdue.') &&
+          html.includes('separate from the model status and recommendation')
+        const hasSensorSourceDisclosure =
+          html.includes('Illustrative demo readings; not model inputs')
+        if (!hasMaintenanceSeparation || !hasSensorSourceDisclosure) {
+          console.log('FAIL /machines/M-003 missing maintenance or sensor-source disclosure')
+          failures.push('/machines/M-003 disclosures')
+        }
+      }
     } catch (err) {
       console.log(`ERROR ${route.padEnd(16)} ${err && err.message}`)
       failures.push(route)

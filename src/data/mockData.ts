@@ -827,7 +827,7 @@ export const DEMO_CONVERSATIONS = [
         id: 'm3',
         role: 'assistant' as const,
         content:
-          'DEMO MODE uses simulated sensor inputs; risk and health are provided by the trained ML prediction service.',
+          'DEMO MODE predictions use simulated model inputs; displayed sensor readings are illustrative only and are not passed to the models.',
         timestamp: hoursAgo(5),
       },
     ],

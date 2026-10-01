@@ -12,7 +12,7 @@ export default function RiskBar({ value, showLabel = true }: { value: number; sh
           <span className="text-[10px] font-semibold uppercase tracking-wider text-ink-faint">
             Model Failure Probability
           </span>
-          <span className={cx('font-mono text-[11.5px] font-semibold', text)}>{value}%</span>
+          <span className={cx('font-mono text-[11.5px] font-semibold', text)}>{value.toFixed(1)}%</span>
         </div>
       )}
       <div className="h-1.5 w-full overflow-hidden rounded-full bg-navy-700/70">

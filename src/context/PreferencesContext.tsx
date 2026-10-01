@@ -613,7 +613,6 @@ Object.assign(translations, {
   'Filter Replacement': 'استبدال المرشح',
   '2h': 'ساعتان',
   '1h': 'ساعة واحدة',
-  'h': 'س',
   'Start work': 'بدء العمل',
   'records': 'سجلات',
   'Type': 'النوع',
@@ -774,6 +773,54 @@ Object.assign(translations, {
   Search: 'ابحث عن',
   manufacturers: 'الشركات المصنّعة',
   models: 'الطرازات',
+  'Demo model inputs': 'مدخلات نموذج تجريبية',
+  simulated: 'محاكاة',
+  'Demo model inputs are simulated': 'مدخلات النموذج التجريبية محاكاة',
+  'Illustrative demo readings; not model inputs': 'قراءات تجريبية توضيحية؛ لا تدخل في مدخلات النموذج',
+  'Illustrative demo readings only; they are not mapped to or used by the models.': 'قراءات تجريبية توضيحية فقط؛ لم تُربط بمدخلات النماذج ولا تُستخدم فيها.',
+  'Demo display history': 'سجل قراءات العرض التجريبية',
+  'not used by model': 'لا يستخدمها النموذج',
+  'Maintenance is overdue.': 'الصيانة متأخرة.',
+  'This schedule state is separate from the model status and recommendation.': 'حالة الجدول منفصلة عن حالة النموذج وتوصيته.',
+  'Maintenance is overdue. This schedule state is separate from the model status and recommendation.': 'الصيانة متأخرة. حالة الجدول منفصلة عن حالة النموذج وتوصيته.',
+  'Model Recommendation': 'توصية النموذج',
+  'Maintenance is overdue. Schedule status is separate from this model recommendation.': 'الصيانة متأخرة. حالة الجدول منفصلة عن توصية النموذج.',
+  'Maintenance is overdue and must be scheduled or completed separately; this model recommendation does not change the maintenance schedule.': 'الصيانة متأخرة ويجب جدولتها أو استكمالها بشكل منفصل؛ توصية النموذج لا تغيّر جدول الصيانة.',
+  'No failure type classified by the model': 'لم يصنّف النموذج نوعًا للعطل',
+  'Awaiting model output': 'بانتظار مخرجات النموذج',
+  'Model inputs and display-only sensor readings are separate': 'مدخلات النموذج وقراءات المستشعرات المعروضة منفصلة',
+  'Inputs used by the failure model': 'المدخلات المستخدمة في نموذج الأعطال',
+  'simulated demo values': 'قيم تجريبية محاكاة',
+  'Anomaly-model source:': 'مصدر مدخلات نموذج الشذوذ:',
+  'engineered features from its own simulated sensor window. The displayed sensor readings below are excluded.': 'سمات مشتقة من نافذة مستشعرات محاكاة مستقلة. قراءات المستشعرات المعروضة أدناه غير مستخدمة.',
+  'Illustrative display-only readings:': 'قراءات توضيحية للعرض فقط:',
+  'Select display-only sensor presets. These values are not mapped to the model features and will not be used in prediction.': 'اختر إعدادات مستشعرات للعرض فقط. هذه القيم غير مربوطة بسمات النموذج ولن تُستخدم في التنبؤ.',
+  'DEMO MODE · Simulated Model Inputs': 'وضع تجريبي · مدخلات نموذج محاكاة',
+  'The failure model uses the five simulated inputs in its documented training units. The selected display-only sensor presets are not used. The anomaly model receives a separate simulated sensor window.': 'يستخدم نموذج الأعطال المدخلات الخمسة المحاكاة بوحدات التدريب الموثقة. إعدادات المستشعرات المختارة للعرض فقط غير مستخدمة. ويتلقى نموذج الشذوذ نافذة مستشعرات محاكاة منفصلة.',
+  'Failure-model inputs used: air': 'مدخلات نموذج الأعطال المستخدمة: حرارة الهواء',
+  'Anomaly features:': 'سمات الشذوذ:',
+  'The selected sensor presets above were not used.': 'إعدادات المستشعرات المختارة أعلاه غير مستخدمة.',
+  'Maintenance overdue': 'الصيانة متأخرة',
+  'DEMO MODE · predictions use simulated inputs; displayed sensor readings are illustrative only': 'وضع تجريبي · التنبؤات بمدخلات محاكاة؛ قراءات المستشعرات المعروضة للتوضيح فقط',
+  'DEMO MODE · predictions use simulated model inputs; selected sensor presets are display-only.': 'وضع تجريبي · التنبؤات بمدخلات نموذج محاكاة؛ إعدادات المستشعرات المختارة للعرض فقط.',
+  'Demo predictions use separate simulated model inputs. The sensor profiles and uploaded file previews are not sent as model inputs.': 'تستخدم التنبؤات التجريبية مدخلات نموذج محاكاة منفصلة. لا تُرسل ملفات معاينة المستشعرات إلى النموذج.',
+  'DEMO MODE · simulated failure features + separate simulated anomaly window': 'وضع تجريبي · سمات أعطال محاكاة ونافذة شذوذ محاكاة منفصلة',
+  'DEMO MODE predictions use simulated model inputs; displayed sensor readings are illustrative only and are not passed to the models.': 'تستخدم تنبؤات الوضع التجريبي مدخلات نموذج محاكاة؛ قراءات المستشعرات المعروضة توضيحية فقط ولا تُمرر إلى النماذج.',
+  'Air temperature': 'حرارة الهواء',
+  'process temperature': 'حرارة العملية',
+  'rotational speed': 'السرعة الدورانية',
+  'tool wear': 'تآكل الأداة',
+  'Simulated Sensor Data': 'بيانات مستشعرات محاكاة',
+  'Provided Sensor Data': 'بيانات مستشعرات مقدمة',
+  'It used': 'استخدم',
+  'Anomaly model input:': 'مدخلات نموذج الشذوذ:',
+  readings: 'قراءة',
+  'This score is demo-only, not live equipment telemetry.': 'هذه الدرجة للعرض التجريبي فقط وليست بيانات حية من المعدة.',
+  'Provided sensor input.': 'مدخلات مستشعرات مقدمة.',
+  'The displayed sensor readings below are excluded.': 'قراءات المستشعرات المعروضة أدناه غير مستخدمة.',
+  'Show exact anomaly-model inputs': 'عرض مدخلات نموذج الشذوذ بالتفصيل',
+  'displayed sensor readings below are excluded': 'قراءات المستشعرات المعروضة أدناه غير مستخدمة',
+  'engineered features': 'سمة مشتقة',
 })
 
 const PreferencesContext = createContext<PreferencesContextValue | null>(null)
@@ -877,7 +924,11 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
         let node: Node | null
         while ((node = walker.nextNode())) {
           const parent = node.parentElement
-          if (parent && !['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEXTAREA'].includes(parent.tagName)) {
+          if (
+            parent &&
+            !parent.closest('code,[data-no-translate]') &&
+            !['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEXTAREA'].includes(parent.tagName)
+          ) {
             textNodes.push(node as Text)
           }
         }

@@ -30,7 +30,7 @@ export default function MachineCard({ machine }: { machine: Machine }) {
           </div>
           <p className="mt-1 truncate text-[11.5px] text-ink-dim">{machine.name}</p>
           <p className="mt-1 text-[9px] text-ink-faint">
-            Model input type: {machine.modelTypeCode} · auto
+            Demo model inputs · simulated · type {machine.modelTypeCode}
           </p>
           <div className="mt-1 flex flex-wrap items-center gap-2">
             {machine.status ? (
@@ -61,6 +61,9 @@ export default function MachineCard({ machine }: { machine: Machine }) {
         <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-ink-faint">
           Key Sensors · Current
         </p>
+        <p className="mb-2 text-[9px] leading-snug text-ink-faint">
+          Illustrative demo readings only; they are not mapped to or used by the models.
+        </p>
         <SensorList sensors={machine.sensors} compact />
       </div>
 
@@ -84,7 +87,7 @@ export default function MachineCard({ machine }: { machine: Machine }) {
         </span>
         <div className="min-w-0 flex-1">
           <p className="text-[10px] font-semibold uppercase tracking-wider text-ink-faint">
-            Recommended Maintenance
+            Model Recommendation
           </p>
           <p
             className={cx(
@@ -101,6 +104,11 @@ export default function MachineCard({ machine }: { machine: Machine }) {
                 ? 'Awaiting model recommendation'
                 : machine.predictionError ?? 'ML prediction service unavailable')}
           </p>
+          {machine.maintenanceStatus === 'Overdue' && (
+                <p className="mt-1 text-[10px] font-semibold text-red-300">
+                  Maintenance is overdue. Schedule status is separate from this model recommendation.
+                </p>
+          )}
         </div>
       </div>
 
@@ -112,7 +120,14 @@ export default function MachineCard({ machine }: { machine: Machine }) {
           </p>
           <p className="mt-0.5 flex items-start gap-1.5 text-[11px] leading-snug text-ink-dim">
             <MapPin className="mt-0.5 h-3 w-3 shrink-0 text-ink-faint" />
-            <span className="truncate">{machine.likelihood ?? 'Available after a successful model prediction'}</span>
+            <span className="truncate">
+              {machine.likelihood ??
+                (machine.predictionStatus === 'available'
+                  ? 'No failure type classified by the model'
+                  : machine.predictionStatus === 'loading'
+                    ? 'Awaiting model output'
+                    : machine.predictionError ?? 'Unavailable')}
+            </span>
           </p>
         </div>
         <div className="shrink-0 text-right">

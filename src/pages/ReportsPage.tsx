@@ -834,7 +834,7 @@ export default function ReportsPage() {
                                 : 'text-red-300',
                           )}
                         >
-                          {m.failureRisk === null ? '—' : `${m.failureRisk}%`}
+                          {m.failureRisk === null ? '—' : `${m.failureRisk.toFixed(1)}%`}
                         </span>
                       </td>
                       <td className="px-3 py-3">

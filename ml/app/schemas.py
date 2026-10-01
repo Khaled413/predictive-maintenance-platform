@@ -3,7 +3,14 @@ import math
 import re
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, FiniteFloat, field_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    FiniteFloat,
+    field_validator,
+    model_validator,
+)
 
 from .feature_engineering import SENSOR_COLUMNS
 
@@ -24,8 +31,22 @@ class PredictionRequest(BaseModel):
     rotational_speed: FiniteFloat = Field(alias="Rotational speed [rpm]", gt=0)
     torque: FiniteFloat = Field(alias="Torque [Nm]", gt=0)
     tool_wear: FiniteFloat = Field(alias="Tool wear [min]", ge=0)
+    machine_input_source: Literal["simulated", "provided"]
+    sensor_input_source: Literal["simulated", "provided"]
     simulation_state: SimulationState = "NORMAL"
     sensor_window: list[dict[str, object]] | None = None
+
+    @model_validator(mode="after")
+    def sensor_source_must_match_window(self) -> "PredictionRequest":
+        if self.sensor_input_source == "provided" and self.sensor_window is None:
+            raise ValueError(
+                "sensor_window is required when sensor_input_source is provided"
+            )
+        if self.sensor_input_source == "simulated" and self.sensor_window is not None:
+            raise ValueError(
+                "sensor_window must be omitted when sensor_input_source is simulated"
+            )
+        return self
 
     @field_validator("machine_id")
     @classmethod
@@ -45,9 +66,19 @@ class PredictionRequest(BaseModel):
             raise ValueError("sensor_window must contain at least one reading")
         timestamped: list[datetime] = []
         has_timestamp = ["timestamp" in reading for reading in readings]
-        if any(has_timestamp) and not all(has_timestamp):
-            raise ValueError("each sensor reading must include a timestamp when timestamps are used")
+        if not all(has_timestamp):
+            raise ValueError("each provided sensor reading must include a timestamp")
         for index, reading in enumerate(readings):
+            unsupported_keys = [
+                key
+                for key in reading
+                if key != "timestamp"
+                and not re.fullmatch(r"sensor_\d{2}", key)
+            ]
+            if unsupported_keys:
+                raise ValueError(
+                    f"unsupported sensor reading fields: {unsupported_keys}"
+                )
             sensor_keys = [
                 key for key in reading if re.fullmatch(r"sensor_\d{2}", key)
             ]
@@ -60,6 +91,8 @@ class PredictionRequest(BaseModel):
                 raise ValueError(f"unsupported sensor columns: {invalid_sensor_keys}")
             if not sensor_keys:
                 raise ValueError(f"sensor reading {index} contains no sensor values")
+            if all(reading[key] is None for key in sensor_keys):
+                raise ValueError(f"sensor reading {index} contains no numeric sensor values")
             for key in sensor_keys:
                 value = reading[key]
                 if value is not None and (
@@ -90,6 +123,8 @@ class PredictionRequest(BaseModel):
 class PredictionResponse(BaseModel):
     machine_id: str
     inputs: dict[str, str | float]
+    machine_input_source: Literal["simulated", "provided"]
+    sensor_input_source: Literal["simulated", "provided"]
     failure_probability: float = Field(ge=0, le=1)
     failure_type: str | None
     anomaly_score: float = Field(ge=0, le=1)
@@ -99,7 +134,11 @@ class PredictionResponse(BaseModel):
     recommendation: str
     prediction_source: Literal["Trained ML Models"]
     data_source: Literal["Simulated Sensor Data", "Provided Sensor Data"]
+    machine_inputs_simulated: bool
     sensor_inputs_simulated: bool
+    anomaly_features_used: list[str]
+    anomaly_model_inputs: dict[str, FiniteFloat | None]
+    anomaly_input_reading_count: int = Field(ge=1)
     timestamp: datetime
 
 

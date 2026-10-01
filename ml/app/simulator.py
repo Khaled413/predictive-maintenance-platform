@@ -19,7 +19,7 @@ def simulate_sensor_window(
     tool_wear: float,
     rows: int = 120,
 ) -> list[dict[str, float | None]]:
-    """Generate deterministic, correlated sensor INPUTS (never model outputs)."""
+    """Generate deterministic demo inputs, not calibrated live sensor telemetry."""
     machine_offset = int(hashlib.sha256(machine_id.encode("utf-8")).hexdigest()[:8], 16) % 1000 / 1000
     degradation = _STATE_SCALE[state]
     temperature_load = max(0.0, process_temperature - air_temperature)

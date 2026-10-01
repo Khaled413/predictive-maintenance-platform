@@ -25,11 +25,25 @@ from this `ml/` directory. Production artifacts and JSON metadata belong in
 their feature/calibration metadata. The service loads and validates the models
 once during startup and fails clearly if an artifact is missing or incompatible.
 
-`POST /api/predict` accepts machine inputs and either an ordered `sensor_window`
-of one-minute readings or a `simulation_state` (`NORMAL`, `DEGRADING`, or
-`CRITICAL`). Simulated sensor readings are deterministic and explicitly labeled
-in the response; failure probability, anomaly score, health, and recommendations
-come from the loaded models and deterministic health-decision rules.
+`POST /api/predict` accepts machine inputs in the training units (K, rpm, Nm,
+and min), an explicit `machine_input_source` (`simulated` or `provided`), and
+an explicit `sensor_input_source` (`simulated` or `provided`). A provided sensor
+source requires an ordered `sensor_window` of timestamped one-minute `sensor_XX` readings;
+a simulated source omits that window and uses the deterministic demo simulator.
+The response echoes both input sources, the exact model inputs, the engineered
+anomaly feature values passed to the anomaly model, the sensor-window reading
+count, and whether each input group was simulated.
+The demo simulator is synthetic and is not calibrated to a specific machine or
+the training-data distributions. Predictions from simulated inputs are for
+demonstration only, not live equipment assessment.
+
+The `sensor_XX` channels come from the separate raw sensor dataset. That dataset
+does not document physical units or a mapping to named dashboard readings such
+as temperature, vibration, pressure, or power. Do not map or convert those
+dashboard readings to `sensor_XX` channels without a verified source contract.
+Failure probability, anomaly score, health, and the model recommendation come
+from the loaded models and deterministic health-decision rules; maintenance
+schedule state is separate.
 
 Run the backend locally from this directory with
 `python -m pip install -r requirements.txt` and

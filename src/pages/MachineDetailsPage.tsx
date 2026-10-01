@@ -177,7 +177,7 @@ return (
             {machine.name} · {machine.manufacturer} {machine.model}
           </p>
           <p className="mt-1 text-[10px] text-ink-faint">
-            Model input type: {machine.modelTypeCode} · auto-mapped
+            Demo model inputs are simulated · input type {machine.modelTypeCode}
           </p>
         </div>
         <div className="ml-auto flex items-center gap-2.5">
@@ -271,6 +271,11 @@ return (
           <p className="mt-0.5 text-[11px] text-ink-faint">
             Next {formatDate(machine.nextMaintenance)}
           </p>
+          {machine.maintenanceStatus === 'Overdue' && (
+            <p className="mt-2 rounded-lg border border-red-400/25 bg-red-500/5 px-2.5 py-2 text-[10.5px] font-semibold text-red-300">
+              Maintenance is overdue. This schedule state is separate from the model status and recommendation.
+            </p>
+          )}
         </Panel>
       </div>
 {/* Trend charts */}
@@ -367,7 +372,7 @@ return (
           <ChartCard
             key={series.name}
             title={series.name}
-            subtitle={`Current ${machine.sensors.find((s) => s.name === series.name)?.value ?? '—'} ${series.unit} · range ${machine.sensors.find((s) => s.name === series.name)?.min ?? '—'}–${machine.sensors.find((s) => s.name === series.name)?.max ?? '—'} ${series.unit}`}
+            subtitle={`Demo display history · not used by model · current ${machine.sensors.find((s) => s.name === series.name)?.value ?? '—'} ${series.unit} · range ${machine.sensors.find((s) => s.name === series.name)?.min ?? '—'}–${machine.sensors.find((s) => s.name === series.name)?.max ?? '—'} ${series.unit}`}
           >
             <ResponsiveContainer width="100%" height={150}>
               <LineChart
@@ -389,13 +394,13 @@ return (
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="space-y-4 lg:col-span-2">
           <Panel className="overflow-hidden">
-            <PanelHeader title="ML Prediction" subtitle="Trained model outputs · demo-mode simulated sensor inputs" />
+            <PanelHeader title="ML Prediction" subtitle="Model inputs and display-only sensor readings are separate" />
             {prediction ? (
               <div className="grid gap-3 px-4 py-4 sm:grid-cols-2">
                 <div className="rounded-xl border border-line bg-navy-900/50 p-3">
                   <p className="text-[10px] font-semibold uppercase tracking-wider text-ink-faint">Failure Type</p>
                   <p className="mt-1 text-[12px] font-semibold text-ink">
-                    {prediction.failure_type ?? 'Not classified below threshold'}
+                    {prediction.failure_type ?? 'No failure type classified by the model'}
                   </p>
                 </div>
                 <div className="rounded-xl border border-line bg-navy-900/50 p-3">
@@ -403,8 +408,41 @@ return (
                   <p className="mt-1 text-[12px] font-semibold text-ink">{(prediction.anomaly_score * 100).toFixed(1)}% · {prediction.anomaly_flag ? 'Flagged' : 'Not flagged'}</p>
                 </div>
                 <div className="rounded-xl border border-line bg-navy-900/50 p-3 sm:col-span-2">
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-ink-faint">Recommendation</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-ink-faint">Model Recommendation</p>
                   <p className="mt-1 text-[12px] font-semibold text-ink">{prediction.recommendation}</p>
+                  {machine.maintenanceStatus === 'Overdue' && (
+                    <p className="mt-2 text-[10.5px] font-semibold text-red-300">
+                      Maintenance is overdue and must be scheduled or completed separately; this model recommendation does not change the maintenance schedule.
+                    </p>
+                  )}
+                </div>
+                <div className="rounded-xl border border-line bg-navy-900/50 p-3 sm:col-span-2">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-ink-faint">
+                    Inputs used by the failure model · {prediction.machine_input_source === 'simulated' ? 'simulated demo values' : 'provided model values'}
+                  </p>
+                  <p className="mt-1 text-[11px] leading-relaxed text-ink-dim">
+                    Air temperature {prediction.inputs.air_temperature} K · process temperature {prediction.inputs.process_temperature} K · rotational speed {prediction.inputs.rotational_speed} rpm · torque {prediction.inputs.torque} Nm · tool wear {prediction.inputs.tool_wear} min · type {prediction.inputs.type}
+                  </p>
+                  <p className="mt-2 text-[10px] leading-relaxed text-ink-faint">
+                    <span>Anomaly model input:</span> {prediction.data_source} · {prediction.anomaly_input_reading_count} readings · {prediction.sensor_inputs_simulated ? 'This score is demo-only, not live equipment telemetry.' : 'Provided sensor input.'} The displayed sensor readings below are excluded.
+                  </p>
+                  <details className="mt-1 text-[9px] text-ink-faint">
+                    <summary className="cursor-pointer">
+                      Show exact anomaly-model inputs · {prediction.anomaly_features_used.length}
+                    </summary>
+                    <dl className="mt-2 grid gap-x-3 gap-y-1 sm:grid-cols-2">
+                      {prediction.anomaly_features_used.map((feature) => (
+                        <div key={feature} className="flex justify-between gap-2 border-b border-line/50 py-1">
+                          <dt className="break-all font-mono">
+                            <code data-no-translate>{feature}</code>
+                          </dt>
+                          <dd className="shrink-0 font-mono">
+                            {prediction.anomaly_model_inputs[feature] ?? '—'}
+                          </dd>
+                        </div>
+                      ))}
+                    </dl>
+                  </details>
                 </div>
               </div>
             ) : (
@@ -419,7 +457,7 @@ return (
 
         {/* Sensor current state */}
         <Panel className="overflow-hidden">
-          <PanelHeader title="Key Sensors · Current" subtitle="Live values vs safe band" />
+          <PanelHeader title="Key Sensors · Current" subtitle="Illustrative demo readings; not model inputs" />
           <div className="px-4 py-4">
             <SensorList sensors={machine.sensors} />
           </div>

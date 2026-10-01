@@ -88,7 +88,11 @@ def create_app(models_dir: str | Path | None = None) -> FastAPI:
                 "torque": request.torque,
                 "tool_wear": request.tool_wear,
                 "simulation_state": request.simulation_state,
+                "machine_input_source": request.machine_input_source,
+                "sensor_input_source": request.sensor_input_source,
             },
+            "machine_input_source": request.machine_input_source,
+            "sensor_input_source": request.sensor_input_source,
             "failure_probability": result["failure_probability"],
             "failure_type": result["failure_type"],
             "anomaly_score": result["anomaly_score"],
@@ -104,7 +108,11 @@ def create_app(models_dir: str | Path | None = None) -> FastAPI:
             "data_source": (
                 "Simulated Sensor Data" if simulated else "Provided Sensor Data"
             ),
+            "machine_inputs_simulated": request.machine_input_source == "simulated",
             "sensor_inputs_simulated": simulated,
+            "anomaly_features_used": result["anomaly_feature_names"],
+            "anomaly_model_inputs": result["anomaly_model_inputs"],
+            "anomaly_input_reading_count": len(window),
             "timestamp": datetime.now(timezone.utc),
         }
 

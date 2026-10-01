@@ -86,12 +86,12 @@ function buildReply(
       return { content: `${m.id} has no current model output. ML prediction service unavailable; health, risk, status, and recommendation are not available.` }
     }
     return {
-      content: `${m.id} (${m.name}) — ${m.type}:\n\n• Health score: ${m.healthScore}%\n• Failure probability: ${m.failureRisk}%\n• Status: ${m.status}\n• Recommended maintenance: ${m.recommendation}\n\nKey factors:\n${m.sensors
+      content: `${m.id} (${m.name}) — ${m.type}:\n\n• Health score: ${m.healthScore}%\n• Failure probability: ${m.failureRisk.toFixed(1)}%\n• Model status: ${m.status}\n• Model recommendation: ${m.recommendation}${m.maintenanceStatus === 'Overdue' ? '\n• Maintenance schedule: OVERDUE — arrange the overdue maintenance separately; the model recommendation does not update the schedule.' : ''}\n• Model inputs are simulated demo values; the displayed sensor readings below are illustrative only and were not used by the model.\n\nIllustrative display-only readings:\n${m.sensors
         .map(
           (s) =>
             `• ${s.name}: ${s.value} ${s.unit} (band ${s.min}–${s.max}) — ${s.level === 'green' ? 'normal' : s.level === 'amber' ? 'approaching limit' : 'exceeds limit'}`,
         )
-        .join('\n')}\n\nLikely reason: ${m.likelihood}. ${m.failureRisk >= 50 ? 'A preventive inspection should be scheduled in the next maintenance window.' : 'No immediate action required.'}`,
+        .join('\n')}\n\nModel failure type: ${m.likelihood ?? 'No failure type classified by the model'}. ${m.failureRisk >= 50 ? 'A preventive inspection should be scheduled in the next maintenance window.' : 'No immediate model-triggered action indicated; follow the maintenance schedule.'}`,
     }
   }
 
@@ -105,7 +105,7 @@ function buildReply(
     }
     return {
       content: `Currently ${agg.atRisk.length} machines are at risk:\n\n${agg.atRisk
-        .map((x) => `• ${x.id} — ${x.type}: health ${x.healthScore}%, failure risk ${x.failureRisk}% (${x.likelihood ?? '—'})`)
+        .map((x) => `• ${x.id} — ${x.type}: health ${x.healthScore}%, failure risk ${x.failureRisk?.toFixed(1) ?? '—'}% (${x.likelihood ?? 'No failure type classified'})`)
         .join('\n')}\n\n${agg.critical.length
         ? `Priority: ${agg.critical.map((c) => c.id).join(', ')} should be addressed first.`
         : 'Monitoring continues — no critical threshold crossed yet.'}`,
@@ -134,7 +134,7 @@ function buildReply(
       content: `Machines with abnormal vibration:\n\n${agg.vibration
         .map(
           (x) =>
-            `• ${x.id} — ${x.name}: ${x.sensors.find((s) => s.name.toLowerCase() === 'vibration')?.value}${x.sensors.find((s) => s.name.toLowerCase() === 'vibration')?.unit} (${x.status?.toLowerCase() ?? 'prediction unavailable'})`,
+            `• ${x.id} — ${x.name}: illustrative demo vibration reading ${x.sensors.find((s) => s.name.toLowerCase() === 'vibration')?.value}${x.sensors.find((s) => s.name.toLowerCase() === 'vibration')?.unit}; not used by model (${x.status?.toLowerCase() ?? 'prediction unavailable'})`,
         )
         .join('\n')}\n\nRecommended action: verify mechanical coupling and schedule lubrication/inspection.`,
     }

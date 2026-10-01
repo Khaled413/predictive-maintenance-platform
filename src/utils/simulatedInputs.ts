@@ -52,6 +52,8 @@ export function simulateMachineInputs(
     rotational_speed,
     torque,
     tool_wear,
+    machine_input_source: 'simulated',
+    sensor_input_source: 'simulated',
     simulation_state,
   }
 }

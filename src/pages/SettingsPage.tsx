@@ -569,12 +569,12 @@ export default function SettingsPage() {
                 <Field
                   label="Prediction Model"
                   className="sm:col-span-2"
-                  hint="DEMO MODE uses simulated sensor inputs; health and risk outputs come from the trained ML prediction service."
+                  hint="Demo predictions use separate simulated model inputs. The sensor profiles and uploaded file previews are not sent as model inputs."
                 >
                   <TextInput value="Trained ML Models · same-origin /api/predict" readOnly />
                 </Field>
                 <Field label="Prediction Inputs">
-                  <TextInput value="DEMO MODE · correlated simulated sensor inputs" readOnly />
+                  <TextInput value="DEMO MODE · simulated failure features + separate simulated anomaly window" readOnly />
                 </Field>
               </div>
               <div className="space-y-2.5 border-t border-line px-4 py-4 sm:px-5">
