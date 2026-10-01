@@ -150,11 +150,11 @@ export default function TopHeader({ onMenu }: TopHeaderProps) {
           className="flex items-center gap-2 rounded-lg border border-line bg-navy-800/60 py-1 pl-1 pr-2 transition-colors hover:border-sky-400/30"
         >
           <div className="flex h-7 w-7 items-center justify-center rounded-md bg-gradient-to-br from-sky-500/80 to-blue-700 text-[11px] font-bold text-white">
-            ES
+            {language === 'ar' ? 'مس' : 'ES'}
           </div>
           <div className="hidden text-left leading-none sm:block">
-            <p className="text-[11.5px] font-semibold text-ink">Eng. Sarah</p>
-            <p className="mt-0.5 text-[10px] text-ink-faint">Maintenance Manager</p>
+            <p className="text-[11.5px] font-semibold text-ink">{t('Eng. Sarah')}</p>
+            <p className="mt-0.5 text-[10px] text-ink-faint">{t('Maintenance Manager')}</p>
           </div>
           <ChevronDown className="hidden h-3.5 w-3.5 text-ink-faint sm:block" />
         </button>

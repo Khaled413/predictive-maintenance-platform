@@ -14,6 +14,7 @@ import {
   Trash2,
 } from 'lucide-react'
 import { useApp } from '../context/AppContext'
+import { usePreferences } from '../context/PreferencesContext'
 import Panel, { PanelHeader } from '../components/ui/Panel'
 import UploadZone from '../components/ui/UploadZone'
 import { cx, formatDateTime, nowIso, seededRandom, timeAgo } from '../utils/helpers'
@@ -178,6 +179,7 @@ type CtxMap = {
 
 export default function AssistantPage() {
   const { machines, maintenance, documents, addDocument, deleteDocument, setDocumentStatus, notify, refreshTimestamp } = useApp()
+  const { language } = usePreferences()
   const navigate = useNavigate()
 
   const [ctx, setCtx] = useState<AskContext>('factory')
@@ -409,7 +411,7 @@ return (
                 )}
               >
                 {msg.role === 'user' ? (
-                  <span className="text-[10px] font-bold text-ink">ES</span>
+                  <span className="text-[10px] font-bold text-ink">{language === 'ar' ? 'م.س' : 'ES'}</span>
                 ) : (
                   <Bot className="h-3.5 w-3.5 text-white" />
                 )}

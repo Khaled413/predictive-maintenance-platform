@@ -92,8 +92,10 @@ body.light-mode .border-line {
   border-left-width: 1px;
 }
 
-[dir='rtl'] .-translate-x-full {
-  transform: translateX(100%);
+@media (max-width: 1023px) {
+  [dir='rtl'] .-translate-x-full {
+    transform: translateX(100%);
+  }
 }
 
 [dir='rtl'] .lg\:pl-60 {

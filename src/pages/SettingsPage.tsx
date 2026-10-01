@@ -36,7 +36,7 @@ const TIMEZONES = ['Asia/Riyadh (GMT+3)', 'Asia/Dubai (GMT+4)', 'Europe/Berlin (
 const PLANT_OPTIONS = ['Plant A — Riyadh', 'Plant B — Dammam', 'Plant C — Jeddah', 'Distribution Center 1']
 
 export default function SettingsPage() {
-  const { t } = usePreferences()
+  const { t, language } = usePreferences()
   const {
     thresholds,
     saveThresholds,
@@ -213,7 +213,13 @@ export default function SettingsPage() {
                   </SelectInput>
                 </Field>
                 <Field label="Fleet Name" className="sm:col-span-2">
-                  <TextInput defaultValue="Riyadh Plant A — Production Line 1" />
+                  <TextInput
+                    defaultValue={
+                      language === 'ar'
+                        ? 'منشأة الرياض A — خط الإنتاج 1'
+                        : 'Riyadh Plant A — Production Line 1'
+                    }
+                  />
                 </Field>
               </div>
               <div className="flex flex-wrap items-center gap-2 border-t border-line px-4 py-3.5 sm:px-5">
