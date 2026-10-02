@@ -7,7 +7,6 @@
 An industrial machine-health dashboard that combines a React application with
 a Python inference service for predictive maintenance.
 
-![Predictive Maintenance Platform concept artwork](docs/assets/predictive-maintenance-platform.png)
 
 > **About the image:** This is concept artwork for the project, not a screenshot
 > of the current application or a guarantee that every depicted integration is
