@@ -4,11 +4,27 @@
 
 :root {
   color-scheme: dark;
-  --bg-page: #060b18; --bg-panel: #0a1428; --bg-panel-soft: rgba(11, 17, 31, 0.85); --bg-elevated: #0d1830;
-  --text: #e6edf6; --text-dim: #9fb0c8; --text-faint: #6b7d99; --border: rgba(148, 163, 184, 0.12); --shadow: rgba(2, 6, 23, 0.8);
-  --navy-950: 6 11 24; --navy-900: 8 16 32; --navy-850: 10 20 40; --navy-800: 13 24 48;
-  --navy-750: 15 27 54; --navy-700: 18 32 63; --navy-600: 24 42 79; --navy-500: 31 52 96;
-  --ink: 230 237 246; --ink-dim: 159 176 200; --ink-faint: 107 125 153; --line: 148 163 184;
+  --bg-page: #060b18;
+  --bg-panel: #0a1428;
+  --bg-panel-soft: rgba(11, 17, 31, 0.85);
+  --bg-elevated: #0d1830;
+  --text: #e6edf6;
+  --text-dim: #9fb0c8;
+  --text-faint: #6b7d99;
+  --border: rgba(148, 163, 184, 0.12);
+  --shadow: rgba(2, 6, 23, 0.8);
+  --navy-950: 6 11 24;
+  --navy-900: 8 16 32;
+  --navy-850: 10 20 40;
+  --navy-800: 13 24 48;
+  --navy-750: 15 27 54;
+  --navy-700: 18 32 63;
+  --navy-600: 24 42 79;
+  --navy-500: 31 52 96;
+  --ink: 230 237 246;
+  --ink-dim: 159 176 200;
+  --ink-faint: 107 125 153;
+  --line: 148 163 184;
 }
 
 html,
@@ -27,9 +43,16 @@ body {
   background: var(--bg-page);
   color: var(--text);
   font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  background-image:
-    radial-gradient(1100px 560px at 82% -12%, rgba(37, 99, 235, 0.10), transparent 60%),
-    radial-gradient(900px 520px at -12% 112%, rgba(14, 116, 144, 0.07), transparent 60%);
+  background-image: radial-gradient(
+      1100px 560px at 82% -12%,
+      rgba(37, 99, 235, 0.1),
+      transparent 60%
+    ),
+    radial-gradient(
+      900px 520px at -12% 112%,
+      rgba(14, 116, 144, 0.07),
+      transparent 60%
+    );
   background-attachment: fixed;
 }
 
@@ -44,12 +67,28 @@ body.light-mode {
   --text-faint: #6a7d99;
   --border: rgba(39, 56, 84, 0.12);
   --shadow: rgba(148, 163, 184, 0.2);
-  --navy-950: 238 244 255; --navy-900: 247 250 255; --navy-850: 255 255 255; --navy-800: 245 248 255;
-  --navy-750: 239 244 252; --navy-700: 232 239 249; --navy-600: 218 228 241; --navy-500: 202 216 232;
-  --ink: 18 32 54; --ink-dim: 73 95 131; --ink-faint: 106 125 153; --line: 39 56 84;
-  background-image:
-    radial-gradient(1100px 560px at 82% -12%, rgba(96, 165, 250, 0.12), transparent 60%),
-    radial-gradient(900px 520px at -12% 112%, rgba(14, 116, 144, 0.06), transparent 60%);
+  --navy-950: 238 244 255;
+  --navy-900: 247 250 255;
+  --navy-850: 255 255 255;
+  --navy-800: 245 248 255;
+  --navy-750: 239 244 252;
+  --navy-700: 232 239 249;
+  --navy-600: 218 228 241;
+  --navy-500: 202 216 232;
+  --ink: 18 32 54;
+  --ink-dim: 73 95 131;
+  --ink-faint: 106 125 153;
+  --line: 39 56 84;
+  background-image: radial-gradient(
+      1100px 560px at 82% -12%,
+      rgba(96, 165, 250, 0.12),
+      transparent 60%
+    ),
+    radial-gradient(
+      900px 520px at -12% 112%,
+      rgba(14, 116, 144, 0.06),
+      transparent 60%
+    );
 }
 
 body {
@@ -66,8 +105,13 @@ body.light-mode .bg-slate-900 {
   background-color: var(--bg-panel) !important;
 }
 
-body.light-mode .bg-black\/60 { background-color: rgb(15 23 42 / 0.28) !important; }
-body.light-mode .bg-black\/70 { background-color: rgb(15 23 42 / 0.38) !important; }
+body.light-mode .bg-black\/60 {
+  background-color: rgb(15 23 42 / 0.28) !important;
+}
+
+body.light-mode .bg-black\/70 {
+  background-color: rgb(15 23 42 / 0.38) !important;
+}
 
 body.light-mode .text-ink,
 body.light-mode .text-ink-dim,
@@ -106,22 +150,26 @@ body.light-mode .border-line {
 body.light-mode .shadow-card,
 body.light-mode .shadow-glow,
 body.light-mode .shadow-panel {
-  box-shadow: 0 1px 0 rgba(255,255,255,0.4) inset, 0 12px 30px -16px var(--shadow);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.4) inset,
+    0 12px 30px -16px var(--shadow);
 }
 
 ::-webkit-scrollbar {
   width: 9px;
   height: 9px;
 }
+
 ::-webkit-scrollbar-track {
   background: transparent;
 }
+
 ::-webkit-scrollbar-thumb {
   background: rgba(148, 163, 184, 0.16);
   border-radius: 999px;
   border: 2px solid transparent;
   background-clip: content-box;
 }
+
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(148, 163, 184, 0.3);
   background-clip: content-box;
@@ -161,7 +209,7 @@ body.light-mode .shadow-panel {
   }
 
   .input {
-    @apply w-full rounded-xl border border-line bg-navy-900/60 px-3.5 h-10 text-sm text-ink placeholder:text-ink-faint outline-none transition-all focus:border-sky-400/50 focus:ring-2 focus:ring-sky-500/20;
+    @apply w-full rounded-xl border border-line bg-navy-900/60 px-3.5 h-10 text-sm text-ink placeholder:text-ink-faint outline-none transition-all focus:border-sky-400/50 focus:ring-2 focus:ring-sky-400/30;
   }
 
   .label {
