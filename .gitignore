@@ -1,19 +1,56 @@
 # Dependencies
 node_modules/
+package-lock.json.old
 
 # Build output
 dist/
 dist-ssr/
+.vite/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+.pytest_cache/
+.coverage
+htmlcov/
 
 # Logs
 *.log
 npm-debug.log*
+npm-error.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
 
-# Editor / OS
+# Editor / IDE
 .vscode/*
 !.vscode/extensions.json
 .idea/
+.vscode-test
+.vscode-test.log
+*.swp
+*.swo
+*~
+
+# OS
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Windows
 *.suo
 *.ntvs*
 *.njsproj
@@ -22,8 +59,28 @@ npm-debug.log*
 
 # Local env files
 .env
-.env.*
-!.env.example
+.env.local
+.env.*.local
 
 # ML Data Files (Large files)
 ml/data/**/*.csv
+ml/data/raw/
+ml/data/processed/
+ml/reports/
+ml/models/*.joblib
+
+# Jupyter
+.ipynb_checkpoints
+*.ipynb
+ml/notebooks/.ipynb_checkpoints
+
+# IDE temp files
+.sublime-project
+.sublime-workspace
+.project
+.pydevproject
+.settings/
+
+# Production
+.next
+out
