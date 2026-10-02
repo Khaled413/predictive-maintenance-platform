@@ -45,12 +45,12 @@ For separate terminals, run `npm run dev:ml` and `npm run dev:app`.
 
 ## Deploying on Vercel
 
-The root `vercel.json` deploys the Vite frontend as the public `app` service and
-routes all paths to it. The app service rewrites client-side routes to the Vite
-entry page so deep links (for example, `/machines`) work when opened directly.
-The `ml` service runs the FastAPI inference backend and stays internal. The
-public `/api/predict` function in the app service forwards requests through the
-`ML_SERVICE_URL` service binding; the browser never receives the internal URL.
+The root `vercel.json` deploys the Vite frontend as the `app` service and the
+FastAPI inference backend as the `ml` service. Requests under `/api/*` are routed
+directly to `ml`; all other paths go to `app`, which rewrites client-side routes
+to the Vite entry page so deep links (for example, `/machines`) work when opened
+directly. The browser calls the same-origin `/api/predict` route and never needs
+the ML service URL.
 
 For local end-to-end development, start the backend and frontend separately:
 
@@ -63,8 +63,7 @@ python -m uvicorn main:app --host 127.0.0.1 --port 8001
 In another terminal, run `npm run dev`. The Vite development proxy forwards
 `/api/*` to `ML_API_DEV_ORIGIN`, which defaults to `http://127.0.0.1:8001`.
 Set `ML_API_DEV_ORIGIN` if the local backend runs elsewhere. In production,
-Vercel injects `ML_SERVICE_URL` into the app functions from the service binding.
-Only the app is public; the ML service is called by server-side API functions.
+Vercel routes `/api/*` requests from the app service to the ML service.
 Notebook dependencies are listed separately in `ml/requirements-research.txt`.
 
 ---

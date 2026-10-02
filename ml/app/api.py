@@ -34,6 +34,7 @@ def create_app(models_dir: str | Path | None = None) -> FastAPI:
 
     application = FastAPI(title="Predictive Maintenance Inference API", lifespan=lifespan)
 
+    @application.get("/api/health", response_model=HealthResponse)
     @application.get("/health", response_model=HealthResponse)
     def health() -> dict[str, Any]:
         loaded = isinstance(getattr(application.state, "model_bundle", None), ModelBundle)

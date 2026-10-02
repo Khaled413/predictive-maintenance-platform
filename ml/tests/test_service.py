@@ -269,6 +269,9 @@ class ApiTests(unittest.TestCase):
         application.state.model_bundle = fake_bundle()
         predict_route = next(route for route in application.routes if getattr(route, "path", None) == "/api/predict")
         health_route = next(route for route in application.routes if getattr(route, "path", None) == "/health")
+        public_health_route = next(
+            route for route in application.routes if getattr(route, "path", None) == "/api/health"
+        )
         payload = {
             "machine_id": "machine-1",
             "type": "H",
@@ -313,6 +316,7 @@ class ApiTests(unittest.TestCase):
             set(result["anomaly_features_used"]),
         )
         self.assertEqual(health_route.endpoint()["status"], "ok")
+        self.assertEqual(public_health_route.endpoint()["status"], "ok")
 
     def test_provided_machine_and_sensor_inputs_are_not_replaced_by_simulation(self):
         from app.api import create_app

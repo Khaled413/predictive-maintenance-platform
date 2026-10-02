@@ -50,8 +50,8 @@ Run the backend locally from this directory with
 `python -m uvicorn main:app --host 0.0.0.0 --port 8001`. Research and notebook
 dependencies are kept separately in `requirements-research.txt`. The app's
 Vite proxy uses port 8001 by default; set `ML_API_DEV_ORIGIN` to override it.
-In Vercel, the app function calls this internal service through the
-`ML_SERVICE_URL` binding.
+In Vercel, the root service rewrite routes `/api/*` directly to this backend.
+Both `/health` and `/api/health` expose the service health check.
 
 Configuration defaults can be overridden with `FAILURE_THRESHOLD`,
 `HEALTH_FAILURE_WEIGHT`, `HEALTH_ANOMALY_WEIGHT`,
