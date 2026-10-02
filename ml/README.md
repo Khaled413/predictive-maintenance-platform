@@ -24,6 +24,8 @@ from this `ml/` directory. Production artifacts and JSON metadata belong in
 `models/`: a failure classifier, failure-type classifier, anomaly pipeline, and
 their feature/calibration metadata. The service loads and validates the models
 once during startup and fails clearly if an artifact is missing or incompatible.
+The training and inference environments pin scikit-learn to 1.7.1 because the
+serialized anomaly pipeline uses version-specific `SimpleImputer` state.
 
 `POST /api/predict` accepts machine inputs in the training units (K, rpm, Nm,
 and min), an explicit `machine_input_source` (`simulated` or `provided`), and
