@@ -1,4 +1,5 @@
 # Industrial AI Platform — Machine Health & Maintenance Dashboard
+<img width="1536" height="1024" alt="image" src="https://github.com/user-attachments/assets/ce1375ef-3cef-417f-b5dd-d0e13b002723" />
 
 **Predict • Prevent • Optimize**
 
