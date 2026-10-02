@@ -1,0 +1,10 @@
+node_modules/
+dist/
+build/
+coverage/
+.vite/
+*.min.js
+*.config.js
+vite.config.ts
+vercel.json
+public/
