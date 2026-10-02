@@ -6,6 +6,17 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react()],
+    resolve: {
+      alias: {
+        '@': '/src',
+        '@components': '/src/components',
+        '@pages': '/src/pages',
+        '@context': '/src/context',
+        '@types': '/src/types',
+        '@utils': '/src/utils',
+        '@data': '/src/data',
+      },
+    },
     server: {
       port: 5173,
       host: true,
@@ -13,7 +24,13 @@ export default defineConfig(({ mode }) => {
         '/api': {
           target: env.ML_API_DEV_ORIGIN || 'http://127.0.0.1:8001',
           changeOrigin: true,
-          rewrite: (path) => (path === '/api/health' ? '/health' : path),
+          rewrite: (path) => {
+            // Map /api/predict -> /api/predict, /api/health -> /health
+            if (path === '/api/health') {
+              return '/health'
+            }
+            return path
+          },
         },
       },
     },
@@ -29,6 +46,13 @@ export default defineConfig(({ mode }) => {
         },
       },
       chunkSizeWarningLimit: 700,
+      sourcemap: false,
+      minify: 'terser',
+      terserOptions: {
+        compress: {
+          drop_console: true,
+        },
+      },
     },
   }
 })
