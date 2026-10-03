@@ -4,6 +4,14 @@ from .config import Settings, get_settings
 
 
 @dataclass(frozen=True)
+class DecisionThresholds:
+    health_warning: float
+    health_critical: float
+    risk_warning: float
+    risk_critical: float
+
+
+@dataclass(frozen=True)
 class HealthDecision:
     health_score: float
     status: str
@@ -14,6 +22,7 @@ def decide_health(
     failure_probability: float,
     anomaly_score: float,
     settings: Settings | None = None,
+    thresholds: DecisionThresholds | None = None,
 ) -> HealthDecision:
     settings = settings or get_settings()
     if not 0 <= failure_probability <= 1 or not 0 <= anomaly_score <= 1:
@@ -26,13 +35,20 @@ def decide_health(
         + settings.anomaly_weight * anomaly_score
     ) / total_weight
     score = round(max(0.0, min(100.0, 100.0 * (1.0 - risk))), 2)
-    if score >= settings.healthy_threshold:
-        status = "healthy"
-        recommendation = "Continue normal operation and routine maintenance."
-    elif score >= settings.warning_threshold:
+    limits = thresholds or DecisionThresholds(
+        health_warning=settings.healthy_threshold,
+        health_critical=settings.warning_threshold,
+        risk_warning=settings.risk_warning_threshold,
+        risk_critical=settings.critical_failure_threshold * 100,
+    )
+    failure_risk = failure_probability * 100
+    if score <= limits.health_critical or failure_risk >= limits.risk_critical:
+        status = "critical"
+        recommendation = "Stop or reduce operation and inspect the machine immediately."
+    elif score <= limits.health_warning or failure_risk >= limits.risk_warning:
         status = "warning"
         recommendation = "Inspect the machine soon and schedule preventive maintenance."
     else:
-        status = "critical"
-        recommendation = "Stop or reduce operation and inspect the machine immediately."
+        status = "healthy"
+        recommendation = "Continue normal operation and routine maintenance."
     return HealthDecision(score, status, recommendation)

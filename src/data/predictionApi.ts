@@ -1,4 +1,9 @@
-import type { PredictionInputs, PredictionResponse } from '../types'
+import type { PredictionInputs, PredictionResponse, Thresholds } from '../types'
+import {
+  recommendationForStatus,
+  statusForPrediction,
+  toDecisionThresholds,
+} from '../utils/predictionThresholds'
 
 function isPredictionResponse(value: unknown): value is PredictionResponse {
   if (!value || typeof value !== 'object') return false
@@ -23,6 +28,8 @@ function isPredictionResponse(value: unknown): value is PredictionResponse {
     result.sensor_inputs_simulated === (inputs.sensor_input_source === 'simulated') &&
     typeof result.anomaly_input_reading_count === 'number' &&
     result.anomaly_input_reading_count > 0 &&
+    typeof result.latest_reading_at === 'string' &&
+    !Number.isNaN(Date.parse(result.latest_reading_at)) &&
     typeof result.failure_probability === 'number' &&
     result.failure_probability >= 0 &&
     result.failure_probability <= 1 &&
@@ -56,15 +63,32 @@ function isPredictionResponse(value: unknown): value is PredictionResponse {
   )
 }
 
-export async function requestPrediction(inputs: PredictionInputs): Promise<PredictionResponse> {
-  const response = await fetch('/api/predict', {
+export async function requestPrediction(
+  inputs: PredictionInputs,
+  thresholds: Thresholds,
+): Promise<PredictionResponse> {
+  const request = (includeThresholds: boolean) => fetch('/api/predict', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(inputs),
+    body: JSON.stringify({
+      ...inputs,
+      ...(includeThresholds
+        ? { decision_thresholds: toDecisionThresholds(thresholds) }
+        : {}),
+    }),
   })
+  let response = await request(true)
 
   if (!response.ok) {
-    throw new Error(`Prediction request failed (${response.status})`)
+    const responseBody = await response.text()
+    if (response.status !== 422 || !isUnsupportedThresholdField(responseBody)) {
+      throw new Error(`Prediction request failed (${response.status})${responseBody ? `: ${responseBody}` : ''}`)
+    }
+    response = await request(false)
+    if (!response.ok) {
+      const retryBody = await response.text()
+      throw new Error(`Prediction request failed (${response.status})${retryBody ? `: ${retryBody}` : ''}`)
+    }
   }
 
   const result: unknown = await response.json()
@@ -86,5 +110,55 @@ export async function requestPrediction(inputs: PredictionInputs): Promise<Predi
       throw new Error(`Prediction response input did not match: ${key}`)
     }
   }
-  return result
+  const status = statusForPrediction(result, thresholds)
+  return { ...result, status, recommendation: recommendationForStatus(status) }
+}
+
+function isUnsupportedThresholdField(responseBody: string) {
+  let payload: unknown
+  try {
+    payload = JSON.parse(responseBody)
+  } catch {
+    return false
+  }
+  if (!payload || typeof payload !== 'object' || !('detail' in payload)) return false
+  const details = payload.detail
+  if (!Array.isArray(details)) return false
+  return details.some((detail: unknown) => {
+    if (!detail || typeof detail !== 'object') return false
+    const error = detail as { loc?: unknown; type?: unknown; msg?: unknown }
+    return Array.isArray(error.loc) &&
+      error.loc.includes('decision_thresholds') &&
+      (error.type === 'extra_forbidden' ||
+        (typeof error.msg === 'string' && /extra (inputs|fields) (are )?not permitted/i.test(error.msg)))
+  })
+}
+
+export async function requestModelStatus(): Promise<import('../types').ModelSystemStatus> {
+  const response = await fetch('/api/health', { cache: 'no-store' })
+  if (!response.ok) throw new Error(`Model status request failed (${response.status})`)
+  const result: unknown = await response.json()
+  if (!result || typeof result !== 'object') {
+    throw new Error('Model service returned an invalid health response')
+  }
+  const status = result as Partial<import('../types').ModelSystemStatus>
+  if (
+    (status.status !== 'ok' && status.status !== 'not_ready') ||
+    typeof status.models_loaded !== 'boolean' ||
+    !['ready', 'unavailable'].includes(status.failure_model ?? '') ||
+    (status.failure_type_model !== undefined &&
+      !['ready', 'unavailable'].includes(status.failure_type_model)) ||
+    !['ready', 'unavailable'].includes(status.anomaly_model ?? '') ||
+    !(status.model_version === null || typeof status.model_version === 'string') ||
+    !(status.last_prediction_at === null ||
+      (typeof status.last_prediction_at === 'string' &&
+        !Number.isNaN(Date.parse(status.last_prediction_at))))
+  ) {
+    throw new Error('Model service returned an invalid health response')
+  }
+  return {
+    ...status,
+    failure_type_model: status.failure_type_model ??
+      (status.models_loaded ? 'ready' : 'unavailable'),
+  } as import('../types').ModelSystemStatus
 }

@@ -4,12 +4,17 @@ import type { Machine } from '../../types'
 import MachineVisual from '../ui/MachineVisual'
 import CircularHealth from '../ui/CircularHealth'
 import RiskBar from '../ui/RiskBar'
-import SensorList from '../ui/SensorList'
+import ModelInputBars from '../ui/ModelInputBars'
 import { MachineStatusBadge, MaintenanceStatusBadge } from '../ui/Badges'
 import { formatDate, cx } from '../../utils/helpers'
+import { useApp } from '../../context/AppContext'
+import { usePreferences } from '../../context/PreferencesContext'
 
 export default function MachineCard({ machine }: { machine: Machine }) {
   const navigate = useNavigate()
+  const { t } = usePreferences()
+  const { thresholds } = useApp()
+  const modelInputs = machine.prediction?.inputs ?? machine.predictionInputs
 
   return (
     <article
@@ -29,9 +34,6 @@ export default function MachineCard({ machine }: { machine: Machine }) {
             </span>
           </div>
           <p className="mt-1 truncate text-[11.5px] text-ink-dim">{machine.name}</p>
-          <p className="mt-1 text-[9px] text-ink-faint">
-            Demo model inputs · simulated · type {machine.modelTypeCode}
-          </p>
           <div className="mt-1 flex flex-wrap items-center gap-2">
             {machine.status ? (
               <MachineStatusBadge status={machine.status} />
@@ -47,7 +49,18 @@ export default function MachineCard({ machine }: { machine: Machine }) {
         </div>
         <div className="shrink-0">
           {machine.healthScore !== null ? (
-            <CircularHealth value={machine.healthScore} size={58} />
+            <div className="text-center">
+              <CircularHealth
+                value={machine.healthScore}
+                size={58}
+                warningThreshold={thresholds.healthWarning}
+                criticalThreshold={thresholds.healthCritical}
+                status={machine.prediction?.status}
+              />
+              <p className="mt-0.5 text-[8px] text-ink-faint">
+                {t('Model health / status')}
+              </p>
+            </div>
           ) : machine.predictionStatus === 'loading' ? (
             <Loader2 className="m-4 h-5 w-5 animate-spin text-sky-300" />
           ) : (
@@ -56,21 +69,51 @@ export default function MachineCard({ machine }: { machine: Machine }) {
         </div>
       </div>
 
-      {/* Sensors */}
+      {/* Exact model inputs */}
       <div className="mt-3.5 border-t border-line px-4 pt-3">
         <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-ink-faint">
-          Key Sensors · Current
+          {t('Inputs used by failure model')}
         </p>
-        <p className="mb-2 text-[9px] leading-snug text-ink-faint">
-          Illustrative demo readings only; they are not mapped to or used by the models.
-        </p>
-        <SensorList sensors={machine.sensors} compact />
+        {modelInputs ? (
+          <>
+            {machine.predictionStatus === 'loading' && (
+              <p className="mb-2 text-[9px] leading-snug text-ink-faint">
+                {t('New readings are being evaluated by the trained models.')}
+              </p>
+            )}
+            <ModelInputBars inputs={modelInputs} />
+            <p className="mt-2 text-[8px] text-ink-faint">
+              {t('Machine type')}: <span className="font-mono">{modelInputs.type}</span>
+            </p>
+          </>
+        ) : (
+          <p className="text-[10px] text-ink-faint">
+            {machine.predictionStatus === 'loading'
+              ? t('Waiting for model prediction')
+              : machine.predictionError ?? t('Model inputs unavailable')}
+          </p>
+        )}
       </div>
 
       {/* Risk */}
       <div className="mt-4 px-4">
         {machine.failureRisk !== null ? (
-          <RiskBar value={machine.failureRisk} />
+          <>
+            <RiskBar
+              value={machine.failureRisk}
+              warningThreshold={thresholds.riskWarning}
+              criticalThreshold={thresholds.riskCritical}
+            />
+            {machine.prediction && (
+              <p className="mt-2 text-[9px] text-ink-faint">
+                {t('Sensor model')}: {(machine.prediction.anomaly_score * 100).toFixed(1)}% {t('anomaly')}
+                {' · '}
+                {t(machine.prediction.anomaly_flag ? 'flagged' : 'not flagged')}
+                {' · '}
+                {machine.prediction.anomaly_input_reading_count} {t('readings')}
+              </p>
+            )}
+          </>
         ) : (
           <p className="text-[11px] text-ink-faint">
             {machine.predictionStatus === 'loading'

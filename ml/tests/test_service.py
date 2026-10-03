@@ -15,8 +15,9 @@ from app.feature_engineering import (
     ordered_anomaly_features,
 )
 from app.health_decision import decide_health
+from app.health_decision import DecisionThresholds as HealthDecisionThresholds
 from app.inference import ModelBundle, infer, load_models
-from app.schemas import PredictionRequest, PredictionResponse
+from app.schemas import HealthResponse, PredictionRequest, PredictionResponse
 from app.simulator import simulate_sensor_window
 
 
@@ -132,6 +133,26 @@ class HealthDecisionTests(unittest.TestCase):
         self.assertEqual(decide_health(0.1, 0.1).status, "healthy")
         self.assertEqual(decide_health(0.5, 0.5).status, "warning")
         self.assertEqual(decide_health(0.8, 1).status, "critical")
+        self.assertEqual(decide_health(0.70, 0.0).status, "critical")
+        self.assertEqual(decide_health(0.699, 0.0).status, "warning")
+        limits = HealthDecisionThresholds(
+            health_warning=80,
+            health_critical=40,
+            risk_warning=50,
+            risk_critical=80,
+        )
+        self.assertEqual(decide_health(0.719, 0.0, thresholds=limits).status, "warning")
+        self.assertEqual(decide_health(0.80, 0.0, thresholds=limits).status, "critical")
+        health_critical_limits = HealthDecisionThresholds(
+            health_warning=70,
+            health_critical=65,
+            risk_warning=90,
+            risk_critical=95,
+        )
+        self.assertEqual(
+            decide_health(0.10, 0.80, thresholds=health_critical_limits).status,
+            "critical",
+        )
         custom = Settings(failure_weight=1, anomaly_weight=0, healthy_threshold=80, warning_threshold=50)
         self.assertEqual(decide_health(0.25, 1, custom).health_score, 75)
 
@@ -216,6 +237,16 @@ class SchemaAndLoadingTests(unittest.TestCase):
                     ],
                 }
             )
+        with self.assertRaisesRegex(ValidationError, "risk_critical must be above risk_warning"):
+            PredictionRequest.model_validate({
+                **payload,
+                "decision_thresholds": {
+                    "health_warning": 70,
+                    "health_critical": 40,
+                    "risk_warning": 80,
+                    "risk_critical": 70,
+                },
+            })
 
     def test_loader_fails_clearly_when_artifacts_are_absent(self):
         with TemporaryDirectory() as directory:
@@ -260,6 +291,58 @@ class SchemaAndLoadingTests(unittest.TestCase):
         self.assertLessEqual(result["anomaly_score"], 1)
         self.assertEqual(len(result["anomaly_feature_names"]), 38)
 
+    def test_demo_profiles_produce_good_warning_and_critical_saved_model_outputs(self):
+        models_path = Path(__file__).resolve().parents[1] / "models"
+        if not list(models_path.glob("*.joblib")) or not list(models_path.glob("*.json")):
+            self.skipTest("Local model artifacts are not present in ml/models")
+        bundle = load_models(models_path)
+        profiles = {
+            "NORMAL": (298, 8, 1700, 40, 80),
+            "DEGRADING": (301, 11, 1450, 60, 150),
+            "CRITICAL": (303, 11, 1250, 65, 200),
+        }
+        expected_bands = {
+            "NORMAL": (0.01, 0.50),
+            "DEGRADING": (0.50, 0.70),
+            "CRITICAL": (0.70, 1.00),
+        }
+
+        for state, (base_air, base_delta, base_speed, base_torque, base_wear) in profiles.items():
+            lower_bound, upper_bound = expected_bands[state]
+            for machine_type in ("H", "L", "M"):
+                for offset in range(5):
+                    air = base_air + offset * 0.35
+                    process = air + base_delta + offset * 0.2
+                    speed = base_speed + offset * 20
+                    torque = base_torque + offset * 1.2
+                    wear = base_wear + offset * 8
+                    features = maintenance_features(
+                        air, process, speed, torque, wear, machine_type
+                    )
+                    sensor_window = simulate_sensor_window(
+                        f"M-{offset:03d}",
+                        state,
+                        air,
+                        process,
+                        speed,
+                        torque,
+                        wear,
+                    )
+                    result = infer(bundle, features, sensor_window)
+                    risk = result["failure_probability"]
+                    self.assertGreaterEqual(risk, lower_bound, (state, machine_type, offset))
+                    self.assertLess(risk, upper_bound, (state, machine_type, offset))
+                    health = decide_health(
+                        risk, result["anomaly_score"], settings=Settings()
+                    )
+                    if state == "NORMAL":
+                        self.assertLess(health.health_score, 100)
+                        self.assertEqual(health.status, "healthy")
+                    elif state == "DEGRADING":
+                        self.assertEqual(health.status, "warning")
+                    else:
+                        self.assertEqual(health.status, "critical")
+
 
 class ApiTests(unittest.TestCase):
     def test_prediction_endpoint_structures_genuine_outputs_and_simulation_label(self):
@@ -283,11 +366,20 @@ class ApiTests(unittest.TestCase):
             "machine_input_source": "simulated",
             "sensor_input_source": "simulated",
             "simulation_state": "DEGRADING",
+            "decision_thresholds": {
+                "health_warning": 60,
+                "health_critical": 20,
+                "risk_warning": 50,
+                "risk_critical": 80,
+            },
         }
         result = predict_route.endpoint(PredictionRequest.model_validate(payload))
         PredictionResponse.model_validate(result)
         self.assertEqual(result["machine_id"], "machine-1")
         self.assertEqual(result["failure_probability"], 0.75)
+        self.assertEqual(result["failure_type"], "Overstrain Failure")
+        self.assertEqual(result["status"], "Warning")
+        self.assertIn("schedule preventive maintenance", result["recommendation"])
         self.assertTrue(result["sensor_inputs_simulated"])
         self.assertEqual(result["data_source"], "Simulated Sensor Data")
         self.assertEqual(result["anomaly_input_reading_count"], 120)
@@ -315,8 +407,15 @@ class ApiTests(unittest.TestCase):
             set(result["anomaly_model_inputs"]),
             set(result["anomaly_features_used"]),
         )
-        self.assertEqual(health_route.endpoint()["status"], "ok")
-        self.assertEqual(public_health_route.endpoint()["status"], "ok")
+        health_result = health_route.endpoint()
+        public_health_result = public_health_route.endpoint()
+        self.assertEqual(health_result["status"], "ok")
+        self.assertEqual(health_result["failure_model"], "ready")
+        self.assertEqual(health_result["failure_type_model"], "ready")
+        self.assertEqual(health_result["anomaly_model"], "ready")
+        self.assertTrue(health_result["models_loaded"])
+        HealthResponse.model_validate(health_result)
+        self.assertEqual(public_health_result["status"], "ok")
 
     def test_provided_machine_and_sensor_inputs_are_not_replaced_by_simulation(self):
         from app.api import create_app

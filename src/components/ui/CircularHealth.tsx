@@ -1,17 +1,26 @@
-import { HEALTH_CIRCLE_COLORS, healthTone, cx } from '../../utils/helpers'
+import { HEALTH_CIRCLE_COLORS, cx } from '../../utils/helpers'
+import type { MachineStatus } from '../../types'
 
 export default function CircularHealth({
   value,
   size = 72,
   strokeWidth = 6,
   animate = true,
+  warningThreshold = 70,
+  criticalThreshold = 40,
+  status,
 }: {
   value: number
   size?: number
   strokeWidth?: number
   animate?: boolean
+  warningThreshold?: number
+  criticalThreshold?: number
+  status?: Exclude<MachineStatus, 'Under Maintenance'>
 }) {
-  const tone = healthTone(value)
+  const tone = status
+    ? status === 'Critical' ? 'danger' : status === 'Warning' ? 'warn' : 'ok'
+    : value <= criticalThreshold ? 'danger' : value <= warningThreshold ? 'warn' : 'ok'
   const colors = HEALTH_CIRCLE_COLORS[tone]
   const r = (size - strokeWidth) / 2
   const c = 2 * Math.PI * r
@@ -21,7 +30,7 @@ export default function CircularHealth({
     <div
       className="relative inline-flex items-center justify-center"
       style={{ width: size, height: size }}
-      title={`Health Score ${Math.round(value)}%`}
+      title={`Health score ${Math.round(value)}%${status ? ` · combined model status ${status}` : ''}`}
     >
       <svg width={size} height={size} className="-rotate-90">
         <circle

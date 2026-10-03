@@ -1,4 +1,3 @@
-import React from 'react'
 import { NavLink } from 'react-router-dom'
 import { Activity, Factory, X } from 'lucide-react'
 import { NAV_ITEMS } from './routes'

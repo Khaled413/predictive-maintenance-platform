@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import {
   CheckCircle2,
   Loader2,
@@ -131,6 +131,7 @@ export default function QualityPage() {
         location: fails ? 'Detected region shown on image' : '—',
         image: url,
         box,
+        isDemo: true,
       }
       setResult(insp)
       setRunning(false)
@@ -138,10 +139,10 @@ export default function QualityPage() {
       refreshTimestamp()
       notify(
         fails ? 'warning' : 'success',
-        fails ? 'Defect detected' : 'Inspection passed',
+        'Demo inspection complete',
         fails
-          ? `${insp.defectType} found on ${insp.productId} (${insp.confidence}% confidence).`
-          : `${insp.productId} passed with ${insp.confidence}% confidence.`,
+          ? `Illustrative demo output: ${insp.defectType} for ${insp.productId} (${insp.confidence}% simulated confidence). Not a model verdict.`
+          : `Illustrative demo output: PASS for ${insp.productId} (${insp.confidence}% simulated confidence). Not a model verdict.`,
       )
     }, 2200)
   }
@@ -151,20 +152,23 @@ function capitalize(s: string) {
 
 return (
     <div className="space-y-5">
-      {/* Stats */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-        <KpiCard label="Total Inspected" value={stats.total} icon={<ScanLine className="h-4 w-4" />} tone="blue" sub="This batch + history" />
-        <KpiCard label="Passed" value={stats.passed} icon={<CheckCircle2 className="h-4 w-4" />} tone="green" sub="No defects found" />
-        <KpiCard label="Failed" value={stats.failed} icon={<XCircle className="h-4 w-4" />} tone="red" sub="Defects detected" />
-        <KpiCard label="Defect Rate" value={`${stats.defectRate}%`} icon={<XCircle className="h-4 w-4" />} tone={stats.defectRate > 20 ? 'red' : 'amber'} sub="Failed / total" />
-        <KpiCard label="Quality Rate" value={`${stats.qualityRate}%`} icon={<CheckCircle2 className="h-4 w-4" />} tone={stats.qualityRate >= 75 ? 'green' : 'amber'} sub="Passed / total" />
+    <div className="rounded-xl border border-amber-400/25 bg-amber-400/5 px-4 py-3 text-[11px] leading-relaxed text-amber-100/80">
+      Demo simulation only: this page generates illustrative results from a filename and displays sample thumbnails. It is not connected to a trained vision model; PASS/FAIL, defect locations and confidence are not real inspection results.
+    </div>
+    {/* Stats */}
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+      <KpiCard label="Demo Inspections" value={stats.total} icon={<ScanLine className="h-4 w-4" />} tone="blue" sub="Illustrative records only" />
+      <KpiCard label="Demo PASS" value={stats.passed} icon={<CheckCircle2 className="h-4 w-4" />} tone="gray" sub="Not production results" />
+      <KpiCard label="Demo FAIL" value={stats.failed} icon={<XCircle className="h-4 w-4" />} tone="gray" sub="Not production results" />
+      <KpiCard label="Demo Defect Rate" value={`${stats.defectRate}%`} icon={<XCircle className="h-4 w-4" />} tone="gray" sub="Not a measured quality KPI" />
+      <KpiCard label="Demo Pass Rate" value={`${stats.qualityRate}%`} icon={<CheckCircle2 className="h-4 w-4" />} tone="gray" sub="Not a measured quality KPI" />
       </div>
 {/* Upload + Result */}
       <div className="grid gap-4 lg:grid-cols-2">
         <div className="panel overflow-hidden">
           <PanelHeader
             title="Product Image Inspection"
-            subtitle="Upload a product photo to run the AI vision model"
+            subtitle="Upload a photo to preview the deterministic demo simulation"
             right={
               running ? (
                 <span className="inline-flex items-center gap-1.5 text-[11px] text-sky-300">
@@ -187,13 +191,13 @@ return (
                 <img src={pending.url} alt="Product being inspected" className="aspect-[4/3] w-full object-cover" />
                 <div className="flex items-center gap-2 bg-navy-900/80 px-3 py-2 text-[11px] text-sky-300">
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  Detection model running — scanning for surface defects…
+                  Demo simulation running — no vision model is being called…
                 </div>
               </div>
             )}
             {!running && !result && !pending && (
               <p className="mt-3 text-center text-[11px] text-ink-faint">
-                The vision model checks for surface cracks, scratches, deformation, missing components and misalignment.
+                The current implementation creates a demo-only result; it does not inspect the image with a trained model.
               </p>
             )}
           </div>
@@ -202,7 +206,7 @@ return (
           <Panel className="overflow-hidden">
             <PanelHeader
               title="Inspection Result"
-              subtitle={`${result.productId} · ${formatDateTime(result.timestamp)}`}
+              subtitle={`DEMO OUTPUT · ${result.productId} · ${formatDateTime(result.timestamp)}`}
               right={
                 <span
                   className={cx(
@@ -243,9 +247,9 @@ return (
               <div className="mt-3.5 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
                 {[
                   ['Defect Type', result.defectType],
-                  ['Confidence', `${result.confidence}%`],
+                  ['Simulated Confidence', `${result.confidence}%`],
                   ['Location', result.location],
-                  ['Model', 'VisionNet-V3'],
+                  ['Model', 'Not connected'],
                 ].map(([k, v]) => (
                   <div key={k} className="rounded-xl border border-line bg-navy-900/50 px-3 py-2">
                     <p className="text-[9.5px] font-semibold uppercase tracking-wider text-ink-faint">{k}</p>
@@ -255,12 +259,12 @@ return (
               </div>
               <div className="mt-3 rounded-xl border border-sky-400/20 bg-sky-500/5 px-3.5 py-3">
                 <p className="mb-1 font-semibold uppercase tracking-wider text-[10px] text-sky-400/90">
-                  AI Inspection Summary
+                  Demo Inspection Summary
                 </p>
                 <p className="mt-1 text-[13px] leading-relaxed text-ink-dim">
                   {result.result === 'PASS'
-                    ? 'No defects detected. All inspected regions match the reference geometry within tolerance.'
-                    : `${capitalize(result.defectType)} detected on the ${result.location.toLowerCase()}. Confidence ${result.confidence}%. Please quarantine this unit and verify manually.`}
+                    ? 'Illustrative PASS output only. This does not verify product geometry or tolerances.'
+                    : `Illustrative ${capitalize(result.defectType)} output at ${result.location.toLowerCase()}. This is not a real finding; inspect the product using a validated process. `}
                 </p>
               </div>
             </div>
@@ -272,7 +276,7 @@ return (
             </div>
             <p className="mt-4 text-[14px] font-semibold text-ink">No inspection yet</p>
             <p className="mt-1 max-w-sm text-center text-[12px] leading-relaxed text-ink-faint">
-              Upload a product image on the left to run a simulated AI quality inspection and see the annotated result here.
+              Upload a product image on the left to run a deterministic demo simulation and see the illustrative output here.
             </p>
           </Panel>
         )}

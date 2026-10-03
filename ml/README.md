@@ -32,6 +32,11 @@ and min), an explicit `machine_input_source` (`simulated` or `provided`), and
 an explicit `sensor_input_source` (`simulated` or `provided`). A provided sensor
 source requires an ordered `sensor_window` of timestamped one-minute `sensor_XX` readings;
 a simulated source omits that window and uses the deterministic demo simulator.
+Each request can include `decision_thresholds` with `health_warning`,
+`health_critical`, `risk_warning`, and `risk_critical` percentages. These limits
+determine the returned status and recommendation; critical status is triggered
+when either the health score reaches its critical limit or failure risk reaches
+its critical limit. Omitted limits use backend configuration defaults.
 The response echoes both input sources, the exact model inputs, the engineered
 anomaly feature values passed to the anomaly model, the sensor-window reading
 count, and whether each input group was simulated.
@@ -47,6 +52,18 @@ Failure probability, anomaly score, health, and the model recommendation come
 from the loaded models and deterministic health-decision rules; maintenance
 schedule state is separate.
 
+### Evaluation limits
+
+The checked-in training notebook reports a held-out failure-model F1 of 0.88
+(68 positive examples), and failure-type macro F1 of 0.95 (68 examples).
+The anomaly model reports PR-AUC 0.44 and only 0.04 recall for the combined
+`RECOVERING`/`BROKEN` evaluation class at its normal-only threshold; the sensor
+dataset contains just seven `BROKEN` rows. These are dataset-specific notebook
+results, not evidence of field accuracy. In particular, the anomaly model and
+deterministic simulator are not calibrated to the dashboard's illustrative
+physical sensor readings. A model reported as `ready` means its artifact loaded,
+not that it is accurate or suitable for operational/safety decisions.
+
 Run the backend locally from this directory with
 `python -m pip install -r requirements.txt` and
 `python -m uvicorn main:app --host 0.0.0.0 --port 8001`. Research and notebook
@@ -54,10 +71,16 @@ dependencies are kept separately in `requirements-research.txt`. The app's
 Vite proxy uses port 8001 by default; set `ML_API_DEV_ORIGIN` to override it.
 In Vercel, the root service rewrite routes `/api/*` directly to this backend.
 Both `/health` and `/api/health` expose the service health check.
+The health response reports readiness for the failure-probability,
+failure-type, and anomaly models independently. A failure-type prediction is
+invoked only when failure probability meets `FAILURE_THRESHOLD`.
 
 Configuration defaults can be overridden with `FAILURE_THRESHOLD`,
 `HEALTH_FAILURE_WEIGHT`, `HEALTH_ANOMALY_WEIGHT`,
-`HEALTHY_SCORE_THRESHOLD`, and `WARNING_SCORE_THRESHOLD`.
+`HEALTHY_SCORE_THRESHOLD`, `WARNING_SCORE_THRESHOLD`, and
+`RISK_WARNING_THRESHOLD`, `CRITICAL_FAILURE_THRESHOLD` (default `0.70`),
+`HEALTH_FAILURE_WEIGHT`, and `HEALTH_ANOMALY_WEIGHT`. Per-request dashboard
+thresholds override the health and risk severity limits for that prediction.
 
 Run backend tests from this directory with `python -m unittest discover -s
 tests -v`.

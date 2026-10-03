@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { Brain, ChevronDown, HelpCircle, ShieldCheck } from 'lucide-react'
 import { cx } from '../../utils/helpers'
 

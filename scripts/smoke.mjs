@@ -53,6 +53,101 @@ try {
   const { AppProvider } = await vite.ssrLoadModule('/src/context/AppContext.tsx')
   const { PreferencesProvider } = await vite.ssrLoadModule('/src/context/PreferencesContext.tsx')
   const { default: AppLayout } = await vite.ssrLoadModule('/src/components/layout/AppLayout.tsx')
+  const { default: RiskBar } = await vite.ssrLoadModule('/src/components/ui/RiskBar.tsx')
+  const { default: ModelInputBars } = await vite.ssrLoadModule('/src/components/ui/ModelInputBars.tsx')
+  const { SIMULATION_STATE_COUNT, simulationStateForSlot, simulateMachineInputs } = await vite.ssrLoadModule('/src/utils/simulatedInputs.ts')
+  const normalScenario = simulateMachineInputs('M-012', 'Compressor', 'NORMAL')
+  const sameNormalScenario = simulateMachineInputs('M-012', 'Compressor', 'NORMAL')
+  const degradingScenario = simulateMachineInputs('M-012', 'Compressor', 'DEGRADING')
+  const criticalScenario = simulateMachineInputs('M-012', 'Compressor', 'CRITICAL')
+  const fleetScenarioStates = Array.from(
+    { length: SIMULATION_STATE_COUNT * 4 },
+    (_, slot) => simulationStateForSlot(slot),
+  )
+  const stateCounts = fleetScenarioStates.reduce((counts, state) => {
+    counts[state]++
+    return counts
+  }, { NORMAL: 0, DEGRADING: 0, CRITICAL: 0 })
+  const hasDistinctProfiles = [normalScenario, degradingScenario, criticalScenario]
+    .every((profile, index, profiles) =>
+      index === 0 || JSON.stringify(profile) !== JSON.stringify(profiles[index - 1]),
+    )
+  if (
+    JSON.stringify(normalScenario) !== JSON.stringify(sameNormalScenario) ||
+    !hasDistinctProfiles ||
+    stateCounts.NORMAL !== 4 ||
+    stateCounts.DEGRADING !== 4 ||
+    stateCounts.CRITICAL !== 4 ||
+    normalScenario.simulation_state !== 'NORMAL' ||
+    degradingScenario.simulation_state !== 'DEGRADING' ||
+    criticalScenario.simulation_state !== 'CRITICAL' ||
+    [normalScenario, degradingScenario, criticalScenario].some((profile) =>
+      profile.machine_input_source !== 'simulated' ||
+      profile.sensor_input_source !== 'simulated' ||
+      profile.air_temperature < 297 ||
+      profile.air_temperature > 305 ||
+      profile.process_temperature <= profile.air_temperature ||
+      profile.rotational_speed < 1100 ||
+      profile.rotational_speed > 1800 ||
+      profile.torque < 25 ||
+      profile.torque > 75 ||
+      profile.tool_wear < 0 ||
+      profile.tool_wear > 250
+    )
+  ) {
+    console.log('FAIL deterministic demo model-input profiles')
+    failures.push('deterministic demo model-input profiles')
+  } else {
+    console.log('PASS deterministic demo model-input profiles · fixed values, balanced good/medium/high fleet mix')
+  }
+
+  const riskBarHtml = renderToString(
+    React.createElement(
+      PreferencesProvider,
+      null,
+      React.createElement(RiskBar, {
+        value: 64,
+        warningThreshold: 50,
+        criticalThreshold: 70,
+      }),
+    ),
+  )
+  if (
+    !riskBarHtml.includes('role="progressbar"') ||
+    !riskBarHtml.includes('aria-valuenow="64"') ||
+    !riskBarHtml.includes('Warning limit 50%') ||
+    !riskBarHtml.includes('Critical limit 70%')
+  ) {
+    console.log('FAIL risk bar threshold display')
+    failures.push('risk bar threshold display')
+  } else {
+    console.log('PASS risk bar displays configured warning and critical limits')
+  }
+
+  const inputBarProfiles = [normalScenario, degradingScenario, criticalScenario].map((inputs) =>
+    renderToString(
+      React.createElement(
+        PreferencesProvider,
+        null,
+        React.createElement(ModelInputBars, { inputs }),
+      ),
+    ),
+  )
+  const hasFiveBarsPerScenario = inputBarProfiles.every(
+    (html) => (html.match(/role="meter"/g) ?? []).length === 5,
+  )
+  const hasCompactReadingRows = inputBarProfiles.every(
+    (html) => html.includes('grid-cols-[minmax') && html.includes('rounded-full'),
+  )
+  const removedDisplayDisclaimer = inputBarProfiles.every(
+    (html) => !html.includes('certified operating limits'),
+  )
+  if (!hasFiveBarsPerScenario || !hasCompactReadingRows || !removedDisplayDisclaimer) {
+    console.log('FAIL per-reading demo input bars')
+    failures.push('per-reading demo input bars')
+  } else {
+    console.log('PASS five compact model-input bars per scenario · input values and status colors')
+  }
 
   for (const [route, pattern, modulePath] of ROUTES) {
     try {
@@ -87,10 +182,28 @@ try {
           html.includes('Maintenance is overdue.') &&
           html.includes('separate from the model status and recommendation')
         const hasSensorSourceDisclosure =
-          html.includes('Illustrative demo readings; not model inputs')
+          html.includes('Show illustrative sensor examples (not model inputs)')
         if (!hasMaintenanceSeparation || !hasSensorSourceDisclosure) {
           console.log('FAIL /machines/M-003 missing maintenance or sensor-source disclosure')
           failures.push('/machines/M-003 disclosures')
+        }
+      }
+      if (route === '/reports') {
+        const hasSensorModelMetrics =
+          html.includes('Avg. Sensor Anomaly Score') &&
+          html.includes('Model Output Trends')
+        if (!hasSensorModelMetrics) {
+          console.log('FAIL /reports missing sensor-model prediction metrics')
+          failures.push('/reports sensor-model metrics')
+        }
+      }
+      if (route === '/') {
+        const showsModelInputs = html.includes('Inputs used by failure model')
+        const exposesUnrelatedSensorExamples = html.includes('Illustrative Sensor Examples')
+        const hasScenarioAction = html.includes('Generate new demo readings')
+        if (!showsModelInputs || exposesUnrelatedSensorExamples || !hasScenarioAction) {
+          console.log('FAIL / is missing model-input disclosure or demo scenario action')
+          failures.push('/ model-input disclosure or demo scenario action')
         }
       }
     } catch (err) {

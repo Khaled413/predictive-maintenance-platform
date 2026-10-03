@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import {
   Bot,
   BrainCircuit,
@@ -7,7 +7,6 @@ import {
   Eye,
   FileText,
   Plus,
-  RefreshCw,
   Router,
   SendHorizonal,
   Sparkles,
@@ -17,7 +16,8 @@ import { useApp } from '../context/AppContext'
 import { usePreferences } from '../context/PreferencesContext'
 import Panel, { PanelHeader } from '../components/ui/Panel'
 import UploadZone from '../components/ui/UploadZone'
-import { cx, formatDateTime, nowIso, seededRandom, timeAgo } from '../utils/helpers'
+import { cx, formatDateTime, nowIso, timeAgo } from '../utils/helpers'
+import { hasProvidedPrediction } from '../utils/operationalMetrics'
 import type { ChatMessage, Conversation, KnowledgeDoc, Machine, MaintenanceRecord } from '../types'
 
 type AskContext = 'factory' | 'machine' | 'knowledge' | 'document'
@@ -44,15 +44,18 @@ function summarize(
   machines: Machine[],
   maintenance: MaintenanceRecord[],
 ): { atRisk: Machine[]; critical: Machine[]; vibration: Machine[]; due: MaintenanceRecord[]; avgHealth: number | null; predicted: Machine[] } {
-  const predicted = machines.filter((m) => m.predictionStatus === 'available' && m.healthScore !== null)
+  const predicted = machines.filter(hasProvidedPrediction)
   const atRisk = predicted.filter((m) => m.status === 'Critical' || m.status === 'Warning')
   const critical = predicted.filter((m) => m.status === 'Critical')
   const vibration = machines.filter((m) =>
     m.sensors.some((s) => s.name.toLowerCase() === 'vibration' && s.level !== 'green'),
   )
-  const due = maintenance.filter(
-    (r) => r.status === 'Scheduled' || r.status === 'Recommended' || r.status === 'In Progress',
-  )
+  const nextWeek = Date.now() + 7 * 86_400_000
+  const due = maintenance.filter((r) => {
+    const date = Date.parse(r.date)
+    return !r.isDemo && (r.status === 'Scheduled' || r.status === 'Recommended' || r.status === 'In Progress') &&
+      Number.isFinite(date) && date >= Date.now() && date <= nextWeek
+  })
   const avgHealth = predicted.length
     ? Math.round(predicted.reduce((a, m) => a + (m.healthScore ?? 0), 0) / predicted.length)
     : null
@@ -72,12 +75,13 @@ function buildReply(
 
   if (/summarize.*maintenance|maintenance.*history/.test(t)) {
     const done = maintenance.filter((r) => r.status === 'Completed')
-    const avgCost = done.length
-      ? Math.round(done.reduce((a, r) => a + r.cost, 0) / done.length)
-      : 0
+    const actualCosts = done.filter((record) => record.actualCost !== null && record.actualCost !== undefined)
+    const avgCost = actualCosts.length
+      ? `$${Math.round(actualCosts.reduce((sum, record) => sum + (record.actualCost ?? 0), 0) / actualCosts.length).toLocaleString()}`
+      : 'N/A — no actual completion costs recorded'
     return {
       content:
-        `Here is the maintenance history summary:\n\n• Total work orders: ${maintenance.length}\n• Recommended: ${maintenance.filter((r) => r.status === 'Recommended').length}\n• Scheduled: ${maintenance.filter((r) => r.status === 'Scheduled').length}\n• In progress: ${maintenance.filter((r) => r.status === 'In Progress').length}\n• Completed: ${done.length}\n• Avg. completed cost: $${avgCost.toLocaleString()}\n\nMost frequent work type: "Lubrication" and "Inspection". Boiler (M-006) and Compressor (M-003) account for the highest cost share.`,
+        `Local work-order record summary (includes demo records):\n\n• Total work orders: ${maintenance.length}\n• Recommended: ${maintenance.filter((r) => r.status === 'Recommended').length}\n• Scheduled: ${maintenance.filter((r) => r.status === 'Scheduled').length}\n• In progress: ${maintenance.filter((r) => r.status === 'In Progress').length}\n• Completed: ${done.length}\n• Average recorded actual cost: ${avgCost}\n\nWork-type and machine cost rankings are not reported because the available records do not establish that their values are actual.`,
     }
   }
 
@@ -91,7 +95,7 @@ function buildReply(
           (s) =>
             `• ${s.name}: ${s.value} ${s.unit} (band ${s.min}–${s.max}) — ${s.level === 'green' ? 'normal' : s.level === 'amber' ? 'approaching limit' : 'exceeds limit'}`,
         )
-        .join('\n')}\n\nModel failure type: ${m.likelihood ?? 'No failure type classified by the model'}. ${m.failureRisk >= 50 ? 'A preventive inspection should be scheduled in the next maintenance window.' : 'No immediate model-triggered action indicated; follow the maintenance schedule.'}`,
+        .join('\n')}\n\nModel failure type: ${m.likelihood ?? 'No failure type classified by the model'}. Follow the model recommendation above separately from the maintenance schedule.`,
     }
   }
 
@@ -114,21 +118,18 @@ function buildReply(
 
   if (/maintenance.*(week|due|next)|due.*maintenance|need maintenance/.test(t)) {
     if (!agg.due.length) {
-      return { content: 'No maintenance tasks are due this week. The schedule is under capacity.' }
+      return { content: 'No active work orders are dated within the next 7 days in the local records. Schedule capacity is not available.' }
     }
     return {
-      content: `${agg.due.length} maintenance tasks are due this week:\n\n${agg.due
+      content: `${agg.due.length} active work orders are dated within the next 7 days in the local records:\n\n${agg.due
         .map((r) => `• ${r.machineId} — ${r.type} (${r.status.toLowerCase()}, priority ${r.priority})`)
-        .join('\n')}\n\n${agg.due
-        .filter((r) => r.priority === 'High')
-        .map((r) => r.machineId)
-        .join(', ')} carry high priority — confirm slots with the maintenance team.`,
+        .join('\n')}`,
     }
   }
 
   if (/vibration|abnormal/.test(t)) {
     if (!agg.vibration.length) {
-      return { content: 'No machines currently show abnormal vibration. All vibration sensors are within the safe band.' }
+      return { content: 'No illustrative demo vibration readings are currently outside their display bands. These values are not live sensor telemetry and are not model inputs.' }
     }
     return {
       content: `Machines with abnormal vibration:\n\n${agg.vibration
@@ -136,19 +137,16 @@ function buildReply(
           (x) =>
             `• ${x.id} — ${x.name}: illustrative demo vibration reading ${x.sensors.find((s) => s.name.toLowerCase() === 'vibration')?.value}${x.sensors.find((s) => s.name.toLowerCase() === 'vibration')?.unit}; not used by model (${x.status?.toLowerCase() ?? 'prediction unavailable'})`,
         )
-        .join('\n')}\n\nRecommended action: verify mechanical coupling and schedule lubrication/inspection.`,
+        .join('\n')}\n\nThese are illustrative display-only values. The platform cannot determine physical vibration condition or recommend a cause from them.`,
     }
   }
 
   if (/(document|manual|pdf|procedure|knowledge)/.test(t)) {
-    const ready = docs.filter((d) => d.status === 'Processed')
-    if (!ready.length) return { content: 'The knowledge base is empty. Upload PDF, DOCX, TXT, CSV or XLSX files to enable document-grounded answers.' }
+    const tracked = docs.length
     return {
-      content: `I searched the knowledge base (${ready.length} processed documents):\n\n${ready
-        .slice(0, 4)
-        .map((d) => `• ${d.name} (${d.type}, ${d.pages} pages) — ${d.source}`)
-        .join('\n')}\n\nYou can ask me to look up procedures, specifications or maintenance history grounded in these documents.`,
-      sources: ready.slice(0, 2).map((d) => `${d.name} · Page 1`),
+      content: tracked
+        ? `${tracked} document record(s) are listed, but document content retrieval is not implemented. I cannot search their contents or provide document-grounded answers.`
+        : 'No document records are available. Document-content retrieval is not implemented.',
     }
   }
 
@@ -157,7 +155,7 @@ function buildReply(
       return { content: 'ML prediction service unavailable. No current model health scores are available.' }
     }
     return {
-      content: `Fleet average health score is ${Math.round(agg.avgHealth)}%. ${agg.predicted.length} machines have current model predictions: ${agg.predicted.filter((x) => (x.healthScore ?? 0) >= 75).length} healthy, ${agg.predicted.filter((x) => (x.healthScore ?? 0) >= 55 && (x.healthScore ?? 0) < 75).length} degraded and ${agg.predicted.filter((x) => (x.healthScore ?? 0) < 55).length} critical.`,
+      content: `Average current model health score is ${Math.round(agg.avgHealth)}% across ${agg.predicted.length} machines with available predictions. Model status counts: ${agg.predicted.filter((machine) => machine.status === 'Operational').length} operational, ${agg.predicted.filter((machine) => machine.status === 'Warning').length} warning, ${agg.predicted.filter((machine) => machine.status === 'Critical').length} critical.`,
     }
   }
 
@@ -165,7 +163,7 @@ function buildReply(
   const ctxNote =
     context === 'knowledge' || context === 'document'
       ? 'I used the uploaded documents to ground this answer.'
-      : 'This answer is generated from live simulated telemetry.'
+      : 'This answer is generated from the current local demo state and saved model outputs; sensor display values are illustrative, not live telemetry.'
   return {
     content: `Here is what I can tell you about ${machineLabel}:\n\n• Fleet average health: ${agg.avgHealth === null ? 'ML prediction service unavailable' : `${Math.round(agg.avgHealth)}%`}\n• At-risk machines: ${agg.atRisk.length} (${agg.atRisk.length ? agg.atRisk.map((x) => x.id).join(', ') : agg.predicted.length ? 'none in current predictions' : 'prediction service unavailable'})\n• Due maintenance: ${agg.due.length} tasks\n\n${ctxNote}\n\nI can help with machine details (“Why is M-003 critical?”), weekly maintenance planning, vibration anomalies, health trends and knowledge base questions.`,
   }
@@ -178,9 +176,9 @@ type CtxMap = {
 }
 
 export default function AssistantPage() {
-  const { machines, maintenance, documents, addDocument, deleteDocument, setDocumentStatus, notify, refreshTimestamp } = useApp()
+  const { machines, maintenance, documents, addDocument, deleteDocument, notify, refreshTimestamp } = useApp()
   const { language } = usePreferences()
-  const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
 
   const [ctx, setCtx] = useState<AskContext>('factory')
   const [machineId, setMachineId] = useState('M-003')
@@ -194,7 +192,7 @@ export default function AssistantPage() {
   const ctxMeta: CtxMap = {
     factory: { label: 'Entire Factory', desc: 'Answers across the whole fleet' },
     machine: { label: 'Specific Machine', desc: machineId },
-    knowledge: { label: 'Knowledge Base', desc: `${documents.length} documents indexed` },
+    knowledge: { label: 'Knowledge Base', desc: `${documents.length} document records; content search unavailable` },
     document: { label: 'Uploaded Document', desc: documents.find((d) => d.id === docId)?.name ?? '—' },
   }
 //<<NEXT2>>
@@ -253,11 +251,17 @@ export default function AssistantPage() {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
   }, [messages, typing])
 
+  useEffect(() => {
+    if (searchParams.get('upload') !== '1') return
+    document.getElementById('assistant-document-upload')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    setSearchParams({}, { replace: true })
+  }, [searchParams, setSearchParams])
+
   const handleDocUpload = (file: File) => {
     // Determine type from extension
     const ext = (file.name.split('.').pop() ?? 'pdf').toUpperCase()
     const type = ext === 'XLS' ? 'XLSX' : DOC_TYPES.includes(ext) ? ext : 'PDF'
-    const id = `DOC-${String(Date.now() % 100000).padStart(5, '0')}`
+    const id = `DOC-${crypto.randomUUID()}`
     const sizeMb = file.size / (1024 * 1024)
     const size = sizeMb < 1 ? `${Math.max(1, Math.round(sizeMb * 1000))} KB` : `${(sizeMb).toFixed(1)} MB`
     addDocument({
@@ -266,21 +270,14 @@ export default function AssistantPage() {
       type,
       size,
       uploadDate: nowIso(),
-      status: 'Processing',
-      pages: 1 + Math.floor(Math.random() * 40),
+      status: 'Metadata Only',
+      pages: null,
       source: 'Uploaded by user',
+      isDemo: false,
     })
-    notify('info', 'Document uploaded', `${file.name} — indexing and embedding in progress…`)
-    window.setTimeout(() => {
-      setDocumentStatus(id, 'Processed')
-      notify('success', 'Document processed', `${file.name} is now available in the knowledge base.`)
-      refreshTimestamp()
-    }, 2000)
+    notify('success', 'Document record saved', `${file.name} metadata was saved. Content parsing and search are not available.`)
+    refreshTimestamp()
   }
-
-  const processText = (content: string) => (
-    <p className="whitespace-pre-line text-[12.5px] leading-relaxed text-ink-dim">{content}</p>
-  )
 return (
     <div className="grid items-start gap-4 lg:grid-cols-[250px_1fr_300px]">
       {/* Left — saved conversations */}
@@ -539,7 +536,7 @@ return (
               onChange={(e) => setDocId(e.target.value)}
               aria-label="Document context"
             >
-              {documents.filter((d) => d.status === 'Processed').map((d) => (
+              {documents.map((d) => (
                 <option key={d.id} value={d.id}>
                   {d.name}
                 </option>
@@ -553,18 +550,20 @@ return (
               Knowledge Base
             </p>
             <span className="chip border-sky-400/20 bg-sky-500/10 text-sky-300">
-              {documents.filter((d) => d.status === 'Processed').length} indexed
+              {documents.length} records · metadata only
             </span>
           </div>
           <div className="mt-2.5">
-            <UploadZone
-              accept=".pdf,.docx,.txt,.csv,.xlsx"
-              label="Upload document"
-              hint="PDF · DOCX · TXT · CSV · XLSX"
-              onFile={handleDocUpload}
-              compact
-              icon={<Database className="h-[18px] w-[18px]" />}
-            />
+            <div id="assistant-document-upload">
+              <UploadZone
+                accept=".pdf,.docx,.txt,.csv,.xlsx"
+                label="Upload document"
+                hint="PDF · DOCX · TXT · CSV · XLSX"
+                onFile={handleDocUpload}
+                compact
+                icon={<Database className="h-[18px] w-[18px]" />}
+              />
+            </div>
           </div>
           <div className="thin-scroll mt-3 max-h-56 space-y-1.5 overflow-y-auto">
             {documents
@@ -579,10 +578,10 @@ return (
                     <p className="truncate text-[11px] font-medium text-ink">{d.name}</p>
                     <p className="text-[9.5px] text-ink-faint">
                       {d.type} · {d.size} ·{' '}
-                      {d.status === 'Processed'
-                        ? 'Indexed & embedded'
+                      {d.status === 'Metadata Only'
+                        ? 'Metadata only · content not indexed'
                         : d.status === 'Processing'
-                          ? 'Indexing…'
+                          ? 'Processing unavailable'
                           : 'Failed'}
                     </p>
                   </div>
@@ -590,23 +589,11 @@ return (
                     type="button"
                     title="View document"
                     onClick={() =>
-                      notify('info', 'Document preview', `${d.name} — preview available in full build.`)
+                      notify('warning', 'Document preview unavailable', 'Uploaded file contents are not stored in this demo.')
                     }
                     className="rounded-md p-1 text-ink-faint hover:bg-navy-700 hover:text-sky-300"
                   >
                     <Eye className="h-3.5 w-3.5" />
-                  </button>
-                  <button
-                    type="button"
-                    title="Reprocess document"
-                    onClick={() => {
-                      setDocumentStatus(d.id, 'Processing')
-                      notify('info', 'Reprocessing', `${d.name} — indexing restarted.`)
-                      window.setTimeout(() => setDocumentStatus(d.id, 'Processed'), 1800)
-                    }}
-                    className="rounded-md p-1 text-ink-faint hover:bg-navy-700 hover:text-sky-300"
-                  >
-                    <RefreshCw className="h-3.5 w-3.5" />
                   </button>
                   <button
                     type="button"
@@ -625,7 +612,7 @@ return (
           <div className="mt-2.5 flex items-start gap-2 rounded-xl border border-sky-400/15 bg-sky-500/5 px-2.5 py-2">
             <BrainCircuit className="mt-1 h-4 w-4 shrink-0 text-sky-300" />
             <p className="text-[10.5px] leading-relaxed text-ink-faint">
-              RAG-ready architecture — connect a vector database / embedding backend to answer from real document content.
+              Document metadata is stored locally. File contents are not stored, parsed, indexed or searchable; this assistant cannot answer from uploaded documents.
             </p>
           </div>
         </div>

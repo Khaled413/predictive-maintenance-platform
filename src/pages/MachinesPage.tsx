@@ -1,20 +1,21 @@
-import React, { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Eye, Plus, Search, Trash2 } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import AddMachineModal from '../components/machine/AddMachineModal'
 import MachineVisual from '../components/ui/MachineVisual'
-import { MachineStatusBadge, MaintenanceStatusBadge } from '../components/ui/Badges'
+import { MachineStatusBadge } from '../components/ui/Badges'
 import { SelectInput, TextInput } from '../components/ui/Field'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
 import EmptyState from '../components/ui/EmptyState'
-import { cx, healthTone, riskTone, riskTextColors, riskBarColors } from '../utils/helpers'
+import { cx, healthTone } from '../utils/helpers'
 import { formatDate } from '../utils/helpers'
 import type { Machine } from '../types'
 
 export default function MachinesPage() {
-  const { machines, deleteMachine, notify, refreshTimestamp } = useApp()
+  const { machines, thresholds, deleteMachine, notify, refreshTimestamp } = useApp()
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
 
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState('All')
@@ -23,8 +24,18 @@ export default function MachinesPage() {
   const [addOpen, setAddOpen] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<Machine | null>(null)
 
-  const derived = machines
+  useEffect(() => {
+    const searchTerm = searchParams.get('search')
+    if (searchTerm) setSearch(searchTerm)
+    if (searchParams.get('add') === '1') {
+      setAddOpen(true)
+    }
+    if (searchTerm || searchParams.has('add') || searchParams.has('upload')) {
+      setSearchParams({}, { replace: true })
+    }
+  }, [searchParams, setSearchParams])
 
+  const derived = machines
   const types = useMemo(() => ['All', ...Array.from(new Set(machines.map((m) => m.type)))], [machines])
   const maintStatuses = useMemo(
     () => ['All', ...Array.from(new Set(machines.map((m) => m.maintenanceStatus)))],
@@ -53,7 +64,8 @@ export default function MachinesPage() {
 const summary = useMemo(() => {
     const counts = { Operational: 0, Warning: 0, Critical: 0 }
     derived.forEach((m) => {
-      if (m.status && m.status in counts) counts[m.status as keyof typeof counts]++
+      const status = m.status
+      if (status && status in counts) counts[status as keyof typeof counts]++
     })
     return counts
   }, [derived])
@@ -135,8 +147,8 @@ const summary = useMemo(() => {
               <thead>
                 <tr className="border-b border-line bg-navy-900/60 text-[10px] font-semibold uppercase tracking-wider text-ink-faint">
                   <th className="px-4 py-3">Machine</th>
-                  <th className="px-3 py-3">Status</th>
-                  <th className="px-3 py-3">Health</th>
+                  <th className="px-3 py-3">Model Status</th>
+                  <th className="px-3 py-3">Model Health</th>
                   <th className="px-3 py-3">Failure Risk</th>
                   <th className="px-3 py-3">Last Maintenance</th>
                   <th className="px-3 py-3">Next Maintenance</th>
@@ -144,7 +156,15 @@ const summary = useMemo(() => {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((m) => (
+                {filtered.map((m) => {
+                  const displayedStatus = m.status
+                  const displayedHealth = m.healthScore
+                  const displayedHealthTone = displayedHealth === null ? null : healthTone(displayedHealth)
+                  const displayedRiskTone = m.failureRisk === null
+                    ? null
+                    : m.failureRisk >= thresholds.riskCritical ? 'danger'
+                      : m.failureRisk >= thresholds.riskWarning ? 'warn' : 'ok'
+                  return (
                   <tr
                     key={m.id}
                     className="group cursor-pointer border-b border-line/60 transition-colors hover:bg-navy-800/40"
@@ -170,8 +190,8 @@ const summary = useMemo(() => {
                       </div>
                     </td>
                     <td className="px-3 py-3">
-                      {m.status ? (
-                        <MachineStatusBadge status={m.status} />
+                      {displayedStatus ? (
+                        <MachineStatusBadge status={displayedStatus} />
                       ) : (
                         <span className="text-[10px] text-ink-faint">
                           {m.predictionStatus === 'loading'
@@ -185,26 +205,26 @@ const summary = useMemo(() => {
                         <span
                           className={cx(
                             'font-mono text-[12px] font-bold',
-                            m.healthScore === null ? 'text-ink-faint' : healthTone(m.healthScore) === 'ok'
+                            displayedHealth === null ? 'text-ink-faint' : displayedHealthTone === 'ok'
                               ? 'text-emerald-300'
-                              : healthTone(m.healthScore) === 'warn'
+                              : displayedHealthTone === 'warn'
                                 ? 'text-amber-300'
                                 : 'text-red-300',
                           )}
                         >
-                          {m.healthScore === null ? '—' : `${m.healthScore}%`}
+                          {displayedHealth === null ? '—' : `${displayedHealth}%`}
                         </span>
                         <div className="h-1 w-14 overflow-hidden rounded-full bg-navy-700/70">
                           <div
                             className={cx(
                               'h-full rounded-full',
-                              m.healthScore !== null && healthTone(m.healthScore) === 'ok'
+                              displayedHealth !== null && displayedHealthTone === 'ok'
                                 ? 'bg-emerald-400'
-                                : m.healthScore !== null && healthTone(m.healthScore) === 'warn'
+                                : displayedHealth !== null && displayedHealthTone === 'warn'
                                   ? 'bg-amber-400'
                                   : 'bg-red-400',
                             )}
-                            style={{ width: `${m.healthScore ?? 0}%` }}
+                            style={{ width: `${displayedHealth ?? 0}%` }}
                           />
                         </div>
                       </div>
@@ -215,7 +235,8 @@ const summary = useMemo(() => {
                           {m.failureRisk !== null ? <span
                             className={cx(
                               'font-mono text-[11px] font-semibold',
-                              riskTextColors[riskTone(m.failureRisk)],
+                              displayedRiskTone === 'danger' ? 'text-red-300'
+                                : displayedRiskTone === 'warn' ? 'text-amber-300' : 'text-emerald-300',
                             )}
                           >
                             {m.failureRisk.toFixed(1)}%
@@ -228,7 +249,9 @@ const summary = useMemo(() => {
                         {m.failureRisk !== null && (
                           <div className="h-1.5 overflow-hidden rounded-full bg-navy-700/70">
                             <div
-                              className={cx('h-full rounded-full', riskBarColors[riskTone(m.failureRisk)])}
+                              className={cx('h-full rounded-full',
+                                displayedRiskTone === 'danger' ? 'bg-red-400'
+                                  : displayedRiskTone === 'warn' ? 'bg-amber-400' : 'bg-emerald-400')}
                               style={{ width: `${m.failureRisk}%` }}
                             />
                           </div>
@@ -270,7 +293,8 @@ const summary = useMemo(() => {
                       </div>
                     </td>
                   </tr>
-                ))}
+                  )
+                })}
               </tbody>
             </table>
           </div>

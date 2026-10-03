@@ -9,7 +9,7 @@ from fastapi import FastAPI, HTTPException
 
 from .config import get_settings
 from .feature_engineering import maintenance_features
-from .health_decision import decide_health
+from .health_decision import DecisionThresholds as HealthDecisionThresholds, decide_health
 from .inference import ModelBundle, infer, load_models
 from .schemas import HealthResponse, PredictionRequest, PredictionResponse
 from .simulator import simulate_sensor_window
@@ -37,8 +37,27 @@ def create_app(models_dir: str | Path | None = None) -> FastAPI:
     @application.get("/api/health", response_model=HealthResponse)
     @application.get("/health", response_model=HealthResponse)
     def health() -> dict[str, Any]:
-        loaded = isinstance(getattr(application.state, "model_bundle", None), ModelBundle)
-        return {"status": "ok" if loaded else "not_ready", "models_loaded": loaded}
+        bundle = getattr(application.state, "model_bundle", None)
+        failure_model_ready = isinstance(bundle, ModelBundle) and bundle.failure_model is not None
+        failure_type_model_ready = (
+            isinstance(bundle, ModelBundle) and bundle.failure_type_model is not None
+        )
+        anomaly_model_ready = isinstance(bundle, ModelBundle) and bundle.anomaly_model is not None
+        loaded = failure_model_ready and failure_type_model_ready and anomaly_model_ready
+        version = (
+            bundle.metadata.get("model_version")
+            if loaded and isinstance(bundle.metadata.get("model_version"), str)
+            else None
+        )
+        return {
+            "status": "ok" if loaded else "not_ready",
+            "models_loaded": loaded,
+            "failure_model": "ready" if failure_model_ready else "unavailable",
+            "failure_type_model": "ready" if failure_type_model_ready else "unavailable",
+            "anomaly_model": "ready" if anomaly_model_ready else "unavailable",
+            "model_version": version,
+            "last_prediction_at": getattr(application.state, "last_prediction_at", None),
+        }
 
     @application.post("/api/predict", response_model=PredictionResponse)
     def predict(request: PredictionRequest) -> dict[str, Any]:
@@ -74,11 +93,32 @@ def create_app(models_dir: str | Path | None = None) -> FastAPI:
                 window,
                 settings.failure_threshold,
             )
+            configured_thresholds = request.decision_thresholds
+            decision_thresholds = (
+                HealthDecisionThresholds(
+                    health_warning=configured_thresholds.health_warning,
+                    health_critical=configured_thresholds.health_critical,
+                    risk_warning=configured_thresholds.risk_warning,
+                    risk_critical=configured_thresholds.risk_critical,
+                )
+                if configured_thresholds
+                else None
+            )
             decision = decide_health(
-                result["failure_probability"], result["anomaly_score"], settings
+                result["failure_probability"],
+                result["anomaly_score"],
+                settings,
+                decision_thresholds,
             )
         except (ValueError, TypeError) as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
+        timestamp = datetime.now(timezone.utc)
+        application.state.last_prediction_at = timestamp
+        latest_reading_at = (
+            window[-1]["timestamp"]
+            if request.sensor_window is not None
+            else timestamp
+        )
         return {
             "machine_id": request.machine_id,
             "inputs": {
@@ -114,7 +154,8 @@ def create_app(models_dir: str | Path | None = None) -> FastAPI:
             "anomaly_features_used": result["anomaly_feature_names"],
             "anomaly_model_inputs": result["anomaly_model_inputs"],
             "anomaly_input_reading_count": len(window),
-            "timestamp": datetime.now(timezone.utc),
+            "latest_reading_at": latest_reading_at,
+            "timestamp": timestamp,
         }
 
     return application

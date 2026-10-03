@@ -8,7 +8,7 @@ export type MachineTypeCode = 'H' | 'L' | 'M'
 export type SimulationState = 'NORMAL' | 'DEGRADING' | 'CRITICAL'
 export type Severity = 'critical' | 'warning' | 'info' | 'success'
 export type SensorLevel = 'green' | 'amber' | 'red'
-export type MaintenanceStatus = 'Recommended' | 'Scheduled' | 'In Progress' | 'Completed'
+export type MaintenanceStatus = 'Recommended' | 'Scheduled' | 'In Progress' | 'Completed' | 'Cancelled'
 export type MaintenancePriority = 'High' | 'Medium' | 'Low'
 
 export interface SensorReading {
@@ -25,6 +25,9 @@ export interface HistoryPoint {
   date: string
   health: number
   risk: number
+  anomalyScore?: number
+  anomalyFlag?: boolean
+  isDemo?: boolean
 }
 
 export interface PredictionInputs {
@@ -60,7 +63,18 @@ export interface PredictionResponse {
   anomaly_features_used: string[]
   anomaly_model_inputs: Record<string, number | null>
   anomaly_input_reading_count: number
+  latest_reading_at: string
   timestamp: string
+}
+
+export interface ModelSystemStatus {
+  status: 'ok' | 'not_ready'
+  models_loaded: boolean
+  failure_model: 'ready' | 'unavailable'
+  failure_type_model: 'ready' | 'unavailable'
+  anomaly_model: 'ready' | 'unavailable'
+  model_version: string | null
+  last_prediction_at: string | null
 }
 
 export interface SensorSeries {
@@ -75,6 +89,7 @@ export interface EventMarker {
   date: string
   type: EventType
   note: string
+  isDemo?: boolean
 }
 
 export interface Machine {
@@ -118,8 +133,22 @@ export interface MaintenanceRecord {
   technician: string
   status: MaintenanceStatus
   downtime: string
-  cost: number
+  cost: number | null
   notes: string
+  originAlertId?: string
+  predictionSnapshot?: {
+    failureProbability: number
+    anomalyScore: number
+    healthScore: number
+    status: Exclude<MachineStatus, 'Under Maintenance'>
+    timestamp: string
+  }
+  actualDowntimeHours?: number | null
+  actualCost?: number | null
+  failureCause?: string
+  completionNotes?: string
+  maintenanceKind?: 'preventive' | 'corrective'
+  isDemo?: boolean
 }
 
 export interface Alert {
@@ -132,6 +161,7 @@ export interface Alert {
   timestamp: string
   status: 'active' | 'acknowledged' | 'resolved'
   recommendedAction: string
+  isDemo?: boolean
 }
 
 export interface Inspection {
@@ -144,9 +174,10 @@ export interface Inspection {
   location: string
   image: string // gradient key or object/data URL
   box?: { top: number; left: number; w: number; h: number }
+  isDemo?: boolean
 }
 
-export type DocStatus = 'Processed' | 'Processing' | 'Failed'
+export type DocStatus = 'Processed' | 'Processing' | 'Failed' | 'Metadata Only'
 
 export interface KnowledgeDoc {
   id: string
@@ -155,8 +186,9 @@ export interface KnowledgeDoc {
   size: string
   uploadDate: string
   status: DocStatus
-  pages: number
+  pages: number | null
   source: string
+  isDemo?: boolean
 }
 
 export interface ChatMessage {
@@ -181,6 +213,13 @@ export interface Thresholds {
   healthCritical: number
   riskWarning: number
   riskCritical: number
+}
+
+export interface DecisionThresholds {
+  health_warning: number
+  health_critical: number
+  risk_warning: number
+  risk_critical: number
 }
 
 export interface ToastMsg {

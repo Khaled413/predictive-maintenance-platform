@@ -17,17 +17,6 @@ export interface NavItem {
   end?: boolean
 }
 
-export const PAGE_META_AR: Record<string, { title: string; subtitle: string }> = {
-  '/': { title: 'نظرة عامة', subtitle: 'ملخص لحظي لصحة الأسطول والصيانة التنبؤية' },
-  '/machines': { title: 'الآلات', subtitle: 'إدارة معدات المصنع وإعدادات المستشعرات' },
-  '/maintenance': { title: 'الصيانة', subtitle: 'تخطيط وتتبع وإنجاز أوامر الصيانة' },
-  '/quality': { title: 'فحص الجودة بالذكاء الاصطناعي', subtitle: 'فحص بصري آلي لاكتشاف العيوب' },
-  '/assistant': { title: 'المساعد الصناعي الذكي', subtitle: 'اطرح أسئلة عن الآلات والصيانة وبيانات الإنتاج والمستندات' },
-  '/alerts': { title: 'مركز التنبيهات', subtitle: 'تنبيهات قابلة للتنفيذ عبر الآلات والصيانة والجودة' },
-  '/reports': { title: 'التقارير والتحليلات', subtitle: 'تحليلات الأداء والموثوقية والجودة' },
-  '/settings': { title: 'الإعدادات', subtitle: 'تهيئة الحدود والإشعارات وسلوك الذكاء الاصطناعي' },
-}
-
 export const NAV_ITEMS: NavItem[] = [
   { path: '/', label: 'Overview', icon: LayoutDashboard, end: true },
   { path: '/machines', label: 'Machines', icon: Factory },

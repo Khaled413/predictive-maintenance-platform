@@ -31,15 +31,18 @@ html,
 body,
 #root {
   min-height: 100%;
-  height: 100%;
+  width: 100%;
 }
 
 html {
   scroll-behavior: smooth;
+  overflow-x: clip;
 }
 
 body {
   @apply antialiased;
+  min-height: 100vh;
+  overflow-x: clip;
   background: var(--bg-page);
   color: var(--text);
   font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
@@ -54,6 +57,17 @@ body {
       transparent 60%
     );
   background-attachment: fixed;
+}
+
+html:lang(ar) body {
+  font-family: 'Noto Sans Arabic', Tahoma, system-ui, sans-serif;
+  line-height: 1.65;
+}
+
+@supports (min-height: 100dvh) {
+  body {
+    min-height: 100dvh;
+  }
 }
 
 body.light-mode {
@@ -142,9 +156,35 @@ body.light-mode .border-line {
   }
 }
 
-[dir='rtl'] .lg\:pl-60 {
-  padding-left: 0;
-  padding-right: 15rem;
+[dir='rtl'] .text-left {
+  text-align: right;
+}
+
+[dir='rtl'] .text-right {
+  text-align: left;
+}
+
+[dir='rtl'] aside .absolute.left-0 {
+  left: auto;
+  right: 0;
+}
+
+@media (min-width: 1024px) {
+  [dir='rtl'] .lg\:pl-60 {
+    padding-left: 0;
+    padding-right: 15rem;
+  }
+}
+
+@media (max-width: 639px) {
+  main {
+    padding: 1rem 0.75rem 5rem;
+  }
+
+  footer {
+    padding-inline: 0.75rem;
+    padding-bottom: 5rem;
+  }
 }
 
 body.light-mode .shadow-card,

@@ -15,6 +15,7 @@ import {
   Upload,
 } from 'lucide-react'
 import { useApp } from '../context/AppContext'
+import { statusForPrediction } from '../utils/predictionThresholds'
 import Panel, { PanelHeader } from '../components/ui/Panel'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
 import { Field, SelectInput, TextInput, Toggle } from '../components/ui/Field'
@@ -36,7 +37,7 @@ const TIMEZONES = ['Asia/Riyadh (GMT+3)', 'Asia/Dubai (GMT+4)', 'Europe/Berlin (
 const PLANT_OPTIONS = ['Plant A — Riyadh', 'Plant B — Dammam', 'Plant C — Jeddah', 'Distribution Center 1']
 
 export default function SettingsPage() {
-  const { t, language } = usePreferences()
+  const { t } = usePreferences()
   const {
     thresholds,
     saveThresholds,
@@ -89,7 +90,7 @@ export default function SettingsPage() {
     draft.healthCritical < 0 ||
     draft.riskCritical > 100
 
-  const statusCounts = (): Record<MachineStatus, number> => {
+  const statusCounts = (limits: Thresholds): Record<MachineStatus, number> => {
     const counts: Record<MachineStatus, number> = {
       Operational: 0,
       Warning: 0,
@@ -97,12 +98,13 @@ export default function SettingsPage() {
       'Under Maintenance': 0,
     }
     machines.forEach((m) => {
-      if (m.status) counts[m.status] += 1
+      const status = m.prediction ? statusForPrediction(m.prediction, limits) : m.status
+      if (status) counts[status] += 1
     })
     return counts
   }
-  const beforeCounts = statusCounts()
-  const afterCounts = beforeCounts
+  const beforeCounts = statusCounts(thresholds)
+  const afterCounts = statusCounts(draft)
 
   const applyThresholds = () => {
     if (invalid) {
@@ -113,7 +115,7 @@ export default function SettingsPage() {
     notify(
       'success',
       'Thresholds updated',
-      `Reference thresholds saved for ${machines.length} machines. ML-provided health and status are unchanged.`,
+      `Health and risk thresholds applied to ${machines.length} machines and future predictions.`,
     )
   }
 
@@ -214,11 +216,7 @@ export default function SettingsPage() {
                 </Field>
                 <Field label="Fleet Name" className="sm:col-span-2">
                   <TextInput
-                    defaultValue={
-                      language === 'ar'
-                        ? 'منشأة الرياض A — خط الإنتاج 1'
-                        : 'Riyadh Plant A — Production Line 1'
-                    }
+                    defaultValue={t('Riyadh Plant A — Production Line 1')}
                   />
                 </Field>
               </div>
@@ -238,7 +236,7 @@ export default function SettingsPage() {
             <Panel>
               <PanelHeader
                 title="Health & Failure Risk Thresholds"
-                subtitle="Reference limits for review; health, status, alerts, and recommendations come from the trained ML service."
+                subtitle="Applied to model health scores and failure probabilities to determine machine status, alert severity, and recommendations."
                 right={
                   <div className="flex items-center gap-2">
                     {dirty && (
@@ -267,7 +265,7 @@ export default function SettingsPage() {
               <div className="grid gap-4 px-4 py-4 sm:px-5 lg:grid-cols-2">
                 <ThresholdSlider
                   title="Health Score — Warning"
-                  description="Reference only; machine status is provided by the ML prediction service."
+                  description="At or below this health score, the machine is classified as Warning."
                   value={draft.healthWarning}
                   min={40}
                   max={95}
@@ -277,7 +275,7 @@ export default function SettingsPage() {
                 />
                 <ThresholdSlider
                   title="Health Score — Critical"
-                  description="Reference only; machine status is provided by the ML prediction service."
+                  description="At or below this health score, the machine is classified as Critical."
                   value={draft.healthCritical}
                   min={20}
                   max={80}
@@ -287,7 +285,7 @@ export default function SettingsPage() {
                 />
                 <ThresholdSlider
                   title="Failure Risk — Warning"
-                  description="Reference only; model-provided failure probability is displayed as returned."
+                  description="At or above this failure probability, the machine is classified as Warning."
                   value={draft.riskWarning}
                   min={20}
                   max={80}
@@ -297,7 +295,7 @@ export default function SettingsPage() {
                 />
                 <ThresholdSlider
                   title="Failure Risk — Critical"
-                  description="Reference only; model-provided status is displayed as returned."
+                  description="At or above this failure probability, the machine is classified as Critical."
                   value={draft.riskCritical}
                   min={40}
                   max={95}
@@ -319,10 +317,10 @@ export default function SettingsPage() {
               <div className="border-t border-line px-4 py-4 sm:px-5">
                 <div className="mb-3 flex items-center justify-between gap-3">
                   <h4 className="text-[12px] font-semibold uppercase tracking-wider text-ink-faint">
-                    Current ML Status Distribution
+                    {t('Status Under Draft Thresholds')}
                   </h4>
                   <span className="text-[10px] text-ink-faint">
-                    Status is returned by the trained ML model; these reference thresholds do not override it.
+                    {t('Preview of how applying the draft health and risk limits will classify current predictions.')}
                   </span>
                 </div>
                 <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
@@ -368,7 +366,11 @@ export default function SettingsPage() {
                             <td className="py-2.5 pr-3 font-mono text-[11.5px] text-ink-dim">{m.id}</td>
                             <td className="px-3 py-2.5 font-mono text-ink-dim">{m.healthScore === null ? '—' : `${m.healthScore}%`}</td>
                             <td className="px-3 py-2.5 font-mono text-ink-dim">{m.failureRisk === null ? '—' : `${m.failureRisk.toFixed(1)}%`}</td>
-                            <td className="px-3 py-2.5 text-ink-faint">{m.status ?? (m.predictionStatus === 'loading' ? 'Loading…' : 'Unavailable')}</td>
+                            <td className="px-3 py-2.5 text-ink-faint">
+                              {m.prediction
+                                ? statusForPrediction(m.prediction, draft)
+                                : m.status ?? (m.predictionStatus === 'loading' ? 'Loading…' : 'Unavailable')}
+                            </td>
                             <td className="px-3 py-2.5 text-ink-faint">
                               {m.predictionStatus === 'available' ? 'Model output' : 'Not available'}
                             </td>

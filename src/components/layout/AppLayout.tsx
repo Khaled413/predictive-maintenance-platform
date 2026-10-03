@@ -1,4 +1,4 @@
-import React, { Suspense, useState } from 'react'
+import { Suspense, useState } from 'react'
 import { Moon, Sun, Languages } from 'lucide-react'
 import { Outlet } from 'react-router-dom'
 import Sidebar from './Sidebar'
@@ -14,9 +14,9 @@ export default function AppLayout() {
   return (
     <div className="min-h-screen">
       <Sidebar mobileOpen={mobileOpen} onClose={() => setMobileOpen(false)} />
-      <div className="flex min-h-screen flex-col lg:pl-60">
+      <div className="flex min-h-screen min-w-0 flex-col lg:pl-60">
         <TopHeader onMenu={() => setMobileOpen(true)} />
-        <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8">
+        <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-[1500px]">
             <Suspense fallback={<PageSkeleton />}>
               <Outlet />
@@ -24,7 +24,7 @@ export default function AppLayout() {
           </div>
         </main>
         <footer className="border-t border-line px-6 py-4 text-center text-[11px] text-ink-faint">
-          Industrial AI Platform · {language === 'ar' ? 'لوحة صحة الآلات والصيانة' : 'Machine Health & Maintenance Dashboard'} · {language === 'ar' ? 'التنبؤات تجريبية بمدخلات محاكاة؛ قراءات المستشعرات المعروضة للتوضيح فقط' : 'DEMO MODE · predictions use simulated inputs; displayed sensor readings are illustrative only'}
+          {t('Industrial AI Platform')} · {t('Machine Health & Maintenance Dashboard')} · {t('DEMO MODE · predictions use simulated inputs; displayed sensor readings are illustrative only')}
         </footer>
       </div>
 

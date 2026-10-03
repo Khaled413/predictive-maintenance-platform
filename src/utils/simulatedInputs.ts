@@ -3,15 +3,31 @@ import type {
   PredictionInputs,
   SimulationState,
 } from '../types'
-import { seededRandom } from './helpers'
 
-function stableSeed(value: string): number {
-  let hash = 2166136261
-  for (const character of value) {
-    hash ^= character.charCodeAt(0)
-    hash = Math.imul(hash, 16777619)
-  }
-  return Math.abs(hash) || 1
+const SCENARIO_PROFILES: Record<
+  SimulationState,
+  { air: number; delta: number; speed: number; torque: number; wear: number }
+> = {
+  NORMAL: { air: 298, delta: 8, speed: 1700, torque: 40, wear: 80 },
+  DEGRADING: { air: 301, delta: 11, speed: 1450, torque: 60, wear: 150 },
+  CRITICAL: { air: 303, delta: 11, speed: 1250, torque: 65, wear: 200 },
+}
+
+const SIMULATION_STATES: SimulationState[] = ['NORMAL', 'DEGRADING', 'CRITICAL']
+export const SIMULATION_STATE_COUNT = SIMULATION_STATES.length
+
+function machineOffset(machineId: string): number {
+  const digits = machineId.match(/\d+$/)?.[0]
+  return digits ? Number(digits) % 5 : 0
+}
+
+function initialState(machineId: string): SimulationState {
+  return SIMULATION_STATES[machineOffset(machineId) % SIMULATION_STATES.length]
+}
+
+export function simulationStateForSlot(slot: number): SimulationState {
+  const normalizedSlot = Math.max(0, Math.floor(slot))
+  return SIMULATION_STATES[normalizedSlot % SIMULATION_STATES.length]
 }
 
 export function machineTypeCode(machineType: string): MachineTypeCode {
@@ -30,19 +46,18 @@ export function machineTypeCode(machineType: string): MachineTypeCode {
 export function simulateMachineInputs(
   machineId: string,
   machineType: string,
+  simulationState: SimulationState = initialState(machineId),
 ): PredictionInputs {
   const type = machineTypeCode(machineType)
-  const seed = stableSeed(machineId)
-  const rand = seededRandom(seed)
-  const stateIndex = seed % 10
-  const simulation_state: SimulationState =
-    stateIndex < 5 ? 'NORMAL' : stateIndex < 8 ? 'DEGRADING' : 'CRITICAL'
-  const stress = simulation_state === 'NORMAL' ? 0 : simulation_state === 'DEGRADING' ? 1 : 2
-  const air_temperature = Number((295 + stress * 4 + rand() * 3).toFixed(2))
-  const process_temperature = Number((air_temperature + 8 + stress * 2 + rand() * 4).toFixed(2))
-  const rotational_speed = Math.round(2400 - stress * 350 + rand() * 220)
-  const torque = Number((35 + stress * 12 + (2800 - rotational_speed) * 0.018 + rand() * 4).toFixed(2))
-  const tool_wear = Math.round(35 + stress * 80 + rand() * 35)
+  const offset = machineOffset(machineId)
+  const profile = SCENARIO_PROFILES[simulationState]
+  const air_temperature = Number((profile.air + offset * 0.35).toFixed(2))
+  const process_temperature = Number(
+    (air_temperature + profile.delta + offset * 0.2).toFixed(2),
+  )
+  const rotational_speed = profile.speed + offset * 20
+  const torque = Number((profile.torque + offset * 1.2).toFixed(2))
+  const tool_wear = profile.wear + offset * 8
 
   return {
     machine_id: machineId,
@@ -54,6 +69,6 @@ export function simulateMachineInputs(
     tool_wear,
     machine_input_source: 'simulated',
     sensor_input_source: 'simulated',
-    simulation_state,
+    simulation_state: simulationState,
   }
 }

@@ -13,6 +13,7 @@ import type {
   Inspection,
   KnowledgeDoc,
   Machine,
+  ModelSystemStatus,
   MaintenanceRecord,
   Thresholds,
   ToastMsg,
@@ -25,8 +26,14 @@ import {
   SEED_MAINTENANCE,
   SEED_MACHINES,
 } from '../data/mockData'
-import { requestPrediction } from '../data/predictionApi'
-import { machineTypeCode, simulateMachineInputs } from '../utils/simulatedInputs'
+import { requestModelStatus, requestPrediction } from '../data/predictionApi'
+import {
+  machineTypeCode,
+  SIMULATION_STATE_COUNT,
+  simulationStateForSlot,
+  simulateMachineInputs,
+} from '../utils/simulatedInputs'
+import { recommendationForStatus, statusForPrediction } from '../utils/predictionThresholds'
 import type { PredictionInputs, PredictionResponse } from '../types'
 
 const STORAGE_KEY = 'iap-state-v3'
@@ -40,8 +47,19 @@ interface PersistedState {
   thresholds: Thresholds
 }
 
+const UNAVAILABLE_MODEL_STATUS: ModelSystemStatus = {
+  status: 'not_ready',
+  models_loaded: false,
+  failure_model: 'unavailable',
+  failure_type_model: 'unavailable',
+  anomaly_model: 'unavailable',
+  model_version: null,
+  last_prediction_at: null,
+}
+
 interface AppContextValue extends PersistedState {
   lastUpdated: string
+  modelSystemStatus: ModelSystemStatus
   toasts: ToastMsg[]
   notify: (type: ToastMsg['type'], title: string, message?: string) => void
   dismissToast: (id: string) => void
@@ -49,7 +67,13 @@ interface AppContextValue extends PersistedState {
   updateMachine: (id: string, patch: Partial<Machine>) => void
   deleteMachine: (id: string) => void
   addMaintenance: (r: MaintenanceRecord) => void
+  createMaintenanceFromAlert: (alertId: string) => MaintenanceRecord | null
   updateMaintenance: (id: string, patch: Partial<MaintenanceRecord>) => void
+  transitionMaintenance: (
+    id: string,
+    status: MaintenanceRecord['status'],
+    completion?: Pick<MaintenanceRecord, 'actualDowntimeHours' | 'actualCost' | 'failureCause' | 'technician' | 'completionNotes'>,
+  ) => boolean
   deleteMaintenance: (id: string) => void
   setAlertStatus: (id: string, status: Alert['status']) => void
   addAlert: (a: Alert) => void
@@ -60,7 +84,8 @@ interface AppContextValue extends PersistedState {
   saveThresholds: (t: Thresholds) => void
   refreshTimestamp: () => void
   resetDemo: () => void
-  predictMachine: (id: string, inputs: PredictionInputs) => Promise<void>
+  regenerateDemoReadings: () => void
+  predictMachine: (id: string, inputs: PredictionInputs) => Promise<boolean>
 }
 
 const AppContext = createContext<AppContextValue | null>(null)
@@ -101,13 +126,39 @@ function loadState(): PersistedState {
               failureRisk: null,
               recommendation: null,
               likelihood: null,
-              history: prediction ? machine.history ?? [] : [],
+              history: prediction
+                ? (machine.history ?? []).map((point) => ({ ...point, isDemo: point.isDemo ?? true }))
+                : [],
+              events: (machine.events ?? []).map((event) => ({
+                ...event,
+                isDemo: event.isDemo ?? true,
+              })),
             }
           }),
-          maintenance: parsed.maintenance ?? SEED_MAINTENANCE,
-          alerts: (parsed.alerts ?? SEED_ALERTS).filter((alert) => !/^AL-\d+$/.test(alert.id)),
-          inspections: parsed.inspections ?? SEED_INSPECTIONS,
-          documents: parsed.documents ?? SEED_DOCUMENTS,
+          maintenance: (parsed.maintenance ?? SEED_MAINTENANCE).map((record) => {
+            const isDemo = record.isDemo ?? /^MT-\d{2}$/.test(record.id)
+            const seedKind = isDemo
+              ? SEED_MAINTENANCE.find((seed) => seed.id === record.id)?.maintenanceKind
+              : undefined
+            return {
+              ...record,
+              isDemo,
+              maintenanceKind: record.maintenanceKind ?? seedKind,
+            }
+          }),
+          alerts: (parsed.alerts ?? SEED_ALERTS)
+            .filter((alert) => !/^AL-\d+$/.test(alert.id))
+            .map((alert) => ({ ...alert, isDemo: alert.isDemo ?? true })),
+          inspections: (parsed.inspections ?? SEED_INSPECTIONS).map((inspection) => ({
+            ...inspection,
+            isDemo: inspection.isDemo ?? true,
+          })),
+          documents: (parsed.documents ?? SEED_DOCUMENTS).map((document) => ({
+            ...document,
+            status: document.status === 'Processed' ? 'Metadata Only' : document.status,
+            pages: document.pages ?? null,
+            isDemo: document.isDemo ?? true,
+          })),
           thresholds: { ...DEFAULT_THRESHOLDS, ...parsed.thresholds },
         }
       }
@@ -125,8 +176,11 @@ function loadState(): PersistedState {
   }
 }
 
-function predictionAlert(machine: Machine, prediction: PredictionResponse): Alert | null {
-  if (!prediction.anomaly_flag && prediction.failure_probability < 0.5) return null
+function predictionAlert(
+  machine: Machine,
+  prediction: PredictionResponse,
+): Alert | null {
+  if (!prediction.anomaly_flag && prediction.status === 'Operational') return null
   const type = prediction.anomaly_flag ? 'ML Anomaly Detected' : 'ML Failure Risk'
   const failureType = prediction.failure_type ?? 'No failure type classified by the model'
   const maintenanceNote = machine.maintenanceStatus === 'Overdue'
@@ -144,10 +198,16 @@ function predictionAlert(machine: Machine, prediction: PredictionResponse): Aler
     timestamp: prediction.timestamp,
     status: 'active',
     recommendedAction: prediction.recommendation,
+    isDemo: prediction.machine_input_source === 'simulated' ||
+      prediction.sensor_input_source === 'simulated',
   }
 }
 
-function addPredictionAlert(alerts: Alert[], machine: Machine, prediction: PredictionResponse): Alert[] {
+function addPredictionAlert(
+  alerts: Alert[],
+  machine: Machine,
+  prediction: PredictionResponse,
+): Alert[] {
   const alert = predictionAlert(machine, prediction)
   if (
     !alert ||
@@ -164,10 +224,28 @@ function addPredictionAlert(alerts: Alert[], machine: Machine, prediction: Predi
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<PersistedState>(loadState)
   const [lastUpdated, setLastUpdated] = useState(() => new Date().toISOString())
+  const [modelSystemStatus, setModelSystemStatus] = useState(UNAVAILABLE_MODEL_STATUS)
   const [toasts, setToasts] = useState<ToastMsg[]>([])
   const startupRequestsStarted = useRef(false)
+  const predictionRequestTokens = useRef(new Map<string, symbol>())
+  const demoScenarioRound = useRef(0)
+
+  const refreshModelSystemStatus = useCallback(async () => {
+    try {
+      setModelSystemStatus(await requestModelStatus())
+    } catch (error) {
+      console.error('Could not retrieve ML model status:', error)
+      setModelSystemStatus(UNAVAILABLE_MODEL_STATUS)
+    }
+  }, [])
+
+  useEffect(() => {
+    void refreshModelSystemStatus()
+  }, [refreshModelSystemStatus])
 
   const predictMachine = useCallback(async (id: string, inputs: PredictionInputs) => {
+    const requestToken = Symbol(id)
+    predictionRequestTokens.current.set(id, requestToken)
     setState((s) => ({
       ...s,
       machines: s.machines.map((machine) =>
@@ -184,7 +262,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }))
 
     try {
-      const prediction: PredictionResponse = await requestPrediction(inputs)
+      const prediction: PredictionResponse = await requestPrediction(inputs, state.thresholds)
       if (prediction.machine_id !== id) throw new Error('Prediction response machine ID did not match')
       if (prediction.inputs.type !== inputs.type) {
         throw new Error('Prediction response model type did not match')
@@ -195,60 +273,77 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       ) {
         throw new Error('Prediction response input sources did not match')
       }
+      void refreshModelSystemStatus()
       setState((s) => {
+        if (predictionRequestTokens.current.get(id) !== requestToken) return s
         const machine = s.machines.find((item) => item.id === id)
         if (!machine || machine.predictionInputs?.type !== inputs.type) return s
+        const status = statusForPrediction(prediction, s.thresholds)
+        const effectivePrediction: PredictionResponse = {
+          ...prediction,
+          status,
+          recommendation: recommendationForStatus(status),
+        }
         const history = [
           ...machine.history,
           {
             date: prediction.timestamp,
             health: prediction.health_score,
             risk: prediction.failure_probability * 100,
+            anomalyScore: prediction.anomaly_score * 100,
+            anomalyFlag: prediction.anomaly_flag,
+            isDemo: prediction.machine_input_source === 'simulated' ||
+              prediction.sensor_input_source === 'simulated',
           },
         ].sort((a, b) => Date.parse(a.date) - Date.parse(b.date))
         const updatedMachine: Machine = {
           ...machine,
           predictionStatus: 'available',
           predictionError: undefined,
-          prediction,
+          prediction: effectivePrediction,
           predictionInputs: inputs,
-          status: prediction.status,
-          healthScore: prediction.health_score,
-          failureRisk: prediction.failure_probability * 100,
-          recommendation: prediction.recommendation,
-          likelihood: prediction.failure_type,
+          status: effectivePrediction.status,
+          healthScore: effectivePrediction.health_score,
+          failureRisk: effectivePrediction.failure_probability * 100,
+          recommendation: effectivePrediction.recommendation,
+          likelihood: effectivePrediction.failure_type,
           history,
         }
-        const alerts = addPredictionAlert(s.alerts, machine, prediction)
+        const alerts = addPredictionAlert(s.alerts, machine, effectivePrediction)
         return {
           ...s,
           machines: s.machines.map((item) => (item.id === id ? updatedMachine : item)),
           alerts,
         }
       })
+      return predictionRequestTokens.current.get(id) === requestToken
     } catch (error) {
       const predictionError =
         error instanceof Error ? error.message : 'Prediction request failed unexpectedly'
-      setState((s) => ({
-        ...s,
-        machines: s.machines.map((machine) =>
-          machine.id === id && machine.predictionInputs?.type === inputs.type
-            ? {
-                ...machine,
-                predictionStatus: 'unavailable',
-                predictionError,
-                prediction: undefined,
-                status: null,
-                healthScore: null,
-                failureRisk: null,
-                recommendation: null,
-                likelihood: null,
-              }
-            : machine,
-        ),
-      }))
+      setState((s) => {
+        if (predictionRequestTokens.current.get(id) !== requestToken) return s
+        return {
+          ...s,
+          machines: s.machines.map((machine) =>
+            machine.id === id
+              ? {
+                  ...machine,
+                  predictionStatus: 'unavailable',
+                  predictionError,
+                  prediction: undefined,
+                  status: null,
+                  healthScore: null,
+                  failureRisk: null,
+                  recommendation: null,
+                  likelihood: null,
+                }
+              : machine,
+          ),
+        }
+      })
+      return false
     }
-  }, [])
+  }, [refreshModelSystemStatus, state.thresholds])
 
   useEffect(() => {
     if (startupRequestsStarted.current) return
@@ -304,6 +399,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const deleteMachine = useCallback((id: string) => {
+    predictionRequestTokens.current.delete(id)
     setState((s) => ({
       ...s,
       machines: s.machines.filter((m) => m.id !== id),
@@ -313,8 +409,56 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const addMaintenance = useCallback((r: MaintenanceRecord) => {
-    setState((s) => ({ ...s, maintenance: [r, ...s.maintenance] }))
+    setState((s) => ({
+      ...s,
+      maintenance: [{ ...r, isDemo: r.isDemo ?? false }, ...s.maintenance],
+    }))
   }, [])
+
+  const createMaintenanceFromAlert = useCallback((alertId: string) => {
+    const alert = state.alerts.find((item) => item.id === alertId)
+    if (!alert) return null
+    const existing = state.maintenance.find((record) => record.originAlertId === alertId)
+    if (existing) return existing
+    const machine = state.machines.find((item) => item.id === alert.machineId)
+    if (!machine) return null
+    const priority: MaintenanceRecord['priority'] =
+      alert.severity === 'critical' ? 'High' : alert.severity === 'warning' ? 'Medium' : 'Low'
+    const record: MaintenanceRecord = {
+      id: `MO-${alert.id}`,
+      machineId: machine.id,
+      machineName: machine.name,
+      machineType: machine.type,
+      type: /anomaly/i.test(alert.type) ? 'Inspection' : 'Predictive inspection',
+      reason: alert.message,
+      priority,
+      date: new Date().toISOString(),
+      technician: 'Unassigned',
+      status: 'Scheduled',
+      downtime: '—',
+      cost: null,
+      notes: alert.recommendedAction,
+      maintenanceKind: 'preventive',
+      isDemo: alert.isDemo ?? true,
+      originAlertId: alert.id,
+      predictionSnapshot: machine.prediction
+        ? {
+            failureProbability: machine.prediction.failure_probability,
+            anomalyScore: machine.prediction.anomaly_score,
+            healthScore: machine.prediction.health_score,
+            status: machine.prediction.status,
+            timestamp: machine.prediction.timestamp,
+          }
+        : undefined,
+    }
+    setState((s) => ({
+      ...s,
+      maintenance: s.maintenance.some((item) => item.originAlertId === alertId)
+        ? s.maintenance
+        : [record, ...s.maintenance],
+    }))
+    return record
+  }, [state.alerts, state.maintenance, state.machines])
 
   const updateMaintenance = useCallback((id: string, patch: Partial<MaintenanceRecord>) => {
     setState((s) => ({
@@ -322,6 +466,48 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       maintenance: s.maintenance.map((r) => (r.id === id ? { ...r, ...patch } : r)),
     }))
   }, [])
+
+  const transitionMaintenance = useCallback((
+    id: string,
+    status: MaintenanceRecord['status'],
+    completion?: Pick<MaintenanceRecord, 'actualDowntimeHours' | 'actualCost' | 'failureCause' | 'technician' | 'completionNotes'>,
+  ) => {
+    const record = state.maintenance.find((item) => item.id === id)
+    if (!record) return false
+    const allowed: Record<MaintenanceRecord['status'], MaintenanceRecord['status'][]> = {
+      Recommended: ['Scheduled', 'Cancelled'],
+      Scheduled: ['In Progress', 'Cancelled'],
+      'In Progress': ['Completed', 'Cancelled'],
+      Completed: [],
+      Cancelled: [],
+    }
+    if (!allowed[record.status].includes(status)) return false
+    setState((s) => ({
+      ...s,
+      maintenance: s.maintenance.map((item) =>
+        item.id === id
+          ? {
+              ...item,
+              status,
+              ...(status === 'Completed' && completion
+                ? {
+                    actualDowntimeHours: completion.actualDowntimeHours,
+                    ...(completion.actualDowntimeHours !== null
+                      ? { downtime: `${completion.actualDowntimeHours}h` }
+                      : {}),
+                    actualCost: completion.actualCost,
+                    failureCause: completion.failureCause,
+                    technician: completion.technician,
+                    completionNotes: completion.completionNotes,
+                    notes: completion.completionNotes,
+                  }
+                : {}),
+            }
+          : item,
+      ),
+    }))
+    return true
+  }, [state.maintenance])
 
   const deleteMaintenance = useCallback((id: string) => {
     setState((s) => ({ ...s, maintenance: s.maintenance.filter((r) => r.id !== id) }))
@@ -343,7 +529,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const addDocument = useCallback((d: KnowledgeDoc) => {
-    setState((s) => ({ ...s, documents: [d, ...s.documents] }))
+    setState((s) => ({
+      ...s,
+      documents: [{ ...d, isDemo: d.isDemo ?? false }, ...s.documents],
+    }))
   }, [])
 
   const deleteDocument = useCallback((id: string) => {
@@ -358,11 +547,45 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const saveThresholds = useCallback((t: Thresholds) => {
-    setState((s) => ({ ...s, thresholds: t }))
+    setState((s) => {
+      const machines = s.machines.map((machine) => {
+        if (!machine.prediction) return machine
+        const status = statusForPrediction(machine.prediction, t)
+        const recommendation = recommendationForStatus(status)
+        return {
+          ...machine,
+          status,
+          recommendation,
+          prediction: { ...machine.prediction, status, recommendation },
+        }
+      })
+      const machineById = new Map(machines.map((machine) => [machine.id, machine]))
+      let alerts = s.alerts.filter((alert) => {
+        if (!alert.id.startsWith('ML-') || alert.status === 'resolved') return true
+        const machine = machineById.get(alert.machineId)
+        return !machine?.prediction || machine.prediction.anomaly_flag ||
+          machine.prediction.status !== 'Operational'
+      }).map((alert) => {
+        const machine = machineById.get(alert.machineId)
+        if (!alert.id.startsWith('ML-') || !machine?.prediction) return alert
+        return {
+          ...alert,
+          severity: machine.prediction.status === 'Critical' ? 'critical' as const : 'warning' as const,
+          recommendedAction: machine.prediction.recommendation,
+        }
+      })
+      machines.forEach((machine) => {
+        if (machine.prediction) {
+          alerts = addPredictionAlert(alerts, machine, machine.prediction)
+        }
+      })
+      return { ...s, machines, alerts, thresholds: t }
+    })
   }, [])
 
   const resetDemo = useCallback(() => {
     localStorage.removeItem(STORAGE_KEY)
+    predictionRequestTokens.current.clear()
     setState({
       machines: SEED_MACHINES,
       maintenance: SEED_MAINTENANCE,
@@ -379,10 +602,87 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     })
   }, [predictMachine])
 
+  const regenerateDemoReadings = useCallback(async () => {
+    const simulatedMachines = state.machines
+      .filter((machine) =>
+        machine.predictionInputs?.machine_input_source === 'simulated' &&
+        machine.predictionInputs.sensor_input_source === 'simulated',
+      )
+      .sort((left, right) => left.id.localeCompare(right.id))
+    const scenarioRound = demoScenarioRound.current
+    const demoInputs = new Map(
+      simulatedMachines.map((machine, index) => [
+        machine.id,
+        simulateMachineInputs(
+          machine.id,
+          machine.type,
+          simulationStateForSlot(index + scenarioRound),
+        ),
+      ]),
+    )
+    if (!demoInputs.size) {
+      notify('warning', 'No demo machines found', 'Only simulated machines can generate a new demo scenario.')
+      return
+    }
+    demoScenarioRound.current =
+      (scenarioRound + 1) % SIMULATION_STATE_COUNT
+
+    setState((s) => ({
+      ...s,
+      machines: s.machines.map((machine) => {
+        const inputs = demoInputs.get(machine.id)
+        return inputs
+          ? {
+              ...machine,
+              modelTypeCode: inputs.type,
+              predictionInputs: inputs,
+              prediction: undefined,
+              predictionStatus: 'loading',
+              predictionError: undefined,
+              status: null,
+              healthScore: null,
+              failureRisk: null,
+              recommendation: null,
+              likelihood: null,
+            }
+          : machine
+      }),
+      alerts: s.alerts.map((alert) =>
+        alert.isDemo &&
+        alert.id.startsWith('ML-') &&
+        demoInputs.has(alert.machineId) &&
+        alert.status !== 'resolved'
+          ? { ...alert, status: 'resolved' }
+          : alert,
+      ),
+    }))
+    setLastUpdated(new Date().toISOString())
+    const results = await Promise.all(
+      [...demoInputs.entries()].map(([machineId, inputs]) =>
+        predictMachine(machineId, inputs),
+      ),
+    )
+    const failedCount = results.filter((succeeded) => !succeeded).length
+    if (failedCount) {
+      notify(
+        'warning',
+        'Demo scenario partially evaluated',
+        `${failedCount} of ${demoInputs.size} model predictions failed. Failed machines show unavailable results.`,
+      )
+      return
+    }
+    notify(
+      'success',
+      'New demo predictions ready',
+      `${demoInputs.size} simulated machines were recalculated by the trained models.`,
+    )
+  }, [notify, predictMachine, state.machines])
+
   const value = useMemo<AppContextValue>(
     () => ({
       ...state,
       lastUpdated,
+      modelSystemStatus,
       toasts,
       notify,
       dismissToast,
@@ -390,7 +690,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       updateMachine,
       deleteMachine,
       addMaintenance,
+      createMaintenanceFromAlert,
       updateMaintenance,
+      transitionMaintenance,
       deleteMaintenance,
       setAlertStatus,
       addAlert,
@@ -401,11 +703,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       saveThresholds,
       refreshTimestamp,
       resetDemo,
+      regenerateDemoReadings,
       predictMachine,
     }),
     [
       state,
       lastUpdated,
+      modelSystemStatus,
       toasts,
       notify,
       dismissToast,
@@ -413,7 +717,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       updateMachine,
       deleteMachine,
       addMaintenance,
+      createMaintenanceFromAlert,
       updateMaintenance,
+      transitionMaintenance,
       deleteMaintenance,
       setAlertStatus,
       addAlert,
@@ -424,6 +730,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       saveThresholds,
       refreshTimestamp,
       resetDemo,
+      regenerateDemoReadings,
       predictMachine,
     ],
   )

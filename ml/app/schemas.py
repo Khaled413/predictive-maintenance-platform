@@ -21,6 +21,21 @@ MachineType = Literal["H", "L", "M"]
 SimulationState = Literal["NORMAL", "DEGRADING", "CRITICAL"]
 
 
+class DecisionThresholds(BaseModel):
+    health_warning: int = Field(ge=0, le=100)
+    health_critical: int = Field(ge=0, le=100)
+    risk_warning: int = Field(ge=0, le=100)
+    risk_critical: int = Field(ge=0, le=100)
+
+    @model_validator(mode="after")
+    def critical_limits_must_be_stricter(self) -> "DecisionThresholds":
+        if self.health_critical >= self.health_warning:
+            raise ValueError("health_critical must be below health_warning")
+        if self.risk_critical <= self.risk_warning:
+            raise ValueError("risk_critical must be above risk_warning")
+        return self
+
+
 class PredictionRequest(BaseModel):
     model_config = ConfigDict(populate_by_name=True, extra="forbid")
 
@@ -35,6 +50,7 @@ class PredictionRequest(BaseModel):
     sensor_input_source: Literal["simulated", "provided"]
     simulation_state: SimulationState = "NORMAL"
     sensor_window: list[dict[str, object]] | None = None
+    decision_thresholds: DecisionThresholds | None = None
 
     @model_validator(mode="after")
     def sensor_source_must_match_window(self) -> "PredictionRequest":
@@ -139,9 +155,15 @@ class PredictionResponse(BaseModel):
     anomaly_features_used: list[str]
     anomaly_model_inputs: dict[str, FiniteFloat | None]
     anomaly_input_reading_count: int = Field(ge=1)
+    latest_reading_at: datetime
     timestamp: datetime
 
 
 class HealthResponse(BaseModel):
     status: Literal["ok", "not_ready"]
     models_loaded: bool
+    failure_model: Literal["ready", "unavailable"]
+    failure_type_model: Literal["ready", "unavailable"]
+    anomaly_model: Literal["ready", "unavailable"]
+    model_version: str | None
+    last_prediction_at: datetime | None

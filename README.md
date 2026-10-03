@@ -30,11 +30,11 @@ a Python inference service for predictive maintenance.
 | `/` | Fleet overview, KPIs, filters, and machine cards |
 | `/machines` | Searchable machine list and add-machine flow |
 | `/machines/:id` | Machine profile, trends, prediction details, and history |
-| `/maintenance` | Scheduled, in-progress, completed, and historical maintenance |
+| `/maintenance` | Browser-local work orders with scheduled, in-progress, completion, and cancellation workflows |
 | `/alerts` | Machine alerts, severity filters, and recommended actions |
-| `/reports` | Fleet analytics, charts, and report exports |
-| `/quality` | Image-inspection demo and inspection history |
-| `/assistant` | Assistant demo and document knowledge-base interface |
+| `/reports` | Analytics from eligible prediction and work-order records; CSV export |
+| `/quality` | Explicitly simulated image-inspection demo |
+| `/assistant` | Local-state assistant demo and metadata-only document list |
 | `/settings` | Display thresholds, preferences, and local data management |
 
 ## How predictions work
@@ -44,12 +44,31 @@ loads the saved failure, failure-type, and anomaly models at startup, validates
 the request, calculates health and recommendation fields, and returns the
 prediction to the dashboard.
 
-The seeded dashboard profiles use deterministic **simulated inputs** by
-default. Sensor readings shown in machine cards are explicitly illustrative;
-they are not mapped to, or used as, model inputs. The anomaly model uses
-`sensor_XX` data from a separate dataset whose channels do not have a verified
-mapping to the dashboard's named physical sensors. Do not treat demo output as
-a live equipment assessment.
+The seeded dashboard profiles use **simulated inputs** by default. Their
+failure-model feature values (air/process temperature, rotational speed,
+torque, and tool wear) are shown in the dashboard and sent unchanged to the
+saved models. The health score, failure risk, status, and recommendation are
+calculated from those model outputs; the sensor anomaly model also evaluates
+its simulated `sensor_XX` window. The dashboard's other named sensor examples
+are illustrative because the anomaly dataset channels have no verified mapping
+to those physical sensor names. Use **Generate new demo readings** to assign a
+deterministic, balanced mix of fixed normal, degrading, and critical input
+profiles across the simulated fleet on every click (profile counts differ by at
+most one machine).
+The action clears the previous prediction, submits the new feature values to
+the trained model service, and displays the returned prediction when evaluation
+finishes; it does not reset work orders or other local data. Demo output is a
+model calculation on simulated inputs, not a live equipment measurement or
+field-calibrated reliability estimate.
+
+Machine cards and details show a compact bar for each of the five numeric
+failure-model inputs. The failure-probability bar is the saved model's output
+and marks the configured warning and critical risk thresholds. The
+deterministic scenario cycle is calibrated against the saved failure artifact
+to demonstrate good, warning, and critical risk ranges; the normal profile is
+calibrated to produce nonzero model risk rather than a misleading 100% health
+result. Model outputs still determine the displayed risk, health, status, and
+recommendation.
 
 ### Feature status
 
@@ -57,10 +76,18 @@ a live equipment assessment.
 | --- | --- |
 | Failure probability and failure-type inference | Trained model service |
 | Sensor anomaly score | Trained anomaly model; demo sensor inputs are simulated |
-| Health score and model recommendation | Derived from model outputs and configured thresholds |
-| Dashboard sensor readings and seeded machine profiles | Illustrative demo data |
-| Maintenance scheduling, alerts, reports, and preferences | Interactive application flows |
-| Assistant responses and image quality inspections | Simulated demo features |
+| Trained ML health score and model recommendation | Derived from model outputs and configured thresholds |
+| Seeded demo failure-model inputs | Displayed and sent unchanged to the trained model service |
+| Dashboard's other named sensor examples | Illustrative demo data; not model inputs |
+| Maintenance work orders | Browser-local workflow; not connected to a CMMS |
+| Actual downtime and actual cost KPIs | Calculated only from completed orders with explicitly recorded actual values |
+| MTBF and failure rate | Unavailable until machine operating-hour exposure is recorded |
+| Reports export | CSV is generated; PDF and Excel export are unavailable |
+| Arabic and English UI | Central translation dictionary with RTL layout |
+| Global search and dashboard actions | Search local machine, alert, and work-order records; actions navigate to existing flows |
+| Assistant responses | Rule-based local/demo summaries; no LLM or document retrieval |
+| Document upload | Metadata-only browser record; file contents are not stored, parsed, or searchable |
+| Image quality inspection | Deterministic demo output; not connected to a trained vision model |
 
 Model recommendations are decision-support outputs, not safety instructions.
 The demo models and simulated inputs are not calibrated or certified for

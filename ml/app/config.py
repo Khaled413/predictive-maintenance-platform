@@ -10,10 +10,16 @@ class Settings:
     anomaly_weight: float = 0.40
     healthy_threshold: float = 70.0
     warning_threshold: float = 40.0
+    risk_warning_threshold: float = 50.0
+    critical_failure_threshold: float = 0.70
 
     def __post_init__(self) -> None:
         if not 0 <= self.failure_threshold <= 1:
             raise ValueError("failure_threshold must be between 0 and 1")
+        if not 0 <= self.critical_failure_threshold <= 1:
+            raise ValueError("critical_failure_threshold must be between 0 and 1")
+        if not 0 <= self.risk_warning_threshold < self.critical_failure_threshold * 100:
+            raise ValueError("risk thresholds must satisfy 0 <= warning < critical <= 100%")
         if (
             not math.isfinite(self.failure_weight)
             or not math.isfinite(self.anomaly_weight)
@@ -33,4 +39,6 @@ def get_settings() -> Settings:
         anomaly_weight=float(os.getenv("HEALTH_ANOMALY_WEIGHT", "0.40")),
         healthy_threshold=float(os.getenv("HEALTHY_SCORE_THRESHOLD", "70")),
         warning_threshold=float(os.getenv("WARNING_SCORE_THRESHOLD", "40")),
+        risk_warning_threshold=float(os.getenv("RISK_WARNING_THRESHOLD", "50")),
+        critical_failure_threshold=float(os.getenv("CRITICAL_FAILURE_THRESHOLD", "0.70")),
     )

@@ -44,12 +44,12 @@ function buildMachine(
   id: string,
   name: string,
   type: string,
-  status: MachineStatus,
-  healthScore: number,
-  failureRisk: number,
+  _status: MachineStatus,
+  _healthScore: number,
+  _failureRisk: number,
   maintenanceStatus: string,
-  recommendation: string,
-  likelihood: string,
+  _recommendation: string,
+  _likelihood: string,
   location: string,
   manufacturer: string,
   model: string,
@@ -82,6 +82,7 @@ function buildMachine(
     date: daysAgo(ago),
     type,
     note,
+    isDemo: true,
   }))
 
   return {
@@ -477,7 +478,7 @@ export const SEED_MACHINES: Machine[] = [
 // ---------------------------------------------------------------------------
 // Maintenance records
 // ---------------------------------------------------------------------------
-export const SEED_MAINTENANCE: MaintenanceRecord[] = [
+export const SEED_MAINTENANCE: MaintenanceRecord[] = ([
   {
     id: 'MT-01',
     machineId: 'M-001',
@@ -491,6 +492,7 @@ export const SEED_MAINTENANCE: MaintenanceRecord[] = [
     status: 'Scheduled',
     downtime: '2h',
     cost: 180,
+    maintenanceKind: 'preventive',
     notes: 'Spindle bearing grease per manufacturer spec.',
   },
   {
@@ -506,6 +508,7 @@ export const SEED_MAINTENANCE: MaintenanceRecord[] = [
     status: 'Scheduled',
     downtime: '3h',
     cost: 420,
+    maintenanceKind: 'corrective',
     notes: 'AI flagged pressure variance 18% above baseline.',
   },
   {
@@ -521,6 +524,7 @@ export const SEED_MAINTENANCE: MaintenanceRecord[] = [
     status: 'In Progress',
     downtime: '12.5h',
     cost: 5200,
+    maintenanceKind: 'corrective',
     notes: 'Full rotating element inspection. Replacement bearings on order.',
   },
   {
@@ -536,6 +540,7 @@ export const SEED_MAINTENANCE: MaintenanceRecord[] = [
     status: 'Completed',
     downtime: '2h',
     cost: 150,
+    maintenanceKind: 'preventive',
     notes: 'Belt tension and roller alignment — passed.',
   },
   {
@@ -551,6 +556,7 @@ export const SEED_MAINTENANCE: MaintenanceRecord[] = [
     status: 'Recommended',
     downtime: '4h',
     cost: 900,
+    maintenanceKind: 'preventive',
     notes: 'Gripper jaw wear suspected; verify with thermal imaging.',
   },
   {
@@ -566,6 +572,7 @@ export const SEED_MAINTENANCE: MaintenanceRecord[] = [
     status: 'In Progress',
     downtime: '12h',
     cost: 3400,
+    maintenanceKind: 'corrective',
     notes: 'Ultrasonic tube thickness survey in progress.',
   },
   {
@@ -581,6 +588,7 @@ export const SEED_MAINTENANCE: MaintenanceRecord[] = [
     status: 'Completed',
     downtime: '3h',
     cost: 220,
+    maintenanceKind: 'preventive',
     notes: 'Gearbox topped up — oil analysis sampled.',
   },
   {
@@ -596,6 +604,7 @@ export const SEED_MAINTENANCE: MaintenanceRecord[] = [
     status: 'Scheduled',
     downtime: '4h',
     cost: 310,
+    maintenanceKind: 'corrective',
     notes: 'Nozzle diaphragm and pressure transducers to verify.',
   },
   {
@@ -611,6 +620,7 @@ export const SEED_MAINTENANCE: MaintenanceRecord[] = [
     status: 'Completed',
     downtime: '8h',
     cost: 640,
+    maintenanceKind: 'preventive',
     notes: 'Exhaust HEPA filter replaced.',
   },
   {
@@ -626,6 +636,7 @@ export const SEED_MAINTENANCE: MaintenanceRecord[] = [
     status: 'Completed',
     downtime: '6h',
     cost: 480,
+    maintenanceKind: 'corrective',
     notes: 'Label head re-aligned; vibration reduced 0.8 mm/s.',
   },
   {
@@ -641,6 +652,7 @@ export const SEED_MAINTENANCE: MaintenanceRecord[] = [
     status: 'Completed',
     downtime: '5h',
     cost: 260,
+    maintenanceKind: 'preventive',
     notes: 'Lubricated chain drives and re-tensioned.',
   },
   {
@@ -656,6 +668,7 @@ export const SEED_MAINTENANCE: MaintenanceRecord[] = [
     status: 'Scheduled',
     downtime: '10h',
     cost: 2100,
+    maintenanceKind: 'corrective',
     notes: 'Pressure relief and delivery valve service.',
   },
   {
@@ -671,6 +684,7 @@ export const SEED_MAINTENANCE: MaintenanceRecord[] = [
     status: 'Completed',
     downtime: '9h',
     cost: 1200,
+    maintenanceKind: 'corrective',
     notes: 'Replaced spindle thrust bearings.',
   },
   {
@@ -686,6 +700,7 @@ export const SEED_MAINTENANCE: MaintenanceRecord[] = [
     status: 'Completed',
     downtime: '6h',
     cost: 800,
+    maintenanceKind: 'corrective',
     notes: 'After-cooler cleaned; delta-T back to spec.',
   },
   {
@@ -701,9 +716,10 @@ export const SEED_MAINTENANCE: MaintenanceRecord[] = [
     status: 'Completed',
     downtime: '16h',
     cost: 2900,
+    maintenanceKind: 'corrective',
     notes: 'Replaced feed water control valve.',
   },
-]
+] satisfies MaintenanceRecord[]).map((record) => ({ ...record, isDemo: true }))
 // ---------------------------------------------------------------------------
 // Alerts
 // ---------------------------------------------------------------------------
@@ -713,7 +729,7 @@ export const SEED_ALERTS: Alert[] = []
 // Quality inspections
 // ---------------------------------------------------------------------------
 
-export const SEED_INSPECTIONS: Inspection[] = [
+export const SEED_INSPECTIONS: Inspection[] = ([
   { id: 'Q-0001', productId: 'PRD-2201', timestamp: hoursAgo(20), result: 'PASS', defectType: 'None', confidence: 97.2, location: '—', image: 'g1' },
   { id: 'Q-0002', productId: 'PRD-2202', timestamp: hoursAgo(44), result: 'FAIL', defectType: 'Surface Crack', confidence: 94.1, location: 'Upper-right area', image: 'g2' },
   { id: 'Q-0003', productId: 'PRD-2203', timestamp: hoursAgo(68), result: 'PASS', defectType: 'None', confidence: 96.8, location: '—', image: 'g3' },
@@ -730,13 +746,13 @@ export const SEED_INSPECTIONS: Inspection[] = [
   { id: 'Q-0014', productId: 'PRD-2214', timestamp: hoursAgo(332), result: 'PASS', defectType: 'None', confidence: 96.7, location: '—', image: 'g3' },
   { id: 'Q-0015', productId: 'PRD-2215', timestamp: hoursAgo(356), result: 'PASS', defectType: 'None', confidence: 97.0, location: '—', image: 'g2' },
   { id: 'Q-0016', productId: 'PRD-2216', timestamp: hoursAgo(380), result: 'PASS', defectType: 'None', confidence: 95.5, location: '—', image: 'g4' },
-]
+] satisfies Inspection[]).map((inspection) => ({ ...inspection, isDemo: true }))
 
 // ---------------------------------------------------------------------------
 // Knowledge base documents
 // ---------------------------------------------------------------------------
 
-export const SEED_DOCUMENTS: KnowledgeDoc[] = [
+export const SEED_DOCUMENTS: KnowledgeDoc[] = ([
   {
     id: 'DOC-001',
     name: 'Maintenance Manual.pdf',
@@ -797,7 +813,7 @@ export const SEED_DOCUMENTS: KnowledgeDoc[] = [
     pages: 1,
     source: 'Operations leadership',
   },
-]
+].map((document) => ({ ...document, status: 'Metadata Only' as const, isDemo: true })))
 // ---------------------------------------------------------------------------
 // AI Assistant demo transcripts
 // ---------------------------------------------------------------------------

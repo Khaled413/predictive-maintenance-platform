@@ -64,6 +64,7 @@ export function PriorityBadge({ priority }: { priority: string }) {
 
 const MAINT_STATUS_STYLES: Record<string, { pill: string; text: string }> = {
   Completed: { pill: 'border-emerald-400/25 bg-emerald-500/10', text: 'text-emerald-300' },
+  Cancelled: { pill: 'border-line bg-navy-700/40', text: 'text-ink-faint' },
   'In Progress': { pill: 'border-sky-400/25 bg-sky-500/10', text: 'text-sky-300' },
   Scheduled: { pill: 'border-blue-400/25 bg-blue-500/10', text: 'text-blue-300' },
   Recommended: { pill: 'border-amber-400/25 bg-amber-500/10', text: 'text-amber-300' },

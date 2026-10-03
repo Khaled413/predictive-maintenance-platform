@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   AlertOctagon,
+  CalendarPlus,
   CheckCheck,
   ChevronRight,
   Eye,
@@ -31,7 +32,7 @@ const isQualityAlert = (type: string) => /quality|defect/i.test(type)
 
 
 export default function AlertsPage() {
-  const { alerts, setAlertStatus, notify, refreshTimestamp } = useApp()
+  const { alerts, maintenance, createMaintenanceFromAlert, setAlertStatus, notify, refreshTimestamp } = useApp()
   const navigate = useNavigate()
 
   const [filter, setFilter] = useState<Severity | 'all'>('all')
@@ -116,6 +117,7 @@ return (
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-[12.5px] font-bold text-ink">{a.type}</span>
                       <SeverityBadge severity={a.severity} />
+                      {a.isDemo && <span className="chip border-amber-400/20 text-amber-300">DEMO INPUTS</span>}
                       <span className="chip">
                         {a.status === 'active'
                           ? '● Active'
@@ -173,6 +175,35 @@ return (
                         <Eye className="h-3.5 w-3.5" />
                         Acknowledge
                       </button>
+                    )}
+                    {a.status !== 'resolved' && (
+                      (() => {
+                        const existingOrder = maintenance.find((record) => record.originAlertId === a.id)
+                        return (
+                          <button
+                            type="button"
+                            className="btn-ghost btn-sm"
+                            onClick={() => {
+                              const record = createMaintenanceFromAlert(a.id)
+                              if (!record) {
+                                notify('warning', 'Work order not created', 'The alert machine is no longer available in the fleet.')
+                                return
+                              }
+                              if (!existingOrder && a.status === 'active') setAlertStatus(a.id, 'acknowledged')
+                              notify(
+                                'success',
+                                existingOrder ? 'Work order already exists' : 'Work order created',
+                                `${record.id} · ${record.machineId}`,
+                              )
+                              refreshTimestamp()
+                              navigate(`/maintenance?search=${encodeURIComponent(record.id)}`)
+                            }}
+                          >
+                            <CalendarPlus className="h-3.5 w-3.5" />
+                            {existingOrder ? 'Open Work Order' : 'Create Work Order'}
+                          </button>
+                        )
+                      })()
                     )}
                     {a.status !== 'resolved' && (
                       <button

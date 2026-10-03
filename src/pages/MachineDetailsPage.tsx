@@ -5,7 +5,6 @@ import {
   CalendarPlus,
   History,
   MapPin,
-  Settings2,
   Wrench,
 } from 'lucide-react'
 import {
@@ -24,8 +23,8 @@ import { useApp } from '../context/AppContext'
 import MachineVisual from '../components/ui/MachineVisual'
 import CircularHealth from '../components/ui/CircularHealth'
 import RiskBar from '../components/ui/RiskBar'
-import SensorList from '../components/ui/SensorList'
-import { MachineStatusBadge, MaintenanceStatusBadge, PriorityBadge, MaintenanceRecordStatusBadge } from '../components/ui/Badges'
+import ModelInputBars from '../components/ui/ModelInputBars'
+import { MachineStatusBadge, MaintenanceStatusBadge } from '../components/ui/Badges'
 import Panel, { PanelHeader } from '../components/ui/Panel'
 import { ChartCard, ChartTooltip } from '../components/ui/ChartCard'
 import EmptyState from '../components/ui/EmptyState'
@@ -33,6 +32,8 @@ import Modal from '../components/ui/Modal'
 import { Field, TextInput, SelectInput } from '../components/ui/Field'
 import { cx, formatDate, formatInt } from '../utils/helpers'
 import type { EventType } from '../types'
+import ModelStatusCard from '../components/ui/ModelStatusCard'
+import { usePreferences } from '../context/PreferencesContext'
 
 const EVENT_COLORS: Record<EventType, string> = {
   Maintenance: '#38BDF8',
@@ -44,19 +45,26 @@ const EVENT_COLORS: Record<EventType, string> = {
 export default function MachineDetailsPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const { t } = usePreferences()
   const {
     machines,
+    thresholds,
     maintenance,
+    alerts,
+    modelSystemStatus,
     updateMachine,
     addMaintenance,
+    createMaintenanceFromAlert,
     notify,
     refreshTimestamp,
   } = useApp()
 
   const machine = machines.find((m) => m.id === id)
 
-  const status = machine?.prediction?.status ?? null
   const prediction = machine?.predictionStatus === 'available' ? machine.prediction : undefined
+  const isDemoPrediction = prediction?.machine_input_source === 'simulated' &&
+    prediction.sensor_input_source === 'simulated'
+  const status = prediction?.status ?? null
   const healthScore = prediction?.health_score ?? null
   const failureRisk = prediction ? prediction.failure_probability * 100 : null
   const recommendation = prediction?.recommendation ?? null
@@ -69,10 +77,16 @@ export default function MachineDetailsPage() {
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
     [maintenance, id],
   )
+  const machineAlerts = useMemo(
+    () => alerts
+      .filter((alert) => alert.machineId === id)
+      .sort((a, b) => Date.parse(b.timestamp) - Date.parse(a.timestamp)),
+    [alerts, id],
+  )
 
   const chartData = useMemo(() => {
     if (!machine) return []
-    return machine.history.map((p) => ({
+    return machine.history.filter((point) => !point.isDemo).map((p) => ({
       ...p,
       short: new Date(p.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
     }))
@@ -80,12 +94,14 @@ export default function MachineDetailsPage() {
 
   const eventPoints = useMemo(() => {
     if (!machine) return []
+    const modelHistory = machine.history.filter((point) => !point.isDemo)
     const points: { x: string; type: EventType; note: string }[] = []
     for (const ev of machine.events) {
+      if (ev.isDemo) continue
       const t = new Date(ev.date).getTime()
-      let best = machine.history[0]
+      let best = modelHistory[0]
       let bestDiff = Infinity
-      for (const p of machine.history) {
+      for (const p of modelHistory) {
         const d = Math.abs(new Date(p.date).getTime() - t)
         if (d < bestDiff) {
           bestDiff = d
@@ -120,7 +136,7 @@ export default function MachineDetailsPage() {
   }
 
   const submitSchedule = () => {
-    const nextId = `MT-${String(maintenance.length + 16).padStart(2, '0')}`
+    const nextId = `MT-${crypto.randomUUID()}`
     addMaintenance({
       id: nextId,
       machineId: machine.id,
@@ -132,9 +148,19 @@ export default function MachineDetailsPage() {
       date: new Date(plan.date).toISOString(),
       technician: plan.technician,
       status: 'Scheduled',
-      downtime: status === 'Critical' ? '8h' : '4h',
-      cost: status === 'Critical' ? 2500 : 500,
+      downtime: '—',
+      cost: null,
       notes: plan.notes,
+      maintenanceKind: 'preventive',
+      predictionSnapshot: prediction
+        ? {
+            failureProbability: prediction.failure_probability,
+            anomalyScore: prediction.anomaly_score,
+            healthScore: prediction.health_score,
+            status: prediction.status,
+            timestamp: prediction.timestamp,
+          }
+        : undefined,
     })
     updateMachine(machine.id, { maintenanceStatus: 'Due Soon' })
     refreshTimestamp()
@@ -177,7 +203,9 @@ return (
             {machine.name} · {machine.manufacturer} {machine.model}
           </p>
           <p className="mt-1 text-[10px] text-ink-faint">
-            Demo model inputs are simulated · input type {machine.modelTypeCode}
+            {isDemoPrediction
+              ? t('Health and status are trained-model outputs from simulated inputs; not live telemetry.')
+              : t('Machine health and status use provided model inputs.')}
           </p>
         </div>
         <div className="ml-auto flex items-center gap-2.5">
@@ -197,7 +225,13 @@ return (
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Panel className="flex items-center gap-4 p-4">
           {healthScore !== null ? (
-            <CircularHealth value={healthScore} size={74} />
+            <CircularHealth
+              value={healthScore}
+              size={74}
+              warningThreshold={thresholds.healthWarning}
+              criticalThreshold={thresholds.healthCritical}
+              status={status ?? undefined}
+            />
           ) : (
             <span className="max-w-20 text-center text-[10px] text-ink-faint">
               {machine.predictionStatus === 'loading'
@@ -224,14 +258,14 @@ return (
         </Panel>
         <Panel className="p-4">
           <p className="text-[10px] font-semibold uppercase tracking-wider text-ink-faint">
-            Failure Probability
+            {t('ML Failure Probability')}
           </p>
           <p
             className={cx(
               'mt-2 font-mono text-[22px] font-bold',
-              failureRisk === null ? 'text-ink-faint' : failureRisk >= 70
+              failureRisk === null ? 'text-ink-faint' : failureRisk >= thresholds.riskCritical
                 ? 'text-red-300'
-                : failureRisk >= 50
+                : failureRisk >= thresholds.riskWarning
                   ? 'text-amber-300'
                   : 'text-emerald-300',
             )}
@@ -239,7 +273,14 @@ return (
             {failureRisk === null ? (machine.predictionStatus === 'loading' ? 'Loading…' : 'Unavailable') : `${failureRisk.toFixed(1)}%`}
           </p>
           <div className="mt-2.5">
-            {failureRisk !== null && <RiskBar value={failureRisk} showLabel={false} />}
+            {failureRisk !== null && (
+              <RiskBar
+                value={failureRisk}
+                showLabel={false}
+                warningThreshold={thresholds.riskWarning}
+                criticalThreshold={thresholds.riskCritical}
+              />
+            )}
           </div>
         </Panel>
         <Panel className="p-4">
@@ -282,7 +323,7 @@ return (
       <div className="grid gap-4 lg:grid-cols-2">
         <ChartCard
           title="Health Score Over Time"
-          subtitle="Stored successful model predictions with lifecycle events"
+          subtitle="Stored predictions from provided-input runs; simulated-input results are excluded"
           right={
             <div className="flex flex-wrap items-center gap-1.5">
               {Object.entries(EVENT_COLORS).map(([label, color]) => (
@@ -334,7 +375,7 @@ return (
           </ResponsiveContainer>
         </ChartCard>
 
-        <ChartCard title="Failure Probability Over Time" subtitle="Stored model probability outputs">
+        <ChartCard title="Failure Probability Over Time" subtitle="Provided-input model outputs only">
           <ResponsiveContainer width="100%" height={230}>
             <LineChart data={chartData} margin={{ top: 8, right: 12, bottom: 4, left: -18 }}>
               <CartesianGrid strokeDasharray="3 5" stroke="rgba(148,163,184,0.07)" vertical={false} />
@@ -407,6 +448,14 @@ return (
                   <p className="text-[10px] font-semibold uppercase tracking-wider text-ink-faint">Anomaly Score</p>
                   <p className="mt-1 text-[12px] font-semibold text-ink">{(prediction.anomaly_score * 100).toFixed(1)}% · {prediction.anomaly_flag ? 'Flagged' : 'Not flagged'}</p>
                 </div>
+                <div className="rounded-xl border border-line bg-navy-900/50 p-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-ink-faint">
+                    {t('Trained ML Health Score')}
+                  </p>
+                  <p className="mt-1 text-[12px] font-semibold text-ink">
+                    {prediction.health_score.toFixed(1)}% · {prediction.status}
+                  </p>
+                </div>
                 <div className="rounded-xl border border-line bg-navy-900/50 p-3 sm:col-span-2">
                   <p className="text-[10px] font-semibold uppercase tracking-wider text-ink-faint">Model Recommendation</p>
                   <p className="mt-1 text-[12px] font-semibold text-ink">{prediction.recommendation}</p>
@@ -418,10 +467,13 @@ return (
                 </div>
                 <div className="rounded-xl border border-line bg-navy-900/50 p-3 sm:col-span-2">
                   <p className="text-[10px] font-semibold uppercase tracking-wider text-ink-faint">
-                    Inputs used by the failure model · {prediction.machine_input_source === 'simulated' ? 'simulated demo values' : 'provided model values'}
+                    Inputs used by the failure model
                   </p>
-                  <p className="mt-1 text-[11px] leading-relaxed text-ink-dim">
-                    Air temperature {prediction.inputs.air_temperature} K · process temperature {prediction.inputs.process_temperature} K · rotational speed {prediction.inputs.rotational_speed} rpm · torque {prediction.inputs.torque} Nm · tool wear {prediction.inputs.tool_wear} min · type {prediction.inputs.type}
+                  <div className="mt-3">
+                    <ModelInputBars inputs={prediction.inputs} />
+                  </div>
+                  <p className="mt-2 text-[10px] leading-relaxed text-ink-dim">
+                    {t('Machine type')}: {prediction.inputs.type}
                   </p>
                   <p className="mt-2 text-[10px] leading-relaxed text-ink-faint">
                     <span>Anomaly model input:</span> {prediction.data_source} · {prediction.anomaly_input_reading_count} readings · {prediction.sensor_inputs_simulated ? 'This score is demo-only, not live equipment telemetry.' : 'Provided sensor input.'} The displayed sensor readings below are excluded.
@@ -455,20 +507,32 @@ return (
           </Panel>
         </div>
 
-        {/* Sensor current state */}
-        <Panel className="overflow-hidden">
-          <PanelHeader title="Key Sensors · Current" subtitle="Illustrative demo readings; not model inputs" />
-          <div className="px-4 py-4">
-            <SensorList sensors={machine.sensors} />
+        <details className="panel overflow-hidden">
+          <summary className="cursor-pointer px-4 py-3 text-[11px] font-semibold text-ink-faint">
+            {t('Show illustrative sensor examples (not model inputs)')}
+          </summary>
+          <div className="border-t border-line px-4 py-3">
+            <p className="mb-3 text-[10px] text-ink-faint">
+              {t('Demo values only; not live readings, model inputs, or the source of machine status.')}
+            </p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              {machine.sensors.map((sensor) => (
+                <div key={sensor.name} className="flex justify-between gap-3 text-[10px]">
+                  <span className="text-ink-faint">{sensor.name}</span>
+                  <span className="font-mono text-ink-dim">{sensor.value} {sensor.unit}</span>
+                </div>
+              ))}
+            </div>
           </div>
-        </Panel>
+        </details>
       </div>
+      <ModelStatusCard status={modelSystemStatus} />
 {/* Histories */}
       <div className="grid gap-4 lg:grid-cols-2">
         <Panel className="overflow-hidden">
           <PanelHeader
             title="Maintenance History"
-            subtitle={`${machineMaintenance.length} records`}
+            subtitle={`${machineMaintenance.length} records · local browser history; demo examples may be included`}
             right={<History className="h-4 w-4 text-ink-faint" />}
           />
           <div className="thin-scroll overflow-x-auto">
@@ -492,7 +556,9 @@ return (
                     <td className="px-3 py-2.5 text-[11.5px] text-ink-dim">{r.technician}</td>
                     <td className="px-3 py-2.5 font-mono text-[11px] text-ink-dim">{r.downtime}</td>
                     <td className="px-3 py-2.5 font-mono text-[11px] text-ink-dim">
-                      ${formatInt(r.cost)}
+                      {r.status === 'Completed'
+                        ? r.actualCost === null || r.actualCost === undefined ? 'Actual: —' : `Actual: $${formatInt(r.actualCost)}`
+                        : r.cost === null ? '—' : `Estimate: $${formatInt(r.cost)}`}
                     </td>
                   </tr>
                 ))}
@@ -506,9 +572,66 @@ return (
               </tbody>
             </table>
           </div>
+          <Panel className="overflow-hidden">
+            <PanelHeader
+              title="Machine Alerts"
+              subtitle={`${machineAlerts.length} alert records for ${machine.id}`}
+              right={<History className="h-4 w-4 text-ink-faint" />}
+            />
+            {machineAlerts.length ? (
+              <div className="divide-y divide-line/60">
+                {machineAlerts.map((alert) => {
+                  const workOrder = maintenance.find((record) => record.originAlertId === alert.id)
+                  return (
+                    <div key={alert.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[11.5px] font-semibold text-ink">
+                          {alert.type} · {alert.severity} {alert.isDemo ? '· DEMO INPUTS' : ''}
+                        </p>
+                        <p className="mt-0.5 text-[10.5px] text-ink-dim">{alert.message}</p>
+                        <p className="mt-1 text-[9.5px] text-ink-faint">{formatDate(alert.timestamp)} · {alert.status}</p>
+                      </div>
+                      {workOrder ? (
+                        <button
+                          type="button"
+                          className="btn-ghost btn-sm"
+                          onClick={() => navigate(`/maintenance?search=${encodeURIComponent(workOrder.id)}`)}
+                        >
+                          {workOrder.id} · {workOrder.status}
+                        </button>
+                      ) : alert.status !== 'resolved' ? (
+                        <button
+                          type="button"
+                          className="btn-ghost btn-sm"
+                          onClick={() => {
+                            const record = createMaintenanceFromAlert(alert.id)
+                            if (!record) {
+                              notify('warning', 'Work order not created', 'The alert machine is no longer available in the fleet.')
+                              return
+                            }
+                            notify('success', 'Work order created', `${record.id} · ${record.machineId}`)
+                            refreshTimestamp()
+                            navigate(`/maintenance?search=${encodeURIComponent(record.id)}`)
+                          }}
+                        >
+                          <CalendarPlus className="h-3.5 w-3.5" />
+                          Create Work Order
+                        </button>
+                      ) : null}
+                    </div>
+                  )
+                })}
+              </div>
+            ) : (
+              <p className="px-4 py-5 text-[11px] text-ink-faint">No alerts are recorded for this machine.</p>
+            )}
+          </Panel>
         </Panel>
 <Panel className="overflow-hidden">
-          <PanelHeader title="Failure & Event History" subtitle="Sensor anomalies, inspections and failures" />
+          <PanelHeader
+            title="Failure & Event History"
+            subtitle="Demo event markers are illustrative and are excluded from model-history charts"
+          />
           <div className="thin-scroll overflow-x-auto">
             <table className="w-full min-w-[560px] border-collapse text-left">
               <thead>

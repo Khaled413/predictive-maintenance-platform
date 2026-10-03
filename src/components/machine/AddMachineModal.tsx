@@ -8,7 +8,6 @@ import {
   FileSpreadsheet,
   Loader2,
   Plus,
-  UploadCloud,
 } from 'lucide-react'
 import Modal from '../ui/Modal'
 import UploadZone from '../ui/UploadZone'
@@ -16,7 +15,6 @@ import { Field, TextInput, SelectInput } from '../ui/Field'
 import { useApp } from '../../context/AppContext'
 import { cx, seededRandom } from '../../utils/helpers'
 import type { Machine, SensorReading, SensorSeries } from '../../types'
-import { formatDate } from '../../utils/helpers'
 import { requestPrediction } from '../../data/predictionApi'
 import { machineTypeCode, simulateMachineInputs } from '../../utils/simulatedInputs'
 
@@ -118,7 +116,7 @@ interface AddMachineModalProps {
 }
 
 export default function AddMachineModal({ open, onClose }: AddMachineModalProps) {
-  const { machines, addMachine, notify, refreshTimestamp } = useApp()
+  const { machines, thresholds, addMachine, notify, refreshTimestamp } = useApp()
 
   const [step, setStep] = useState(1)
   const [form, setForm] = useState({
@@ -297,7 +295,7 @@ const toggleSensor = (name: string) => {
           if (!machine.predictionInputs) {
             throw new Error('Model inputs were not generated for this machine.')
           }
-          const prediction = await requestPrediction(machine.predictionInputs)
+          const prediction = await requestPrediction(machine.predictionInputs, thresholds)
           if (prediction.machine_id !== machine.id) throw new Error('Mismatched prediction machine ID')
           machine.prediction = prediction
           machine.predictionStatus = 'available'
@@ -310,6 +308,8 @@ const toggleSensor = (name: string) => {
             date: prediction.timestamp,
             health: prediction.health_score,
             risk: prediction.failure_probability * 100,
+            anomalyScore: prediction.anomaly_score * 100,
+            anomalyFlag: prediction.anomaly_flag,
           }]
         } catch (error) {
           machine.predictionStatus = 'unavailable'
@@ -330,7 +330,7 @@ const toggleSensor = (name: string) => {
     const t = window.setTimeout(() => setProcessIdx((i) => i + 1), 600 + processIdx * 120)
     return () => window.clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step, processIdx])
+  }, [step, processIdx, thresholds])
 
   const canNext = {
     1:
