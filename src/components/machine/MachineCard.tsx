@@ -9,6 +9,7 @@ import { MachineStatusBadge, MaintenanceStatusBadge } from '../ui/Badges'
 import { formatDate, cx } from '../../utils/helpers'
 import { useApp } from '../../context/AppContext'
 import { usePreferences } from '../../context/PreferencesContext'
+import { healthBandLabel } from '../../utils/predictionThresholds'
 
 export default function MachineCard({ machine }: { machine: Machine }) {
   const navigate = useNavigate()
@@ -59,6 +60,9 @@ export default function MachineCard({ machine }: { machine: Machine }) {
               />
               <p className="mt-0.5 text-[8px] text-ink-faint">
                 {t('Model health / status')}
+              </p>
+              <p className="text-[8px] font-medium text-ink-dim">
+                {t(healthBandLabel(machine.healthScore))}
               </p>
             </div>
           ) : machine.predictionStatus === 'loading' ? (

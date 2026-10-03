@@ -31,6 +31,10 @@ import EmptyState from '../components/ui/EmptyState'
 import Modal from '../components/ui/Modal'
 import { Field, TextInput, SelectInput } from '../components/ui/Field'
 import { cx, formatDate, formatInt } from '../utils/helpers'
+import {
+  healthBandLabel,
+  maintenanceStatusFromPrediction,
+} from '../utils/predictionThresholds'
 import type { EventType } from '../types'
 import ModelStatusCard from '../components/ui/ModelStatusCard'
 import { usePreferences } from '../context/PreferencesContext'
@@ -162,7 +166,12 @@ export default function MachineDetailsPage() {
           }
         : undefined,
     })
-    updateMachine(machine.id, { maintenanceStatus: 'Due Soon' })
+    updateMachine(machine.id, {
+      maintenanceStatus: prediction
+        ? maintenanceStatusFromPrediction(prediction.status, new Date(plan.date).toISOString())
+        : 'Due Soon',
+      nextMaintenance: new Date(plan.date).toISOString(),
+    })
     refreshTimestamp()
     notify('success', 'Maintenance scheduled', `${machine.id} · ${plan.type || recommendation || 'Inspection'} on ${formatDate(new Date(plan.date).toISOString())}.`)
     setScheduleOpen(false)
@@ -254,6 +263,11 @@ return (
                   ? 'Degraded condition'
                   : 'Healthy condition'}
             </p>
+            {healthScore !== null && (
+              <p className="mt-1 text-[10px] font-medium text-ink">
+                {t(healthBandLabel(healthScore))}
+              </p>
+            )}
           </div>
         </Panel>
         <Panel className="p-4">
@@ -454,6 +468,9 @@ return (
                   </p>
                   <p className="mt-1 text-[12px] font-semibold text-ink">
                     {prediction.health_score.toFixed(1)}% · {prediction.status}
+                  </p>
+                  <p className="mt-1 text-[10px] font-medium text-ink-dim">
+                    {t(healthBandLabel(prediction.health_score))}
                   </p>
                 </div>
                 <div className="rounded-xl border border-line bg-navy-900/50 p-3 sm:col-span-2">

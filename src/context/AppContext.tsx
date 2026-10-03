@@ -28,12 +28,19 @@ import {
 } from '../data/mockData'
 import { requestModelStatus, requestPrediction } from '../data/predictionApi'
 import {
+  DEMO_HEALTH_BAND_COUNT,
+  healthBandIndex,
+  healthBandForMachine,
+  healthBandForSlot,
+  isDemoHealthBand,
   machineTypeCode,
-  SIMULATION_STATE_COUNT,
-  simulationStateForSlot,
   simulateMachineInputs,
 } from '../utils/simulatedInputs'
-import { recommendationForStatus, statusForPrediction } from '../utils/predictionThresholds'
+import {
+  maintenanceStatusFromPrediction,
+  recommendationForStatus,
+  statusForPrediction,
+} from '../utils/predictionThresholds'
 import type { PredictionInputs, PredictionResponse } from '../types'
 
 const STORAGE_KEY = 'iap-state-v3'
@@ -99,19 +106,35 @@ function loadState(): PersistedState {
         return {
           machines: parsed.machines.map((machine) => {
             const modelTypeCode = machineTypeCode(machine.type)
-            const predictionInputs =
+            const storedPredictionInputs =
               machine.predictionInputs?.type === modelTypeCode &&
               machine.predictionInputs.machine_input_source === 'simulated' &&
               machine.predictionInputs.sensor_input_source === 'simulated'
                 ? machine.predictionInputs
-                : simulateMachineInputs(machine.id, machine.type)
+                : undefined
+            const healthBand = isDemoHealthBand(storedPredictionInputs?.demo_health_band)
+              ? storedPredictionInputs.demo_health_band
+              : healthBandForMachine(machine.id)
+            const predictionInputs = simulateMachineInputs(
+              machine.id,
+              machine.type,
+              undefined,
+              healthBand,
+            )
             const prediction =
               machine.prediction?.prediction_source === 'Trained ML Models' &&
               typeof machine.prediction.machine_inputs_simulated === 'boolean' &&
               typeof machine.prediction.sensor_inputs_simulated === 'boolean' &&
               Array.isArray(machine.prediction.anomaly_features_used) &&
               typeof machine.prediction.anomaly_model_inputs === 'object' &&
-              typeof machine.prediction.anomaly_input_reading_count === 'number'
+              typeof machine.prediction.anomaly_input_reading_count === 'number' &&
+              machine.prediction.inputs.type === predictionInputs.type &&
+              machine.prediction.inputs.air_temperature === predictionInputs.air_temperature &&
+              machine.prediction.inputs.process_temperature === predictionInputs.process_temperature &&
+              machine.prediction.inputs.rotational_speed === predictionInputs.rotational_speed &&
+              machine.prediction.inputs.torque === predictionInputs.torque &&
+              machine.prediction.inputs.tool_wear === predictionInputs.tool_wear &&
+              machine.prediction.inputs.simulation_state === predictionInputs.simulation_state
               ? machine.prediction
               : undefined
             return {
@@ -126,9 +149,10 @@ function loadState(): PersistedState {
               failureRisk: null,
               recommendation: null,
               likelihood: null,
-              history: prediction
-                ? (machine.history ?? []).map((point) => ({ ...point, isDemo: point.isDemo ?? true }))
-                : [],
+              history: (machine.history ?? []).map((point) => ({
+                ...point,
+                isDemo: point.isDemo ?? true,
+              })),
               events: (machine.events ?? []).map((event) => ({
                 ...event,
                 isDemo: event.isDemo ?? true,
@@ -228,7 +252,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<ToastMsg[]>([])
   const startupRequestsStarted = useRef(false)
   const predictionRequestTokens = useRef(new Map<string, symbol>())
-  const demoScenarioRound = useRef(0)
+  const demoScenarioRound = useRef<number | null>(null)
 
   const refreshModelSystemStatus = useCallback(async () => {
     try {
@@ -303,6 +327,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           prediction: effectivePrediction,
           predictionInputs: inputs,
           status: effectivePrediction.status,
+          maintenanceStatus: maintenanceStatusFromPrediction(
+            effectivePrediction.status,
+            machine.nextMaintenance,
+          ),
           healthScore: effectivePrediction.health_score,
           failureRisk: effectivePrediction.failure_probability * 100,
           recommendation: effectivePrediction.recommendation,
@@ -555,6 +583,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         return {
           ...machine,
           status,
+          maintenanceStatus: maintenanceStatusFromPrediction(
+            status,
+            machine.nextMaintenance,
+          ),
           recommendation,
           prediction: { ...machine.prediction, status, recommendation },
         }
@@ -586,6 +618,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const resetDemo = useCallback(() => {
     localStorage.removeItem(STORAGE_KEY)
     predictionRequestTokens.current.clear()
+    demoScenarioRound.current = null
     setState({
       machines: SEED_MACHINES,
       maintenance: SEED_MAINTENANCE,
@@ -609,23 +642,27 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         machine.predictionInputs.sensor_input_source === 'simulated',
       )
       .sort((left, right) => left.id.localeCompare(right.id))
-    const scenarioRound = demoScenarioRound.current
+    if (!simulatedMachines.length) {
+      notify('warning', 'No demo machines found', 'Only simulated machines can generate a new demo scenario.')
+      return
+    }
+    const currentFirstBand =
+      simulatedMachines[0].predictionInputs.demo_health_band ??
+      healthBandForMachine(simulatedMachines[0].id)
+    const scenarioRound = demoScenarioRound.current ??
+      (healthBandIndex(currentFirstBand) + 1) % DEMO_HEALTH_BAND_COUNT
     const demoInputs = new Map(
       simulatedMachines.map((machine, index) => [
         machine.id,
         simulateMachineInputs(
           machine.id,
           machine.type,
-          simulationStateForSlot(index + scenarioRound),
+          undefined,
+          healthBandForSlot(index + scenarioRound),
         ),
       ]),
     )
-    if (!demoInputs.size) {
-      notify('warning', 'No demo machines found', 'Only simulated machines can generate a new demo scenario.')
-      return
-    }
-    demoScenarioRound.current =
-      (scenarioRound + 1) % SIMULATION_STATE_COUNT
+    demoScenarioRound.current = (scenarioRound + 1) % DEMO_HEALTH_BAND_COUNT
 
     setState((s) => ({
       ...s,

@@ -64,11 +64,18 @@ field-calibrated reliability estimate.
 Machine cards and details show a compact bar for each of the five numeric
 failure-model inputs. The failure-probability bar is the saved model's output
 and marks the configured warning and critical risk thresholds. The
-deterministic scenario cycle is calibrated against the saved failure artifact
-to demonstrate good, warning, and critical risk ranges; the normal profile is
-calibrated to produce nonzero model risk rather than a misleading 100% health
-result. Model outputs still determine the displayed risk, health, status, and
-recommendation.
+deterministic scenario cycle is calibrated against the saved artifacts to
+produce a balanced spread of very good, good, medium, below-average, and weak
+model-derived health scores. Each machine receives distinct, repeatable
+readings within its profile, so refreshing the page preserves its current
+readings; the generate button advances the fleet to new profiles and
+recalculates the models. Model outputs still determine the displayed risk,
+health, status, and recommendation. The five health descriptions are derived
+from the returned health score: above 90, above 80, above 65, above 50, and
+50 or below, respectively; they do not modify that score.
+Maintenance urgency is also derived from the current model status: operational
+is on schedule, warning is due soon, and critical calls for immediate service.
+“Overdue” is reserved for a maintenance date that has actually passed.
 
 ### Feature status
 

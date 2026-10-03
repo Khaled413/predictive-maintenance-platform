@@ -343,6 +343,96 @@ class SchemaAndLoadingTests(unittest.TestCase):
                     else:
                         self.assertEqual(health.status, "critical")
 
+    def test_demo_fleet_health_spans_five_model_derived_bands(self):
+        models_path = Path(__file__).resolve().parents[1] / "models"
+        if not list(models_path.glob("*.joblib")) or not list(models_path.glob("*.json")):
+            self.skipTest("Local model artifacts are not present in ml/models")
+        bundle = load_models(models_path)
+        profiles = {
+            "H": {
+                "VERY_GOOD": (301.972, 12.319, 1504.874, 30.893, 126.125),
+                "GOOD": (295.051, 10.170, 1740.251, 55.076, 141.465),
+                "MEDIUM": (304.354, 10.645, 1220.673, 55.278, 227.439),
+                "BELOW_AVERAGE": (302.321, 9.651, 1326.154, 63.769, 185.677),
+                "POOR": (298.944, 10.938, 1254.748, 74.698, 153.463),
+            },
+            "L": {
+                "VERY_GOOD": (301.735, 13.830, 1760.690, 48.394, 36.694),
+                "GOOD": (296.726, 9.792, 1631.205, 55.954, 14.147),
+                "MEDIUM": (301.441, 9.793, 1500.820, 59.099, 81.284),
+                "BELOW_AVERAGE": (296.847, 12.332, 1486.586, 71.258, 114.001),
+                "POOR": (303.841, 10.173, 1406.069, 68.702, 232.151),
+            },
+            "M": {
+                "VERY_GOOD": (303.176, 11.934, 1392.994, 59.179, 53.999),
+                "GOOD": (301.863, 12.049, 1345.884, 47.886, 235.360),
+                "MEDIUM": (295.973, 8.304, 1339.230, 28.738, 37.044),
+                "BELOW_AVERAGE": (300.490, 11.234, 1757.902, 64.052, 146.660),
+                "POOR": (299.909, 9.985, 1325.063, 72.296, 246.892),
+            },
+        }
+        health_bands = (
+            "VERY_GOOD",
+            "GOOD",
+            "MEDIUM",
+            "BELOW_AVERAGE",
+            "POOR",
+        )
+        machine_types = ("M", "M", "H", "L", "L", "H", "M", "M", "M", "L", "M", "H")
+        expected_health_ranges = {
+            "VERY_GOOD": (90, 100),
+            "GOOD": (80, 90),
+            "MEDIUM": (65, 80),
+            "BELOW_AVERAGE": (50, 65),
+            "POOR": (0, 50),
+        }
+        sensor_states = {
+            "VERY_GOOD": "NORMAL",
+            "GOOD": "NORMAL",
+            "MEDIUM": "DEGRADING",
+            "BELOW_AVERAGE": "DEGRADING",
+            "POOR": "CRITICAL",
+        }
+        input_tuples = set()
+        observed_bands = set()
+
+        for index, machine_type in enumerate(machine_types, start=1):
+            band = health_bands[(index - 1) % len(health_bands)]
+            base_air, base_delta, base_speed, base_torque, base_wear = profiles[machine_type][band]
+            air = round(base_air + ((index * 7) % 13 - 6) * 0.01, 2)
+            delta = base_delta + ((index * 5) % 11 - 5) * 0.02
+            process = round(air + delta, 2)
+            speed = int(base_speed + (index * 7) % 17 - 8 + 0.5)
+            torque = round(base_torque + ((index * 7) % 13 - 6) * 0.03, 2)
+            wear = int(base_wear + (index * 7) % 19 - 9 + 0.5)
+            input_tuple = (air, process, speed, torque, wear)
+            self.assertNotIn(input_tuple, input_tuples)
+            input_tuples.add(input_tuple)
+
+            features = maintenance_features(
+                air, process, speed, torque, wear, machine_type
+            )
+            sensor_window = simulate_sensor_window(
+                f"M-{index:03d}",
+                sensor_states[band],
+                air,
+                process,
+                speed,
+                torque,
+                wear,
+            )
+            result = infer(bundle, features, sensor_window)
+            health = decide_health(
+                result["failure_probability"], result["anomaly_score"], Settings()
+            ).health_score
+            lower, upper = expected_health_ranges[band]
+            self.assertGreaterEqual(health, lower, (index, band, health))
+            self.assertLessEqual(health, upper, (index, band, health))
+            observed_bands.add(band)
+
+        self.assertEqual(len(input_tuples), len(machine_types))
+        self.assertEqual(observed_bands, set(expected_health_ranges))
+
 
 class ApiTests(unittest.TestCase):
     def test_prediction_endpoint_structures_genuine_outputs_and_simulation_label(self):

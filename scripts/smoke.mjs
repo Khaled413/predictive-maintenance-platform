@@ -55,19 +55,44 @@ try {
   const { default: AppLayout } = await vite.ssrLoadModule('/src/components/layout/AppLayout.tsx')
   const { default: RiskBar } = await vite.ssrLoadModule('/src/components/ui/RiskBar.tsx')
   const { default: ModelInputBars } = await vite.ssrLoadModule('/src/components/ui/ModelInputBars.tsx')
-  const { SIMULATION_STATE_COUNT, simulationStateForSlot, simulateMachineInputs } = await vite.ssrLoadModule('/src/utils/simulatedInputs.ts')
-  const normalScenario = simulateMachineInputs('M-012', 'Compressor', 'NORMAL')
-  const sameNormalScenario = simulateMachineInputs('M-012', 'Compressor', 'NORMAL')
-  const degradingScenario = simulateMachineInputs('M-012', 'Compressor', 'DEGRADING')
-  const criticalScenario = simulateMachineInputs('M-012', 'Compressor', 'CRITICAL')
+  const { DEMO_HEALTH_BAND_COUNT, healthBandForSlot, simulateMachineInputs } = await vite.ssrLoadModule('/src/utils/simulatedInputs.ts')
+  const { healthBandLabel, maintenanceStatusFromPrediction } = await vite.ssrLoadModule('/src/utils/predictionThresholds.ts')
+  const normalScenario = simulateMachineInputs('M-012', 'Compressor', undefined, 'VERY_GOOD')
+  const sameNormalScenario = simulateMachineInputs('M-012', 'Compressor', undefined, 'VERY_GOOD')
+  const degradingScenario = simulateMachineInputs('M-012', 'Compressor', undefined, 'MEDIUM')
+  const criticalScenario = simulateMachineInputs('M-012', 'Compressor', undefined, 'POOR')
+  const sameProfileFleet = Array.from({ length: 12 }, (_, index) =>
+    simulateMachineInputs(
+      `M-${String(index + 1).padStart(3, '0')}`,
+      'Compressor',
+      undefined,
+      'VERY_GOOD',
+    ),
+  )
+  const sameProfileInputsAreUnique = new Set(
+    sameProfileFleet.map((inputs) => [
+      inputs.air_temperature,
+      inputs.process_temperature,
+      inputs.rotational_speed,
+      inputs.torque,
+      inputs.tool_wear,
+    ].join(':')),
+  ).size === sameProfileFleet.length
   const fleetScenarioStates = Array.from(
-    { length: SIMULATION_STATE_COUNT * 4 },
-    (_, slot) => simulationStateForSlot(slot),
+    { length: DEMO_HEALTH_BAND_COUNT * 3 },
+    (_, slot) => healthBandForSlot(slot),
   )
   const stateCounts = fleetScenarioStates.reduce((counts, state) => {
     counts[state]++
     return counts
-  }, { NORMAL: 0, DEGRADING: 0, CRITICAL: 0 })
+  }, { VERY_GOOD: 0, GOOD: 0, MEDIUM: 0, BELOW_AVERAGE: 0, POOR: 0 })
+  const healthBandLabels = [96, 85, 73, 60, 45].map(healthBandLabel)
+  const maintenanceDecisions = [
+    maintenanceStatusFromPrediction('Operational', '2030-01-01T00:00:00.000Z', Date.parse('2029-01-01T00:00:00.000Z')),
+    maintenanceStatusFromPrediction('Warning', '2030-01-01T00:00:00.000Z', Date.parse('2029-01-01T00:00:00.000Z')),
+    maintenanceStatusFromPrediction('Critical', '2030-01-01T00:00:00.000Z', Date.parse('2029-01-01T00:00:00.000Z')),
+    maintenanceStatusFromPrediction('Operational', '2028-01-01T00:00:00.000Z', Date.parse('2029-01-01T00:00:00.000Z')),
+  ]
   const hasDistinctProfiles = [normalScenario, degradingScenario, criticalScenario]
     .every((profile, index, profiles) =>
       index === 0 || JSON.stringify(profile) !== JSON.stringify(profiles[index - 1]),
@@ -75,9 +100,21 @@ try {
   if (
     JSON.stringify(normalScenario) !== JSON.stringify(sameNormalScenario) ||
     !hasDistinctProfiles ||
-    stateCounts.NORMAL !== 4 ||
-    stateCounts.DEGRADING !== 4 ||
-    stateCounts.CRITICAL !== 4 ||
+    !sameProfileInputsAreUnique ||
+    Object.values(stateCounts).some((count) => count !== 3) ||
+    JSON.stringify(healthBandLabels) !== JSON.stringify([
+      'Very good health',
+      'Good health',
+      'Medium health',
+      'Below average health',
+      'Poor health',
+    ]) ||
+    JSON.stringify(maintenanceDecisions) !== JSON.stringify([
+      'On Schedule',
+      'Due Soon',
+      'Immediate',
+      'Overdue',
+    ]) ||
     normalScenario.simulation_state !== 'NORMAL' ||
     degradingScenario.simulation_state !== 'DEGRADING' ||
     criticalScenario.simulation_state !== 'CRITICAL' ||
@@ -98,7 +135,7 @@ try {
     console.log('FAIL deterministic demo model-input profiles')
     failures.push('deterministic demo model-input profiles')
   } else {
-    console.log('PASS deterministic demo model-input profiles · fixed values, balanced good/medium/high fleet mix')
+    console.log('PASS deterministic demo profiles · five model-health bands and output-based maintenance urgency')
   }
 
   const riskBarHtml = renderToString(

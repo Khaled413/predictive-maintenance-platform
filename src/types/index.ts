@@ -6,6 +6,7 @@ export type MachineStatus = 'Operational' | 'Warning' | 'Critical' | 'Under Main
 export type PredictionStatus = 'loading' | 'available' | 'unavailable'
 export type MachineTypeCode = 'H' | 'L' | 'M'
 export type SimulationState = 'NORMAL' | 'DEGRADING' | 'CRITICAL'
+export type DemoHealthBand = 'VERY_GOOD' | 'GOOD' | 'MEDIUM' | 'BELOW_AVERAGE' | 'POOR'
 export type Severity = 'critical' | 'warning' | 'info' | 'success'
 export type SensorLevel = 'green' | 'amber' | 'red'
 export type MaintenanceStatus = 'Recommended' | 'Scheduled' | 'In Progress' | 'Completed' | 'Cancelled'
@@ -41,6 +42,7 @@ export interface PredictionInputs {
   machine_input_source: 'simulated' | 'provided'
   sensor_input_source: 'simulated' | 'provided'
   simulation_state: SimulationState
+  demo_health_band?: DemoHealthBand
   sensor_window?: { timestamp?: string; [channel: string]: number | string | null | undefined }[]
 }
 

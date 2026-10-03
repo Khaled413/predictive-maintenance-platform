@@ -227,6 +227,11 @@ export const translations: Record<string, string> = {
   'Warning limit': 'حد التحذير',
   'Critical limit': 'حد الخطر',
   'Trained ML Health Score': 'درجة صحة الموديل المدرّب',
+  'Very good health': 'صحة ممتازة جدًا',
+  'Good health': 'صحة جيدة',
+  'Medium health': 'صحة متوسطة',
+  'Below average health': 'صحة أقل من المتوسط',
+  'Poor health': 'صحة ضعيفة',
   'Health and status are trained-model outputs from simulated inputs; not live telemetry.':
     'الصحة والحالة ناتجتان عن موديلات مدرّبة بمدخلات محاكاة؛ وليستا قياسات لحظية.',
   'Machine health and status use provided model inputs.':
@@ -456,6 +461,7 @@ Object.assign(translations, {
   'Overheating at high vibration': 'ارتفاع الحرارة مع اهتزاز شديد',
   'On Schedule': 'في الموعد',
   'Due Soon': 'مستحقة قريبًا',
+  Immediate: 'صيانة فورية',
   Overdue: 'متأخرة',
   'Not Required': 'غير مطلوبة',
   'Immediate — Inspect & Service': 'فوري — فحص وصيانة',

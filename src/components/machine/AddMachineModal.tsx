@@ -17,6 +17,7 @@ import { cx, seededRandom } from '../../utils/helpers'
 import type { Machine, SensorReading, SensorSeries } from '../../types'
 import { requestPrediction } from '../../data/predictionApi'
 import { machineTypeCode, simulateMachineInputs } from '../../utils/simulatedInputs'
+import { maintenanceStatusFromPrediction } from '../../utils/predictionThresholds'
 
 const MACHINE_TYPES = [
   'CNC Lathe',
@@ -98,7 +99,7 @@ function buildGeneratedMachine(form: any, sensorsOn: SensorReading[]): Machine {
     model: form.model,
     installationDate: form.installationDate,
     lastMaintenance: new Date().toISOString(),
-    nextMaintenance: new Date().toISOString(),
+    nextMaintenance: new Date(Date.now() + 30 * 86_400_000).toISOString(),
     description: form.description,
     sensors: sensorsOn,
     history: [],
@@ -300,6 +301,10 @@ const toggleSensor = (name: string) => {
           machine.prediction = prediction
           machine.predictionStatus = 'available'
           machine.status = prediction.status
+          machine.maintenanceStatus = maintenanceStatusFromPrediction(
+            prediction.status,
+            machine.nextMaintenance,
+          )
           machine.healthScore = prediction.health_score
           machine.failureRisk = prediction.failure_probability * 100
           machine.recommendation = prediction.recommendation

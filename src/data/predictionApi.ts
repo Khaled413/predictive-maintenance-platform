@@ -67,11 +67,13 @@ export async function requestPrediction(
   inputs: PredictionInputs,
   thresholds: Thresholds,
 ): Promise<PredictionResponse> {
+  const requestInputs = { ...inputs }
+  delete requestInputs.demo_health_band
   const request = (includeThresholds: boolean) => fetch('/api/predict', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      ...inputs,
+      ...requestInputs,
       ...(includeThresholds
         ? { decision_thresholds: toDecisionThresholds(thresholds) }
         : {}),

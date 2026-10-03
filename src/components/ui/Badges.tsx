@@ -70,6 +70,7 @@ const MAINT_STATUS_STYLES: Record<string, { pill: string; text: string }> = {
   Recommended: { pill: 'border-amber-400/25 bg-amber-500/10', text: 'text-amber-300' },
   'On Schedule': { pill: 'border-emerald-400/25 bg-emerald-500/10', text: 'text-emerald-300' },
   'Due Soon': { pill: 'border-amber-400/25 bg-amber-500/10', text: 'text-amber-300' },
+  Immediate: { pill: 'border-red-400/30 bg-red-500/10', text: 'text-red-300' },
   Overdue: { pill: 'border-red-400/30 bg-red-500/10', text: 'text-red-300' },
   'Not Required': { pill: 'border-line bg-navy-700/40', text: 'text-ink-faint' },
 }

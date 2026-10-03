@@ -15,6 +15,7 @@ import { SelectInput, TextInput, Field } from '../components/ui/Field'
 import Modal from '../components/ui/Modal'
 import EmptyState from '../components/ui/EmptyState'
 import { cx, formatDate, formatInt } from '../utils/helpers'
+import { maintenanceStatusFromPrediction } from '../utils/predictionThresholds'
 import type { MaintenancePriority, MaintenanceRecord, MaintenanceStatus } from '../types'
 
 const TABS: { key: string; label: string }[] = [
@@ -196,7 +197,9 @@ export default function MaintenancePage() {
     const m = machines.find((x) => x.id === completionTarget.machineId)
     if (m) {
       updateMachine(m.id, {
-        maintenanceStatus: 'On Schedule',
+        maintenanceStatus: m.prediction
+          ? maintenanceStatusFromPrediction(m.prediction.status, m.nextMaintenance)
+          : 'On Schedule',
         lastMaintenance: new Date().toISOString(),
       })
     }
