@@ -167,3 +167,11 @@ class HealthResponse(BaseModel):
     anomaly_model: Literal["ready", "unavailable"]
     model_version: str | None
     last_prediction_at: datetime | None
+
+
+class InspectionResponse(BaseModel):
+    label: Literal["NORMAL", "ANOMALOUS"]
+    score: float = Field(ge=0, le=1)
+    prediction_source: Literal["Placeholder Heuristic"]
+    model_status: Literal["placeholder"]
+    timestamp: datetime

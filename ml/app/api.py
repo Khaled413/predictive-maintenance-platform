@@ -1,3 +1,4 @@
+import io
 from contextlib import asynccontextmanager
 import logging
 import os
@@ -5,18 +6,19 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, File, HTTPException, UploadFile
+from PIL import Image
+import numpy as np
 
 from .config import get_settings
 from .feature_engineering import maintenance_features
 from .health_decision import DecisionThresholds as HealthDecisionThresholds, decide_health
 from .inference import ModelBundle, infer, load_models
-from .schemas import HealthResponse, PredictionRequest, PredictionResponse
+from .schemas import HealthResponse, InspectionResponse, PredictionRequest, PredictionResponse
 from .simulator import simulate_sensor_window
 
 logger = logging.getLogger(__name__)
 DEFAULT_MODELS_DIR = Path(__file__).resolve().parents[1] / "models"
-
 
 def create_app(models_dir: str | Path | None = None) -> FastAPI:
     configured_models_dir = Path(models_dir or os.getenv("MODEL_DIR", DEFAULT_MODELS_DIR))
@@ -158,7 +160,34 @@ def create_app(models_dir: str | Path | None = None) -> FastAPI:
             "timestamp": timestamp,
         }
 
-    return application
+    @application.post("/api/inspect", response_model=InspectionResponse)
+    async def inspect(image: UploadFile = File(...)) -> dict[str, Any]:
+        """
+        Placeholder visual quality inspection.
 
+        This is NOT a trained vision model. It computes a deterministic
+        score from image pixel variance so the dashboard's Quality page
+        can be wired to a real network call today. Swap this function's
+        body for real model inference later; the response contract
+        (label, score, ...) stays the same, so the frontend needs no
+        changes when that happens.
+        """
+        try:
+            contents = await image.read()
+            img = Image.open(io.BytesIO(contents)).convert("L")
+            arr = np.asarray(img, dtype=np.float32)
+            score = float(np.clip(arr.std() / 128.0, 0.0, 1.0))
+        except Exception as exc:
+            raise HTTPException(status_code=400, detail=f"Could not process image: {exc}") from exc
+        label = "ANOMALOUS" if score > 0.5 else "NORMAL"
+        return {
+            "label": label,
+            "score": score,
+            "prediction_source": "Placeholder Heuristic",
+            "model_status": "placeholder",
+            "timestamp": datetime.now(timezone.utc),
+        }
+
+    return application
 
 app = create_app()
