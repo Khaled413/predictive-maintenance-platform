@@ -5,7 +5,11 @@ import MachineVisual from '../ui/MachineVisual'
 import CircularHealth from '../ui/CircularHealth'
 import RiskBar from '../ui/RiskBar'
 import ModelInputBars from '../ui/ModelInputBars'
-import { MachineStatusBadge, MaintenanceStatusBadge } from '../ui/Badges'
+import {
+  MachineStatusBadge,
+  MaintenanceStatusBadge,
+  SimulatedPredictionBadge,
+} from '../ui/Badges'
 import { formatDate, cx } from '../../utils/helpers'
 import { useApp } from '../../context/AppContext'
 import { usePreferences } from '../../context/PreferencesContext'
@@ -33,19 +37,29 @@ export default function MachineCard({ machine }: { machine: Machine }) {
             <span className="rounded bg-navy-700/70 px-1.5 py-0.5 text-[9.5px] font-semibold uppercase tracking-wide text-ink-dim">
               {machine.type}
             </span>
+            {machine.predictionInputs?.machine_input_source === 'simulated' &&
+              machine.predictionInputs.sensor_input_source === 'simulated' && (
+                <SimulatedPredictionBadge />
+              )}
           </div>
           <p className="mt-1 truncate text-[11.5px] text-ink-dim">{machine.name}</p>
-          <div className="mt-1 flex flex-wrap items-center gap-2">
-            {machine.status ? (
-              <MachineStatusBadge status={machine.status} />
-            ) : (
-              <span className="rounded-full border border-line px-2 py-0.5 text-[10px] text-ink-faint">
-                {machine.predictionStatus === 'loading'
-                  ? 'Prediction loading'
-                  : machine.predictionError ?? 'ML prediction service unavailable'}
-              </span>
-            )}
-            <MaintenanceStatusBadge status={machine.maintenanceStatus} />
+          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[9px] font-medium text-ink-faint">{t('Model status')}</span>
+              {machine.status ? (
+                <MachineStatusBadge status={machine.status} />
+              ) : (
+                <span className="rounded-full border border-line px-2 py-0.5 text-[10px] text-ink-faint">
+                  {machine.predictionStatus === 'loading'
+                    ? 'Prediction loading'
+                    : machine.predictionError ?? 'ML prediction service unavailable'}
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[9px] font-medium text-ink-faint">{t('Maintenance schedule')}</span>
+              <MaintenanceStatusBadge status={machine.maintenanceStatus} />
+            </div>
           </div>
         </div>
         <div className="shrink-0">
@@ -59,10 +73,13 @@ export default function MachineCard({ machine }: { machine: Machine }) {
                 status={machine.prediction?.status}
               />
               <p className="mt-0.5 text-[8px] text-ink-faint">
-                {t('Model health / status')}
+                {t('Model health proxy')}
+              </p>
+              <p className="text-[8px] text-ink-faint">
+                {t('Derived from failure probability, not live telemetry.')}
               </p>
               <p className="text-[8px] font-medium text-ink-dim">
-                {t(healthBandLabel(machine.healthScore))}
+                {t(healthBandLabel(machine.healthScore, thresholds))}
               </p>
             </div>
           ) : machine.predictionStatus === 'loading' ? (
@@ -108,7 +125,9 @@ export default function MachineCard({ machine }: { machine: Machine }) {
               warningThreshold={thresholds.riskWarning}
               criticalThreshold={thresholds.riskCritical}
             />
-            {machine.prediction && (
+            {machine.prediction?.anomaly_score !== null &&
+            machine.prediction?.anomaly_flag !== null &&
+            machine.prediction ? (
               <p className="mt-2 text-[9px] text-ink-faint">
                 {t('Sensor model')}: {(machine.prediction.anomaly_score * 100).toFixed(1)}% {t('anomaly')}
                 {' · '}
@@ -116,7 +135,11 @@ export default function MachineCard({ machine }: { machine: Machine }) {
                 {' · '}
                 {machine.prediction.anomaly_input_reading_count} {t('readings')}
               </p>
-            )}
+            ) : machine.prediction ? (
+              <p className="mt-2 text-[9px] text-ink-faint">
+                {t('Sensor anomaly analysis is unavailable for simulated sensor readings.')}
+              </p>
+            ) : null}
           </>
         ) : (
           <p className="text-[11px] text-ink-faint">
@@ -152,9 +175,9 @@ export default function MachineCard({ machine }: { machine: Machine }) {
                 : machine.predictionError ?? 'ML prediction service unavailable')}
           </p>
           {machine.maintenanceStatus === 'Overdue' && (
-                <p className="mt-1 text-[10px] font-semibold text-red-300">
-                  Maintenance is overdue. Schedule status is separate from this model recommendation.
-                </p>
+            <p className="mt-1 text-[10px] font-semibold text-red-300">
+              Model condition can be normal while scheduled maintenance is overdue; complete or reschedule the task.
+            </p>
           )}
         </div>
       </div>

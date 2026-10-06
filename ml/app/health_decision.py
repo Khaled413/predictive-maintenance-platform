@@ -20,20 +20,25 @@ class HealthDecision:
 
 def decide_health(
     failure_probability: float,
-    anomaly_score: float,
+    anomaly_score: float | None,
     settings: Settings | None = None,
     thresholds: DecisionThresholds | None = None,
 ) -> HealthDecision:
     settings = settings or get_settings()
-    if not 0 <= failure_probability <= 1 or not 0 <= anomaly_score <= 1:
-        raise ValueError("failure_probability and anomaly_score must be between 0 and 1")
-    total_weight = settings.failure_weight + settings.anomaly_weight
-    if total_weight <= 0:
-        raise ValueError("health decision weights must sum to a positive value")
-    risk = (
-        settings.failure_weight * failure_probability
-        + settings.anomaly_weight * anomaly_score
-    ) / total_weight
+    if not 0 <= failure_probability <= 1:
+        raise ValueError("failure_probability must be between 0 and 1")
+    if anomaly_score is not None and not 0 <= anomaly_score <= 1:
+        raise ValueError("anomaly_score must be between 0 and 1")
+    if anomaly_score is None:
+        risk = failure_probability
+    else:
+        total_weight = settings.failure_weight + settings.anomaly_weight
+        if total_weight <= 0:
+            raise ValueError("health decision weights must sum to a positive value")
+        risk = (
+            settings.failure_weight * failure_probability
+            + settings.anomaly_weight * anomaly_score
+        ) / total_weight
     score = round(max(0.0, min(100.0, 100.0 * (1.0 - risk))), 2)
     limits = thresholds or DecisionThresholds(
         health_warning=settings.healthy_threshold,

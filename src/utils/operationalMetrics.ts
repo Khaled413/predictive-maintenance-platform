@@ -32,9 +32,17 @@ export function durationHours(value: string): number | null {
 }
 
 export function fleetHealth(machines: Machine[]) {
-  const available = machines.filter(
-    hasProvidedPrediction,
-  )
+  const provided = machines.filter(hasProvidedPrediction)
+  const available = provided.length
+    ? provided
+    : machines.filter(
+        (machine) =>
+          machine.predictionStatus === 'available' &&
+          machine.healthScore !== null &&
+          machine.failureRisk !== null &&
+          machine.prediction?.machine_input_source === 'simulated' &&
+          machine.prediction.sensor_input_source === 'simulated',
+      )
   const counts = {
     healthy: available.filter((machine) => machine.status === 'Operational').length,
     warning: available.filter((machine) => machine.status === 'Warning').length,
@@ -46,6 +54,7 @@ export function fleetHealth(machines: Machine[]) {
     averageHealth: available.length
       ? Math.round(available.reduce((sum, machine) => sum + (machine.healthScore ?? 0), 0) / available.length)
       : null,
+    isDemo: provided.length === 0 && available.length > 0,
     ...counts,
   }
 }

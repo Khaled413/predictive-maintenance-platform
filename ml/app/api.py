@@ -15,7 +15,6 @@ from .feature_engineering import maintenance_features
 from .health_decision import DecisionThresholds as HealthDecisionThresholds, decide_health
 from .inference import ModelBundle, infer, load_models
 from .schemas import HealthResponse, InspectionResponse, PredictionRequest, PredictionResponse
-from .simulator import simulate_sensor_window
 
 logger = logging.getLogger(__name__)
 DEFAULT_MODELS_DIR = Path(__file__).resolve().parents[1] / "models"
@@ -74,19 +73,8 @@ def create_app(models_dir: str | Path | None = None) -> FastAPI:
             request.tool_wear,
             request.machine_type,
         )
-        simulated = request.sensor_window is None
-        if simulated:
-            window = simulate_sensor_window(
-                request.machine_id,
-                request.simulation_state,
-                request.air_temperature,
-                request.process_temperature,
-                request.rotational_speed,
-                request.torque,
-                request.tool_wear,
-            )
-        else:
-            window = request.sensor_window
+        window = request.sensor_window
+        simulated = window is None
         try:
             settings = get_settings()
             result = infer(
@@ -155,7 +143,7 @@ def create_app(models_dir: str | Path | None = None) -> FastAPI:
             "sensor_inputs_simulated": simulated,
             "anomaly_features_used": result["anomaly_feature_names"],
             "anomaly_model_inputs": result["anomaly_model_inputs"],
-            "anomaly_input_reading_count": len(window),
+            "anomaly_input_reading_count": len(window) if window is not None else 0,
             "latest_reading_at": latest_reading_at,
             "timestamp": timestamp,
         }

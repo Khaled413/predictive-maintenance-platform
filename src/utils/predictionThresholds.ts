@@ -29,12 +29,27 @@ export function recommendationForStatus(status: Exclude<MachineStatus, 'Under Ma
   return 'Continue normal operation and routine maintenance.'
 }
 
-export function healthBandLabel(score: number) {
-  if (score > 90) return 'Very good health'
-  if (score > 80) return 'Good health'
-  if (score > 65) return 'Medium health'
-  if (score > 50) return 'Below average health'
-  return 'Poor health'
+/**
+ * Four demo condition labels derived from the model's health score and the
+ * same thresholds that decide the machine status, so the label can never
+ * contradict the displayed status/recommendation:
+ *   كويس      Operational (above the midpoint to 100)
+ *   متوسط     Operational (above the warning threshold)
+ *   مقبول     Warning     (between critical and warning thresholds)
+ *   وحش       Critical    (at or below the critical threshold)
+ */
+export function healthBandLabel(
+  score: number,
+  thresholds: Pick<Thresholds, 'healthWarning' | 'healthCritical'> = {
+    healthWarning: 70,
+    healthCritical: 40,
+  },
+) {
+  const goodFloor = thresholds.healthWarning + (100 - thresholds.healthWarning) / 2
+  if (score > goodFloor) return 'Good condition'
+  if (score > thresholds.healthWarning) return 'Medium condition'
+  if (score > thresholds.healthCritical) return 'Acceptable condition'
+  return 'Poor condition'
 }
 
 export function maintenanceStatusFromPrediction(

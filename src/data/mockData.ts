@@ -12,7 +12,11 @@ import type {
   Thresholds,
 } from '../types'
 import { daysAgo, hoursAgo, seededRandom } from '../utils/helpers'
-import { machineTypeCode, simulateMachineInputs } from '../utils/simulatedInputs'
+import {
+  type ConditionCategory,
+  machineTypeCode,
+  simulateMachineInputs,
+} from '../utils/simulatedInputs'
 
 // ---------------------------------------------------------------------------
 // Synthetic data generators (deterministic per seed)
@@ -116,7 +120,7 @@ function buildMachine(
 // ---------------------------------------------------------------------------
 // Machines
 // ---------------------------------------------------------------------------
-export const SEED_MACHINES: Machine[] = [
+const SEEDED_MACHINE_PROFILES: Machine[] = [
   buildMachine(
     'M-001',
     'CNC Lathe — Line 1',
@@ -474,6 +478,17 @@ export const SEED_MACHINES: Machine[] = [
     112,
   ),
 ]
+const seedConditions: ConditionCategory[] = SEEDED_MACHINE_PROFILES.map(
+  (_, index) => (['GOOD', 'MEDIUM', 'ACCEPTABLE', 'BAD'] as const)[index % 4],
+)
+export const SEED_MACHINES: Machine[] = SEEDED_MACHINE_PROFILES.map((machine, index) => ({
+  ...machine,
+  predictionInputs: simulateMachineInputs(
+    machine.id,
+    machine.type,
+    seedConditions[index],
+  ),
+}))
 
 // ---------------------------------------------------------------------------
 // Maintenance records

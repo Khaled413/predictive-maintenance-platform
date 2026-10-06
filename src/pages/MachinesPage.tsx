@@ -4,7 +4,7 @@ import { Eye, Plus, Search, Trash2 } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import AddMachineModal from '../components/machine/AddMachineModal'
 import MachineVisual from '../components/ui/MachineVisual'
-import { MachineStatusBadge } from '../components/ui/Badges'
+import { MachineStatusBadge, SimulatedPredictionBadge } from '../components/ui/Badges'
 import { SelectInput, TextInput } from '../components/ui/Field'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
 import EmptyState from '../components/ui/EmptyState'
@@ -191,7 +191,13 @@ const summary = useMemo(() => {
                     </td>
                     <td className="px-3 py-3">
                       {displayedStatus ? (
-                        <MachineStatusBadge status={displayedStatus} />
+                        <div className="flex flex-col items-start gap-1">
+                          <MachineStatusBadge status={displayedStatus} />
+                          {m.predictionInputs.machine_input_source === 'simulated' &&
+                            m.predictionInputs.sensor_input_source === 'simulated' && (
+                              <SimulatedPredictionBadge />
+                            )}
+                        </div>
                       ) : (
                         <span className="text-[10px] text-ink-faint">
                           {m.predictionStatus === 'loading'

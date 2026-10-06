@@ -29,6 +29,15 @@ module.exports = {
     '@typescript-eslint/no-explicit-any': 'warn',
     'no-console': ['warn', { allow: ['warn', 'error'] }],
   },
+  overrides: [
+    {
+      // Developer CLI scripts communicate progress and results on stdout.
+      files: ['scripts/**/*.{js,mjs,ts}'],
+      rules: {
+        'no-console': 'off',
+      },
+    },
+  ],
   settings: {
     react: {
       version: 'detect',

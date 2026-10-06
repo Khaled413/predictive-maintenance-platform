@@ -31,18 +31,20 @@ serialized anomaly pipeline uses version-specific `SimpleImputer` state.
 and min), an explicit `machine_input_source` (`simulated` or `provided`), and
 an explicit `sensor_input_source` (`simulated` or `provided`). A provided sensor
 source requires an ordered `sensor_window` of timestamped one-minute `sensor_XX` readings;
-a simulated source omits that window and uses the deterministic demo simulator.
+a simulated source omits that window, so the anomaly model is not evaluated for
+that request. The dashboard's illustrative sensor values are not calibrated
+`sensor_XX` readings.
 Each request can include `decision_thresholds` with `health_warning`,
 `health_critical`, `risk_warning`, and `risk_critical` percentages. These limits
 determine the returned status and recommendation; critical status is triggered
 when either the health score reaches its critical limit or failure risk reaches
 its critical limit. Omitted limits use backend configuration defaults.
-The response echoes both input sources, the exact model inputs, the engineered
-anomaly feature values passed to the anomaly model, the sensor-window reading
-count, and whether each input group was simulated.
-The demo simulator is synthetic and is not calibrated to a specific machine or
-the training-data distributions. Predictions from simulated inputs are for
-demonstration only, not live equipment assessment.
+The response echoes both input sources, the exact machine-model inputs, the
+engineered anomaly feature values when a provided sensor window is evaluated,
+the sensor-window reading count, and whether each input group was simulated.
+When no calibrated sensor window is provided, anomaly score and flag are
+unavailable and the reading count is zero. Predictions from simulated machine
+inputs are for demonstration only, not live equipment assessment.
 
 The `sensor_XX` channels come from the separate raw sensor dataset. That dataset
 does not document physical units or a mapping to named dashboard readings such
@@ -56,13 +58,20 @@ schedule state is separate.
 
 The checked-in training notebook reports a held-out failure-model F1 of 0.88
 (68 positive examples), and failure-type macro F1 of 0.95 (68 examples).
-The anomaly model reports PR-AUC 0.44 and only 0.04 recall for the combined
-`RECOVERING`/`BROKEN` evaluation class at its normal-only threshold; the sensor
-dataset contains just seven `BROKEN` rows. These are dataset-specific notebook
-results, not evidence of field accuracy. In particular, the anomaly model and
-deterministic simulator are not calibrated to the dashboard's illustrative
-physical sensor readings. A model reported as `ready` means its artifact loaded,
-not that it is accurate or suitable for operational/safety decisions.
+The anomaly notebook now uses chronological event holdouts: historical NORMAL
+rows for training, the penultimate anomaly event for threshold selection, and
+the final anomaly event for a one-time test. A two-hour embargo protects the
+120-minute rolling features at the training/validation boundary. On the current
+sensor data, the final event window reports PR-AUC 0.79, recall 0.95, precision
+0.07, and F1 0.13; it detects 72 of 76 abnormal rows but also flags 955 of 8,640
+normal rows. This is one held-out event, not a reliable estimate of performance
+across future failures, and the current threshold is too noisy for unattended
+operational alerts. The dataset contains only seven `BROKEN` rows across seven
+anomaly events. These results are dataset-specific, not evidence of field
+accuracy. The anomaly model is not calibrated to the dashboard's illustrative
+physical sensor readings, which are not used as anomaly-model inputs. A model
+reported as `ready` means its artifact loaded, not that it is accurate or
+suitable for operational/safety decisions.
 
 Run the backend locally from this directory with
 `python -m pip install -r requirements.txt` and

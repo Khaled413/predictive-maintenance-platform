@@ -62,8 +62,10 @@ class FakeAnomalyModel:
 
     def __init__(self, score):
         self.score = score
+        self.calls = 0
 
     def decision_function(self, features):
+        self.calls += 1
         self.assert_features(features)
         return np.array([self.score])
 
@@ -82,6 +84,13 @@ def fake_bundle(probability=0.75, decision=-0.10):
         DEFAULT_ANOMALY_THRESHOLD,
         DEFAULT_ANOMALY_MIN,
     )
+
+
+RECOMMENDATION_BY_STATUS = {
+    "healthy": "Continue normal operation and routine maintenance.",
+    "warning": "Inspect the machine soon and schedule preventive maintenance.",
+    "critical": "Stop or reduce operation and inspect the machine immediately.",
+}
 
 
 class FeatureEngineeringTests(unittest.TestCase):
@@ -111,6 +120,14 @@ class FeatureEngineeringTests(unittest.TestCase):
         self.assertEqual(values["sensor_00_diff"], 1.0)
         self.assertEqual(values["sensor_00_rolling_mean_30"], 2.0)
         self.assertEqual(values["missing_sensor_ratio"], 0.0)
+        self.assertAlmostEqual(
+            values["sensor_mean_rollmin_30m"],
+            np.mean(list(readings[0].values())),
+        )
+        self.assertAlmostEqual(
+            values["sensor_mean_rollmax_30m"],
+            np.mean(list(readings[-1].values())),
+        )
         names, ordered = ordered_anomaly_features(
             [readings[-1]], {"feature_order": ["sensor_mean", "sensor_00"]},
         )
@@ -135,6 +152,8 @@ class HealthDecisionTests(unittest.TestCase):
         self.assertEqual(decide_health(0.8, 1).status, "critical")
         self.assertEqual(decide_health(0.70, 0.0).status, "critical")
         self.assertEqual(decide_health(0.699, 0.0).status, "warning")
+        self.assertEqual(decide_health(0.01, None).health_score, 99)
+        self.assertEqual(decide_health(0.01, None).status, "healthy")
         limits = HealthDecisionThresholds(
             health_warning=80,
             health_critical=40,
@@ -177,6 +196,19 @@ class InferenceTests(unittest.TestCase):
         )
         self.assertIsNone(result["failure_type"])
         self.assertEqual(bundle.failure_type_model.calls, 0)
+
+    def test_sensor_anomaly_is_skipped_when_no_calibrated_window_is_available(self):
+        bundle = fake_bundle()
+        result = infer(
+            bundle,
+            maintenance_features(300, 310, 1500, 40, 20, "H"),
+            None,
+        )
+        self.assertIsNone(result["anomaly_score"])
+        self.assertIsNone(result["anomaly_flag"])
+        self.assertEqual(result["anomaly_feature_names"], [])
+        self.assertEqual(result["anomaly_model_inputs"], {})
+        self.assertEqual(bundle.anomaly_model.calls, 0)
 
     def test_simulator_is_deterministic_and_correlated(self):
         args = ("machine-1", "CRITICAL", 300.0, 310.0, 1500.0, 40.0, 20.0)
@@ -278,8 +310,13 @@ class SchemaAndLoadingTests(unittest.TestCase):
         self.assertIsNotNone(bundle.failure_model)
         self.assertIsNotNone(bundle.failure_type_model)
         self.assertIsNotNone(bundle.anomaly_model)
-        self.assertAlmostEqual(bundle.anomaly_threshold, DEFAULT_ANOMALY_THRESHOLD)
-        self.assertAlmostEqual(bundle.anomaly_calibration_min, DEFAULT_ANOMALY_MIN)
+        self.assertAlmostEqual(bundle.anomaly_threshold, bundle.metadata["threshold"])
+        self.assertAlmostEqual(
+            bundle.anomaly_calibration_min,
+            bundle.metadata["calibration_min"],
+        )
+        self.assertAlmostEqual(bundle.anomaly_threshold, -bundle.metadata["threshold_score"])
+        self.assertLess(bundle.anomaly_calibration_min, bundle.anomaly_threshold)
         machine = maintenance_features(300, 310, 1500, 40, 20, "H")
         sensor_window = simulate_sensor_window(
             "artifact-integration", "NORMAL", 300, 310, 1500, 40, 20
@@ -289,9 +326,12 @@ class SchemaAndLoadingTests(unittest.TestCase):
         self.assertLessEqual(result["failure_probability"], 1)
         self.assertGreaterEqual(result["anomaly_score"], 0)
         self.assertLessEqual(result["anomaly_score"], 1)
-        self.assertEqual(len(result["anomaly_feature_names"]), 38)
+        self.assertEqual(
+            len(result["anomaly_feature_names"]),
+            bundle.metadata["feature_count"],
+        )
 
-    def test_demo_profiles_produce_good_warning_and_critical_saved_model_outputs(self):
+    def test_demo_profiles_keep_saved_model_outputs_bounded(self):
         models_path = Path(__file__).resolve().parents[1] / "models"
         if not list(models_path.glob("*.joblib")) or not list(models_path.glob("*.json")):
             self.skipTest("Local model artifacts are not present in ml/models")
@@ -301,14 +341,7 @@ class SchemaAndLoadingTests(unittest.TestCase):
             "DEGRADING": (301, 11, 1450, 60, 150),
             "CRITICAL": (303, 11, 1250, 65, 200),
         }
-        expected_bands = {
-            "NORMAL": (0.01, 0.50),
-            "DEGRADING": (0.50, 0.70),
-            "CRITICAL": (0.70, 1.00),
-        }
-
         for state, (base_air, base_delta, base_speed, base_torque, base_wear) in profiles.items():
-            lower_bound, upper_bound = expected_bands[state]
             for machine_type in ("H", "L", "M"):
                 for offset in range(5):
                     air = base_air + offset * 0.35
@@ -329,21 +362,73 @@ class SchemaAndLoadingTests(unittest.TestCase):
                         wear,
                     )
                     result = infer(bundle, features, sensor_window)
-                    risk = result["failure_probability"]
-                    self.assertGreaterEqual(risk, lower_bound, (state, machine_type, offset))
-                    self.assertLess(risk, upper_bound, (state, machine_type, offset))
-                    health = decide_health(
-                        risk, result["anomaly_score"], settings=Settings()
+                    self.assertGreaterEqual(
+                        result["failure_probability"], 0, (state, machine_type, offset)
                     )
-                    if state == "NORMAL":
-                        self.assertLess(health.health_score, 100)
-                        self.assertEqual(health.status, "healthy")
-                    elif state == "DEGRADING":
-                        self.assertEqual(health.status, "warning")
-                    else:
-                        self.assertEqual(health.status, "critical")
+                    self.assertLessEqual(
+                        result["failure_probability"], 1, (state, machine_type, offset)
+                    )
+                    self.assertGreaterEqual(result["anomaly_score"], 0)
+                    self.assertLessEqual(result["anomaly_score"], 1)
+                    health = decide_health(
+                        result["failure_probability"],
+                        result["anomaly_score"],
+                        settings=Settings(),
+                    )
+                    self.assertGreaterEqual(health.health_score, 0)
+                    self.assertLessEqual(health.health_score, 100)
 
-    def test_demo_fleet_health_spans_five_model_derived_bands(self):
+    def test_calibrated_profiles_produce_three_failure_model_statuses_without_sensor_scores(self):
+        models_path = Path(__file__).resolve().parents[1] / "models"
+        if not list(models_path.glob("*.joblib")) or not list(models_path.glob("*.json")):
+            self.skipTest("Local model artifacts are not present in ml/models")
+        bundle = load_models(models_path)
+        profiles = {
+            "H": {
+                "NORMAL": (298, 8, 1700, 40, 80),
+                "MEDIUM": (301.5, 8.2, 1600, 56, 190),
+                "DEGRADING": (300.6, 8.8, 1380, 47.6, 246),
+                "CRITICAL": (304, 9.2, 1271, 68.6, 161),
+            },
+            "L": {
+                "NORMAL": (298, 8, 1700, 40, 80),
+                "MEDIUM": (301.5, 8.6, 1550, 56, 110),
+                "DEGRADING": (302.4, 8.6, 1317, 59.4, 179),
+                "CRITICAL": (298.5, 10.9, 1360, 60.9, 187),
+            },
+            "M": {
+                "NORMAL": (298, 8, 1700, 40, 80),
+                "MEDIUM": (300.5, 8.2, 1550, 56, 150),
+                "DEGRADING": (302, 8.5, 1381, 58.4, 201),
+                "CRITICAL": (299.91, 9.99, 1325, 72.3, 247),
+            },
+        }
+        expected_statuses = {
+            "NORMAL": "healthy",
+            "MEDIUM": "healthy",
+            "DEGRADING": "warning",
+            "CRITICAL": "critical",
+        }
+        for machine_type, scenarios in profiles.items():
+            for state, (air, delta, speed, torque, wear) in scenarios.items():
+                for offset in (-1, 0, 1):
+                    features = maintenance_features(
+                        air + offset * 0.01,
+                        air + delta + offset * 0.02,
+                        speed + offset,
+                        torque + offset * 0.03,
+                        wear + offset,
+                        machine_type,
+                    )
+                    result = infer(bundle, features, None)
+                    decision = decide_health(
+                        result["failure_probability"], result["anomaly_score"], Settings()
+                    )
+                    self.assertIsNone(result["anomaly_score"])
+                    self.assertIsNone(result["anomaly_flag"])
+                    self.assertEqual(decision.status, expected_statuses[state])
+
+    def test_demo_fleet_health_outputs_are_bounded_for_uncalibrated_inputs(self):
         models_path = Path(__file__).resolve().parents[1] / "models"
         if not list(models_path.glob("*.joblib")) or not list(models_path.glob("*.json")):
             self.skipTest("Local model artifacts are not present in ml/models")
@@ -379,13 +464,6 @@ class SchemaAndLoadingTests(unittest.TestCase):
             "POOR",
         )
         machine_types = ("M", "M", "H", "L", "L", "H", "M", "M", "M", "L", "M", "H")
-        expected_health_ranges = {
-            "VERY_GOOD": (90, 100),
-            "GOOD": (80, 90),
-            "MEDIUM": (65, 80),
-            "BELOW_AVERAGE": (50, 65),
-            "POOR": (0, 50),
-        }
         sensor_states = {
             "VERY_GOOD": "NORMAL",
             "GOOD": "NORMAL",
@@ -394,7 +472,6 @@ class SchemaAndLoadingTests(unittest.TestCase):
             "POOR": "CRITICAL",
         }
         input_tuples = set()
-        observed_bands = set()
 
         for index, machine_type in enumerate(machine_types, start=1):
             band = health_bands[(index - 1) % len(health_bands)]
@@ -425,13 +502,123 @@ class SchemaAndLoadingTests(unittest.TestCase):
             health = decide_health(
                 result["failure_probability"], result["anomaly_score"], Settings()
             ).health_score
-            lower, upper = expected_health_ranges[band]
-            self.assertGreaterEqual(health, lower, (index, band, health))
-            self.assertLessEqual(health, upper, (index, band, health))
-            observed_bands.add(band)
+            self.assertGreaterEqual(health, 0, (index, band, health))
+            self.assertLessEqual(health, 100, (index, band, health))
 
         self.assertEqual(len(input_tuples), len(machine_types))
-        self.assertEqual(observed_bands, set(expected_health_ranges))
+
+
+class ModelDecisionTests(unittest.TestCase):
+    """Status, health band and recommendation must always agree with each other."""
+
+    def test_decide_health_recommendation_is_always_consistent_with_status(self):
+        for step in range(101):
+            probability = step / 100
+            decision = decide_health(probability, None, Settings())
+            self.assertEqual(
+                decision.recommendation, RECOMMENDATION_BY_STATUS[decision.status], probability
+            )
+            expected = (
+                "critical"
+                if probability >= 0.60
+                else "warning"
+                if probability >= 0.30
+                else "healthy"
+            )
+            self.assertEqual(decision.status, expected, probability)
+        for step in range(0, 101, 5):
+            anomaly = step / 100
+            for probability in (0.0, 0.25, 0.5, 0.75, 1.0):
+                decision = decide_health(probability, anomaly, Settings())
+                self.assertEqual(
+                    decision.recommendation,
+                    RECOMMENDATION_BY_STATUS[decision.status],
+                    (probability, anomaly),
+                )
+
+    def test_four_demo_conditions_map_to_health_bands_with_matching_status(self):
+        models_path = Path(__file__).resolve().parents[1] / "models"
+        if not list(models_path.glob("*.joblib")) or not list(models_path.glob("*.json")):
+            self.skipTest("Local model artifacts are not present in ml/models")
+        bundle = load_models(models_path)
+        # Must mirror src/utils/simulatedInputs.ts exactly.
+        profiles = {
+            "H": {
+                "GOOD": (298, 8, 1700, 40, 80),
+                "MEDIUM": (301.5, 8.2, 1600, 56, 190),
+                "ACCEPTABLE": (300.6, 8.8, 1380, 47.6, 246),
+                "BAD": (304, 9.2, 1271, 68.6, 161),
+            },
+            "L": {
+                "GOOD": (298, 8, 1700, 40, 80),
+                "MEDIUM": (301.5, 8.6, 1550, 56, 110),
+                "ACCEPTABLE": (302.4, 8.6, 1317, 59.4, 179),
+                "BAD": (298.5, 10.9, 1360, 60.9, 187),
+            },
+            "M": {
+                "GOOD": (298, 8, 1700, 40, 80),
+                "MEDIUM": (300.5, 8.2, 1550, 56, 150),
+                "ACCEPTABLE": (302, 8.5, 1381, 58.4, 201),
+                "BAD": (299.91, 9.99, 1325, 72.3, 247),
+            },
+        }
+        jitter_limits = {
+            "GOOD": (0.03, 0.05, 2, 0.1, 2),
+            "MEDIUM": (0.03, 0.05, 2, 0.1, 2),
+            "ACCEPTABLE": (0.02, 0.02, 1, 0.05, 1),
+            "BAD": (0.03, 0.05, 2, 0.1, 2),
+        }
+        offset_spans = {"GOOD": (0.0, 4.0), "MEDIUM": (0.0,), "ACCEPTABLE": (0.0,), "BAD": (0.0,)}
+        expected_status = {
+            "GOOD": "healthy",
+            "MEDIUM": "healthy",
+            "ACCEPTABLE": "warning",
+            "BAD": "critical",
+        }
+
+        def band(score: float) -> str:
+            if score > 85:
+                return "GOOD"
+            if score > 70:
+                return "MEDIUM"
+            if score > 40:
+                return "ACCEPTABLE"
+            return "BAD"
+
+        checked = 0
+        for machine_type, conditions in profiles.items():
+            for condition, (air, delta, speed, torque, wear) in conditions.items():
+                limits = jitter_limits[condition]
+                jitters = [(0.0, 0.0, 0.0, 0.0, 0.0)]
+                for dimension, limit in enumerate(limits):
+                    for sign in (-1, 1):
+                        jitter = [0.0] * 5
+                        jitter[dimension] = sign * limit
+                        jitters.append(tuple(jitter))
+                for offset in offset_spans[condition]:
+                    for jitter in jitters:
+                        sampled_air = round(air + offset * 0.35 + jitter[0], 2)
+                        process = round(sampled_air + delta + offset * 0.2 + jitter[1], 2)
+                        features = maintenance_features(
+                            sampled_air,
+                            process,
+                            round(speed + offset * 20 + jitter[2]),
+                            round(torque + offset * 1.2 + jitter[3], 2),
+                            round(wear + offset * 8 + jitter[4]),
+                            machine_type,
+                        )
+                        result = infer(bundle, features, None)
+                        decision = decide_health(result["failure_probability"], None, Settings())
+                        checked += 1
+                        context = (machine_type, condition, offset, jitter)
+                        self.assertEqual(band(decision.health_score), condition, context)
+                        self.assertEqual(decision.status, expected_status[condition], context)
+                        self.assertEqual(
+                            decision.recommendation,
+                            RECOMMENDATION_BY_STATUS[decision.status],
+                            context,
+                        )
+        self.assertGreaterEqual(checked, 100)
 
 
 class ApiTests(unittest.TestCase):
@@ -472,8 +659,10 @@ class ApiTests(unittest.TestCase):
         self.assertIn("schedule preventive maintenance", result["recommendation"])
         self.assertTrue(result["sensor_inputs_simulated"])
         self.assertEqual(result["data_source"], "Simulated Sensor Data")
-        self.assertEqual(result["anomaly_input_reading_count"], 120)
-        self.assertEqual(result["anomaly_model_inputs"]["sensor_mean"], result["anomaly_model_inputs"]["sensor_mean"])
+        self.assertEqual(result["anomaly_input_reading_count"], 0)
+        self.assertIsNone(result["anomaly_score"])
+        self.assertIsNone(result["anomaly_flag"])
+        self.assertEqual(result["anomaly_model_inputs"], {})
         self.assertEqual(result["prediction_source"], "Trained ML Models")
         self.assertIn(result["status"], {"Operational", "Warning", "Critical"})
         self.assertEqual(result["inputs"]["air_temperature"], 300)
@@ -483,20 +672,8 @@ class ApiTests(unittest.TestCase):
         self.assertTrue(result["sensor_inputs_simulated"])
         self.assertEqual(result["inputs"]["machine_input_source"], "simulated")
         self.assertEqual(result["inputs"]["sensor_input_source"], "simulated")
-        self.assertEqual(result["anomaly_features_used"], ["sensor_mean"])
+        self.assertEqual(result["anomaly_features_used"], [])
         self.assertIn("timestamp", result)
-        simulated_window = simulate_sensor_window(
-            "machine-1", "DEGRADING", 300, 310, 1500, 40, 20
-        )
-        expected_features, _ = anomaly_feature_values(simulated_window)
-        self.assertEqual(
-            result["anomaly_model_inputs"]["sensor_mean"],
-            expected_features["sensor_mean"],
-        )
-        self.assertEqual(
-            set(result["anomaly_model_inputs"]),
-            set(result["anomaly_features_used"]),
-        )
         health_result = health_route.endpoint()
         public_health_result = public_health_route.endpoint()
         self.assertEqual(health_result["status"], "ok")
@@ -529,9 +706,8 @@ class ApiTests(unittest.TestCase):
             "sensor_input_source": "provided",
             "sensor_window": [{"timestamp": "2026-09-30T12:00:00Z", "sensor_00": 2.5}],
         }
-        with patch("app.api.simulate_sensor_window", side_effect=AssertionError("must not simulate")):
-            request = PredictionRequest.model_validate(payload)
-            result = predict_route.endpoint(request)
+        request = PredictionRequest.model_validate(payload)
+        result = predict_route.endpoint(request)
 
         PredictionResponse.model_validate(result)
         self.assertEqual(result["machine_input_source"], "provided")
@@ -542,6 +718,8 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(result["inputs"]["air_temperature"], 298.1)
         self.assertEqual(result["inputs"]["rotational_speed"], 1551)
         self.assertEqual(result["anomaly_input_reading_count"], 1)
+        self.assertIsNotNone(result["anomaly_score"])
+        self.assertIsNotNone(result["anomaly_flag"])
         self.assertEqual(set(result["anomaly_model_inputs"]), set(result["anomaly_features_used"]))
         self.assertEqual(result["anomaly_model_inputs"]["sensor_mean"], 2.5)
 
@@ -571,6 +749,102 @@ class ApiTests(unittest.TestCase):
         PredictionResponse.model_validate(result)
         self.assertEqual(result["failure_probability"], 0.49949)
         self.assertIsNone(result["failure_type"])
+
+
+    def test_real_service_route_keeps_status_recommendation_and_band_aligned(self):
+        from app.api import create_app
+
+        models_path = Path(__file__).resolve().parents[1] / "models"
+        if not list(models_path.glob("*.joblib")) or not list(models_path.glob("*.json")):
+            self.skipTest("Local model artifacts are not present in ml/models")
+        application = create_app(models_path)
+        application.state.model_bundle = load_models(models_path)
+        predict_route = next(
+            route
+            for route in application.routes
+            if getattr(route, "path", None) == "/api/predict"
+        )
+        # Must mirror src/utils/simulatedInputs.ts exactly.
+        profiles = {
+            "H": {
+                "GOOD": (298, 8, 1700, 40, 80),
+                "MEDIUM": (301.5, 8.2, 1600, 56, 190),
+                "ACCEPTABLE": (300.6, 8.8, 1380, 47.6, 246),
+                "BAD": (304, 9.2, 1271, 68.6, 161),
+            },
+            "L": {
+                "GOOD": (298, 8, 1700, 40, 80),
+                "MEDIUM": (301.5, 8.6, 1550, 56, 110),
+                "ACCEPTABLE": (302.4, 8.6, 1317, 59.4, 179),
+                "BAD": (298.5, 10.9, 1360, 60.9, 187),
+            },
+            "M": {
+                "GOOD": (298, 8, 1700, 40, 80),
+                "MEDIUM": (300.5, 8.2, 1550, 56, 150),
+                "ACCEPTABLE": (302, 8.5, 1381, 58.4, 201),
+                "BAD": (299.91, 9.99, 1325, 72.3, 247),
+            },
+        }
+        state_by_condition = {
+            "GOOD": "NORMAL",
+            "MEDIUM": "DEGRADING",
+            "ACCEPTABLE": "DEGRADING",
+            "BAD": "CRITICAL",
+        }
+        status_by_condition = {
+            "GOOD": "Operational",
+            "MEDIUM": "Operational",
+            "ACCEPTABLE": "Warning",
+            "BAD": "Critical",
+        }
+        recommendation_by_status = {
+            "Operational": RECOMMENDATION_BY_STATUS["healthy"],
+            "Warning": RECOMMENDATION_BY_STATUS["warning"],
+            "Critical": RECOMMENDATION_BY_STATUS["critical"],
+        }
+
+        def in_band(condition: str, health: float) -> bool:
+            if condition == "GOOD":
+                return health > 85
+            if condition == "MEDIUM":
+                return 70 < health <= 85
+            if condition == "ACCEPTABLE":
+                return 40 < health <= 70
+            return health <= 40
+
+        checked = 0
+        for machine_type, conditions in profiles.items():
+            for condition, (air, delta, speed, torque, wear) in conditions.items():
+                payload = {
+                    "machine_id": f"route-{machine_type}-{condition}",
+                    "type": machine_type,
+                    "Air temperature [K]": air,
+                    "Process temperature [K]": air + delta,
+                    "Rotational speed [rpm]": speed,
+                    "Torque [Nm]": torque,
+                    "Tool wear [min]": wear,
+                    "machine_input_source": "simulated",
+                    "sensor_input_source": "simulated",
+                    "simulation_state": state_by_condition[condition],
+                }
+                request = PredictionRequest.model_validate(payload)
+                result = predict_route.endpoint(request)
+                PredictionResponse.model_validate(result)
+                context = (machine_type, condition, result["health_score"])
+                checked += 1
+                self.assertTrue(
+                    in_band(condition, result["health_score"]), context
+                )
+                self.assertEqual(result["status"], status_by_condition[condition], context)
+                self.assertEqual(
+                    result["recommendation"],
+                    recommendation_by_status[result["status"]],
+                    context,
+                )
+                self.assertEqual(result["prediction_source"], "Trained ML Models", context)
+                self.assertIsNone(result["anomaly_score"], context)
+                self.assertIsNone(result["anomaly_flag"], context)
+        self.assertEqual(checked, 12)
 
 
 if __name__ == "__main__":

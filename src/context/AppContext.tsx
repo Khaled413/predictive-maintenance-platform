@@ -28,11 +28,8 @@ import {
 } from '../data/mockData'
 import { requestModelStatus, requestPrediction } from '../data/predictionApi'
 import {
-  DEMO_HEALTH_BAND_COUNT,
-  healthBandIndex,
-  healthBandForMachine,
-  healthBandForSlot,
-  isDemoHealthBand,
+  balancedConditionCategories,
+  hasReusableSimulatedInputs,
   machineTypeCode,
   simulateMachineInputs,
 } from '../utils/simulatedInputs'
@@ -43,7 +40,7 @@ import {
 } from '../utils/predictionThresholds'
 import type { PredictionInputs, PredictionResponse } from '../types'
 
-const STORAGE_KEY = 'iap-state-v3'
+const STORAGE_KEY = 'iap-state-v4'
 
 interface PersistedState {
   machines: Machine[]
@@ -103,44 +100,59 @@ function loadState(): PersistedState {
     if (raw) {
       const parsed = JSON.parse(raw) as PersistedState
       if (Array.isArray(parsed.machines) && parsed.machines.length) {
+        const storedMachineIds = new Set(parsed.machines.map((machine) => machine.id))
+        const legacyMachineIds = Array.from(
+          { length: 6 },
+          (_, index) => `M-${String(index + 1).padStart(3, '0')}`,
+        )
+        const isLegacySixMachineFleet =
+          parsed.machines.length === legacyMachineIds.length &&
+          parsed.machines.every((machine) => machine.custom !== true) &&
+          legacyMachineIds.every((id) => storedMachineIds.has(id))
+        const missingSeedMachines = isLegacySixMachineFleet
+          ? SEED_MACHINES.filter((machine) => !storedMachineIds.has(machine.id))
+          : []
+        const machinesToLoad = [...parsed.machines, ...missingSeedMachines]
+        const storedMaintenance = parsed.maintenance ?? SEED_MAINTENANCE
+        const restoredMachineIds = new Set(missingSeedMachines.map((machine) => machine.id))
+        const maintenanceToLoad = [
+          ...storedMaintenance,
+          ...SEED_MAINTENANCE.filter(
+            (record) =>
+              restoredMachineIds.has(record.machineId) &&
+              !storedMaintenance.some((storedRecord) => storedRecord.id === record.id),
+          ),
+        ]
+        const machinesNeedingDemoInputs = machinesToLoad.filter((machine) => {
+          const modelTypeCode = machineTypeCode(machine.type)
+          const hasProvidedInputs =
+            machine.predictionInputs?.machine_input_source === 'provided' ||
+            machine.predictionInputs?.sensor_input_source === 'provided'
+          return !hasProvidedInputs &&
+            !hasReusableSimulatedInputs(machine.predictionInputs, machine.id, modelTypeCode)
+        })
+        const demoConditions = balancedConditionCategories(machinesNeedingDemoInputs.length)
+        let demoConditionIndex = 0
         return {
-          machines: parsed.machines.map((machine) => {
+          machines: machinesToLoad.map((machine) => {
             const modelTypeCode = machineTypeCode(machine.type)
-            const storedPredictionInputs =
-              machine.predictionInputs?.type === modelTypeCode &&
-              machine.predictionInputs.machine_input_source === 'simulated' &&
-              machine.predictionInputs.sensor_input_source === 'simulated'
-                ? machine.predictionInputs
-                : undefined
-            const healthBand = isDemoHealthBand(storedPredictionInputs?.demo_health_band)
-              ? storedPredictionInputs.demo_health_band
-              : healthBandForMachine(machine.id)
-            const predictionInputs = simulateMachineInputs(
+            const hasProvidedInputs =
+              machine.predictionInputs?.machine_input_source === 'provided' ||
+              machine.predictionInputs?.sensor_input_source === 'provided'
+            const hasStoredDemoInputs = hasReusableSimulatedInputs(
+              machine.predictionInputs,
               machine.id,
-              machine.type,
-              undefined,
-              healthBand,
+              modelTypeCode,
             )
-            const prediction =
-              machine.prediction?.prediction_source === 'Trained ML Models' &&
-              typeof machine.prediction.machine_inputs_simulated === 'boolean' &&
-              typeof machine.prediction.sensor_inputs_simulated === 'boolean' &&
-              Array.isArray(machine.prediction.anomaly_features_used) &&
-              typeof machine.prediction.anomaly_model_inputs === 'object' &&
-              typeof machine.prediction.anomaly_input_reading_count === 'number' &&
-              machine.prediction.inputs.type === predictionInputs.type &&
-              machine.prediction.inputs.air_temperature === predictionInputs.air_temperature &&
-              machine.prediction.inputs.process_temperature === predictionInputs.process_temperature &&
-              machine.prediction.inputs.rotational_speed === predictionInputs.rotational_speed &&
-              machine.prediction.inputs.torque === predictionInputs.torque &&
-              machine.prediction.inputs.tool_wear === predictionInputs.tool_wear &&
-              machine.prediction.inputs.simulation_state === predictionInputs.simulation_state
-              ? machine.prediction
-              : undefined
+            const predictionInputs = hasProvidedInputs
+              ? machine.predictionInputs
+              : hasStoredDemoInputs
+                ? machine.predictionInputs
+                : simulateMachineInputs(machine.id, machine.type, demoConditions[demoConditionIndex++])
             return {
               ...machine,
               modelTypeCode,
-              prediction,
+              prediction: undefined,
               predictionInputs,
               predictionStatus: 'loading' as const,
               predictionError: undefined,
@@ -159,7 +171,7 @@ function loadState(): PersistedState {
               })),
             }
           }),
-          maintenance: (parsed.maintenance ?? SEED_MAINTENANCE).map((record) => {
+          maintenance: maintenanceToLoad.map((record) => {
             const isDemo = record.isDemo ?? /^MT-\d{2}$/.test(record.id)
             const seedKind = isDemo
               ? SEED_MAINTENANCE.find((seed) => seed.id === record.id)?.maintenanceKind
@@ -204,8 +216,8 @@ function predictionAlert(
   machine: Machine,
   prediction: PredictionResponse,
 ): Alert | null {
-  if (!prediction.anomaly_flag && prediction.status === 'Operational') return null
-  const type = prediction.anomaly_flag ? 'ML Anomaly Detected' : 'ML Failure Risk'
+  if (prediction.anomaly_flag !== true && prediction.status === 'Operational') return null
+  const type = prediction.anomaly_flag === true ? 'ML Anomaly Detected' : 'ML Failure Risk'
   const failureType = prediction.failure_type ?? 'No failure type classified by the model'
   const maintenanceNote = machine.maintenanceStatus === 'Overdue'
     ? ' Maintenance is overdue; the model recommendation does not update the maintenance schedule.'
@@ -216,7 +228,7 @@ function predictionAlert(
     machineName: machine.name,
     severity: prediction.status === 'Critical' ? 'critical' : 'warning',
     type,
-    message: prediction.anomaly_flag
+    message: prediction.anomaly_flag === true && prediction.anomaly_score !== null
       ? `Model anomaly score ${(prediction.anomaly_score * 100).toFixed(1)}%. Failure type: ${failureType}.${maintenanceNote}`
       : `Model estimates ${(prediction.failure_probability * 100).toFixed(1)}% failure probability. Failure type: ${failureType}.${maintenanceNote}`,
     timestamp: prediction.timestamp,
@@ -233,16 +245,27 @@ function addPredictionAlert(
   prediction: PredictionResponse,
 ): Alert[] {
   const alert = predictionAlert(machine, prediction)
-  if (
-    !alert ||
-    alerts.some(
-      (existing) =>
-        existing.machineId === machine.id &&
-        existing.type === alert.type &&
-        existing.status !== 'resolved',
-    )
-  ) return alerts
-  return [alert, ...alerts]
+  const previousAlert = alert
+    ? alerts.find((existing) => existing.id === alert.id)
+    : undefined
+  const updatedAlerts = alerts.map((existing) =>
+    existing.machineId === machine.id &&
+    existing.isDemo &&
+    existing.id.startsWith('ML-') &&
+    existing.status !== 'resolved'
+      ? { ...existing, status: 'resolved' as const }
+      : existing,
+  )
+  if (!alert) return updatedAlerts
+  return [
+    {
+      ...alert,
+      status: previousAlert && previousAlert.status !== 'resolved'
+        ? previousAlert.status
+        : alert.status,
+    },
+    ...updatedAlerts.filter((existing) => existing.id !== alert.id),
+  ]
 }
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
@@ -252,7 +275,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<ToastMsg[]>([])
   const startupRequestsStarted = useRef(false)
   const predictionRequestTokens = useRef(new Map<string, symbol>())
-  const demoScenarioRound = useRef<number | null>(null)
 
   const refreshModelSystemStatus = useCallback(async () => {
     try {
@@ -314,8 +336,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             date: prediction.timestamp,
             health: prediction.health_score,
             risk: prediction.failure_probability * 100,
-            anomalyScore: prediction.anomaly_score * 100,
-            anomalyFlag: prediction.anomaly_flag,
+            ...(prediction.anomaly_score !== null
+              ? { anomalyScore: prediction.anomaly_score * 100 }
+              : {}),
+            ...(prediction.anomaly_flag !== null
+              ? { anomalyFlag: prediction.anomaly_flag }
+              : {}),
             isDemo: prediction.machine_input_source === 'simulated' ||
               prediction.sensor_input_source === 'simulated',
           },
@@ -595,7 +621,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       let alerts = s.alerts.filter((alert) => {
         if (!alert.id.startsWith('ML-') || alert.status === 'resolved') return true
         const machine = machineById.get(alert.machineId)
-        return !machine?.prediction || machine.prediction.anomaly_flag ||
+        return !machine?.prediction || machine.prediction.anomaly_flag === true ||
           machine.prediction.status !== 'Operational'
       }).map((alert) => {
         const machine = machineById.get(alert.machineId)
@@ -618,9 +644,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const resetDemo = useCallback(() => {
     localStorage.removeItem(STORAGE_KEY)
     predictionRequestTokens.current.clear()
-    demoScenarioRound.current = null
+    const machines = SEED_MACHINES.map((machine) => ({
+      ...machine,
+      prediction: undefined,
+      predictionStatus: 'loading' as const,
+      status: null,
+      healthScore: null,
+      failureRisk: null,
+      recommendation: null,
+      likelihood: null,
+    }))
     setState({
-      machines: SEED_MACHINES,
+      machines,
       maintenance: SEED_MAINTENANCE,
       alerts: SEED_ALERTS,
       inspections: SEED_INSPECTIONS,
@@ -628,7 +663,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       thresholds: DEFAULT_THRESHOLDS,
     })
     setLastUpdated(new Date().toISOString())
-    SEED_MACHINES.forEach((machine) => {
+    machines.forEach((machine) => {
       if (machine.predictionInputs) {
         void predictMachine(machine.id, machine.predictionInputs)
       }
@@ -646,23 +681,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       notify('warning', 'No demo machines found', 'Only simulated machines can generate a new demo scenario.')
       return
     }
-    const currentFirstBand =
-      simulatedMachines[0].predictionInputs.demo_health_band ??
-      healthBandForMachine(simulatedMachines[0].id)
-    const scenarioRound = demoScenarioRound.current ??
-      (healthBandIndex(currentFirstBand) + 1) % DEMO_HEALTH_BAND_COUNT
+    const demoConditions = balancedConditionCategories(simulatedMachines.length)
     const demoInputs = new Map(
       simulatedMachines.map((machine, index) => [
         machine.id,
-        simulateMachineInputs(
-          machine.id,
-          machine.type,
-          undefined,
-          healthBandForSlot(index + scenarioRound),
-        ),
+        simulateMachineInputs(machine.id, machine.type, demoConditions[index]),
       ]),
     )
-    demoScenarioRound.current = (scenarioRound + 1) % DEMO_HEALTH_BAND_COUNT
 
     setState((s) => ({
       ...s,
@@ -684,14 +709,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             }
           : machine
       }),
-      alerts: s.alerts.map((alert) =>
-        alert.isDemo &&
-        alert.id.startsWith('ML-') &&
-        demoInputs.has(alert.machineId) &&
-        alert.status !== 'resolved'
-          ? { ...alert, status: 'resolved' }
-          : alert,
-      ),
     }))
     setLastUpdated(new Date().toISOString())
     const results = await Promise.all(
@@ -775,6 +792,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>
 }
 
+// eslint-disable-next-line react-refresh/only-export-components -- hooks must ship with their provider in the same module
 export function useApp(): AppContextValue {
   const ctx = useContext(AppContext)
   if (!ctx) throw new Error('useApp must be used within AppProvider')

@@ -5,19 +5,9 @@ import {
   CalendarClock,
   Factory,
   Gauge,
-  LineChart as LineChartIcon,
   RefreshCw,
   Timer,
 } from 'lucide-react'
-import {
-  CartesianGrid,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts'
 import { useApp } from '../context/AppContext'
 import KpiCard from '../components/ui/KpiCard'
 import MachineCard from '../components/machine/MachineCard'
@@ -25,13 +15,8 @@ import EmptyState from '../components/ui/EmptyState'
 import { SelectInput } from '../components/ui/Field'
 import { healthTone } from '../utils/helpers'
 import type { Machine } from '../types'
-import Panel, { PanelHeader } from '../components/ui/Panel'
-import { ChartTooltip } from '../components/ui/ChartCard'
 import {
-  fleetHealth,
-  DASHBOARD_TREND_DAYS,
   durationHours,
-  healthTrendDirection,
   operationalKpis,
   hasProvidedPrediction,
 } from '../utils/operationalMetrics'
@@ -45,29 +30,7 @@ export default function OverviewPage() {
   const [typeFilter, setTypeFilter] = useState('All')
   const [statusFilter, setStatusFilter] = useState('All')
   const [isRegenerating, setIsRegenerating] = useState(false)
-
   const machinesWithStatus: Machine[] = machines
-  const fleet = useMemo(() => fleetHealth(machinesWithStatus), [machinesWithStatus])
-  const trend = useMemo(() => {
-    const cutoff = Date.now() - DASHBOARD_TREND_DAYS * 86_400_000
-    const byDay = new Map<string, number[]>()
-    machinesWithStatus.forEach((machine) => {
-      machine.history.forEach((point) => {
-        if (point.isDemo) return
-        const time = Date.parse(point.date)
-        if (!Number.isFinite(time) || time < cutoff) return
-        const key = new Date(time).toISOString().slice(0, 10)
-        byDay.set(key, [...(byDay.get(key) ?? []), point.health])
-      })
-    })
-    return [...byDay.entries()]
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([date, values]) => ({
-        date,
-        health: Math.round(values.reduce((sum, value) => sum + value, 0) / values.length),
-      }))
-  }, [machinesWithStatus])
-  const trendDirection = healthTrendDirection(trend)
 
   const kpis = useMemo(() => {
     const total = machinesWithStatus.length
@@ -199,64 +162,14 @@ export default function OverviewPage() {
         />
       </div>
 
-      {(fleet.availableCount > 0 || trend.length > 1) && (
-        <div className={`grid gap-4 ${fleet.availableCount > 0 && trend.length > 1 ? 'xl:grid-cols-2' : 'xl:grid-cols-1'}`}>
-          {fleet.availableCount > 0 && (
-            <Panel className="overflow-hidden">
-              <PanelHeader
-                title={t('Fleet Health')}
-                subtitle={t('Only predictions using provided machine and sensor inputs; simulated-input outputs are excluded.')}
-              />
-              <div className="grid gap-4 px-4 pb-4 pt-3 sm:grid-cols-[auto_1fr] sm:items-center">
-                <div className="flex h-24 w-24 flex-col items-center justify-center rounded-full border-[6px] border-sky-400/50">
-                  <span className="font-mono text-xl font-bold text-ink">
-                    {fleet.averageHealth === null ? '—' : `${fleet.averageHealth}%`}
-                  </span>
-                  <span className="text-[9px] text-ink-faint">{t('Fleet average')}</span>
-                </div>
-                <div className="grid grid-cols-2 gap-2 text-[11px]">
-                  {[
-                    [t('Machines'), `${fleet.availableCount}/${fleet.totalCount}`],
-                    [t('Healthy'), fleet.healthy],
-                    [t('Warning'), fleet.warning],
-                    [t('Critical'), fleet.critical],
-                  ].map(([label, value]) => (
-                    <div key={label} className="rounded-lg border border-line bg-navy-900/40 px-3 py-2">
-                      <p className="text-ink-faint">{label}</p>
-                      <p className="mt-0.5 font-mono font-bold text-ink">{value}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </Panel>
-          )}
-
-          {trend.length > 1 && (
-            <Panel className="overflow-hidden">
-              <PanelHeader
-                title={t('Health Trend — Last 7 Days')}
-                subtitle={`${t('Trend')}: ${t(trendDirection)}`}
-                right={<LineChartIcon className="h-4 w-4 text-sky-300" />}
-              />
-              <div className="h-40 px-2 pb-3 pt-2">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={trend}>
-                    <CartesianGrid strokeDasharray="3 5" stroke="rgba(148,163,184,0.1)" vertical={false} />
-                    <XAxis dataKey="date" tickLine={false} axisLine={false} fontSize={9} />
-                    <YAxis domain={[0, 100]} tickLine={false} axisLine={false} width={30} fontSize={9} />
-                    <Tooltip content={<ChartTooltip formatter={(value: number) => `${value}%`} />} />
-                    <Line type="monotone" dataKey="health" name={t('Health')} stroke="#38BDF8" strokeWidth={2.5} dot={false} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            </Panel>
-          )}
-        </div>
-      )}
-
       {/* Filters */}
       <div className="panel flex flex-col gap-3 p-3.5 sm:flex-row sm:items-center">
         <div className="flex items-center gap-2.5">
+          {kpis.useDemoPredictions && (
+            <span className="hidden text-[10px] text-ink-faint xl:block">
+              {t('Each refresh balances good, medium, acceptable and poor demo readings; the trained model determines each machine status and recommendation.')}
+            </span>
+          )}
           <SelectInput
             value={typeFilter}
             onChange={(e) => setTypeFilter(e.target.value)}

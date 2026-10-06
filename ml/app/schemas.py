@@ -143,8 +143,8 @@ class PredictionResponse(BaseModel):
     sensor_input_source: Literal["simulated", "provided"]
     failure_probability: float = Field(ge=0, le=1)
     failure_type: str | None
-    anomaly_score: float = Field(ge=0, le=1)
-    anomaly_flag: bool
+    anomaly_score: float | None = Field(ge=0, le=1)
+    anomaly_flag: bool | None
     health_score: float = Field(ge=0, le=100)
     status: Literal["Operational", "Warning", "Critical"]
     recommendation: str
@@ -154,7 +154,7 @@ class PredictionResponse(BaseModel):
     sensor_inputs_simulated: bool
     anomaly_features_used: list[str]
     anomaly_model_inputs: dict[str, FiniteFloat | None]
-    anomaly_input_reading_count: int = Field(ge=1)
+    anomaly_input_reading_count: int = Field(ge=0)
     latest_reading_at: datetime
     timestamp: datetime
 

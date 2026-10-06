@@ -195,7 +195,9 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
       attributeFilter: attributes,
     })
     return () => observer.disconnect()
-  }, [language])
+    // The WeakMaps are stable (empty-dep memos); they are listed so the
+    // translation observer effect declares every value it reads.
+  }, [language, originalText, renderedText, originalAttributes, renderedAttributes])
 
   const value = useMemo<PreferencesContextValue>(
     () => ({
@@ -213,6 +215,7 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
   return <PreferencesContext.Provider value={value}>{children}</PreferencesContext.Provider>
 }
 
+// eslint-disable-next-line react-refresh/only-export-components -- hooks must ship with their provider in the same module
 export function usePreferences(): PreferencesContextValue {
   const ctx = useContext(PreferencesContext)
   if (!ctx) throw new Error('usePreferences must be used within PreferencesProvider')

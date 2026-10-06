@@ -63,7 +63,18 @@ const PROCESS_STEPS = [
   'Preparing machine profile',
 ]
 
-function buildGeneratedMachine(form: any, sensorsOn: SensorReading[]): Machine {
+interface GeneratedMachineForm {
+  id: string
+  name: string
+  type: string
+  location: string
+  installationDate: string
+  manufacturer: string
+  model: string
+  description: string
+}
+
+function buildGeneratedMachine(form: GeneratedMachineForm, sensorsOn: SensorReading[]): Machine {
   const modelTypeCode = machineTypeCode(form.type)
   const predictionInputs = simulateMachineInputs(form.id, form.type)
   const sensorSeed = [...form.id].reduce((seed, character) => seed + character.charCodeAt(0), 1)
@@ -313,8 +324,12 @@ const toggleSensor = (name: string) => {
             date: prediction.timestamp,
             health: prediction.health_score,
             risk: prediction.failure_probability * 100,
-            anomalyScore: prediction.anomaly_score * 100,
-            anomalyFlag: prediction.anomaly_flag,
+            ...(prediction.anomaly_score !== null
+              ? { anomalyScore: prediction.anomaly_score * 100 }
+              : {}),
+            ...(prediction.anomaly_flag !== null
+              ? { anomalyFlag: prediction.anomaly_flag }
+              : {}),
           }]
         } catch (error) {
           machine.predictionStatus = 'unavailable'
@@ -751,10 +766,12 @@ return (
                 </div>
               </div>
               <div className="rounded-xl border border-line bg-navy-900/50 px-3.5 py-3 text-[11px] text-ink-dim">
-                Failure type: {result.prediction.failure_type ?? 'No failure type classified by the model'} · Anomaly score: {(result.prediction.anomaly_score * 100).toFixed(1)}%
+                Failure type: {result.prediction.failure_type ?? 'No failure type classified by the model'} · Anomaly score: {result.prediction.anomaly_score === null
+                  ? 'Not evaluated for simulated sensor readings'
+                  : `${(result.prediction.anomaly_score * 100).toFixed(1)}%`}
               </div>
               <p className="rounded-xl border border-line bg-navy-900/50 px-3.5 py-3 text-[10.5px] leading-relaxed text-ink-faint">
-                Failure-model inputs used: air {result.prediction.inputs.air_temperature} K · process {result.prediction.inputs.process_temperature} K · speed {result.prediction.inputs.rotational_speed} rpm · torque {result.prediction.inputs.torque} Nm · tool wear {result.prediction.inputs.tool_wear} min. Anomaly features: {result.prediction.anomaly_features_used.length} from a {result.prediction.data_source.toLowerCase()} window. The selected sensor presets above were not used.
+                Failure-model inputs used: air {result.prediction.inputs.air_temperature} K · process {result.prediction.inputs.process_temperature} K · speed {result.prediction.inputs.rotational_speed} rpm · torque {result.prediction.inputs.torque} Nm · tool wear {result.prediction.inputs.tool_wear} min. Sensor anomaly analysis requires provided sensor readings; the selected sensor presets above were not used.
               </p>
             </>
           ) : (

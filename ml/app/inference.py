@@ -246,7 +246,7 @@ def _metadata_feature_names_for(metadata: dict[str, Any], kind: str) -> list[str
 def infer(
     bundle: ModelBundle,
     machine_features: dict[str, float],
-    sensor_window: list[dict[str, float | None]],
+    sensor_window: list[dict[str, float | None]] | None,
     failure_threshold: float = 0.50,
 ) -> dict[str, Any]:
     ordered_machine = pd.DataFrame(
@@ -274,30 +274,38 @@ def infer(
         if failure_type not in [str(label) for label in type_classes]:
             raise ValueError("failure-type prediction does not match model classes")
 
-    model_feature_names = getattr(bundle.anomaly_model, "feature_names_in_", None)
-    names, anomaly_values = ordered_anomaly_features(
-        sensor_window, bundle.metadata, model_feature_names
-    )
-    decision = float(
-        bundle.anomaly_model.decision_function(
-            pd.DataFrame([anomaly_values], columns=names)
-        )[0]
-    )
-    if not np.isfinite(decision):
-        raise ValueError("anomaly model returned a non-finite decision score")
-    anomaly_score = float(
-        np.clip(
-            (bundle.anomaly_threshold - decision)
-            / (bundle.anomaly_threshold - bundle.anomaly_calibration_min),
-            0.0,
-            1.0,
+    if sensor_window is None:
+        anomaly_score = None
+        anomaly_flag = None
+        decision = None
+        names: list[str] = []
+        anomaly_values: list[float] = []
+    else:
+        model_feature_names = getattr(bundle.anomaly_model, "feature_names_in_", None)
+        names, anomaly_values = ordered_anomaly_features(
+            sensor_window, bundle.metadata, model_feature_names
         )
-    )
+        decision = float(
+            bundle.anomaly_model.decision_function(
+                pd.DataFrame([anomaly_values], columns=names)
+            )[0]
+        )
+        if not np.isfinite(decision):
+            raise ValueError("anomaly model returned a non-finite decision score")
+        anomaly_score = float(
+            np.clip(
+                (bundle.anomaly_threshold - decision)
+                / (bundle.anomaly_threshold - bundle.anomaly_calibration_min),
+                0.0,
+                1.0,
+            )
+        )
+        anomaly_flag = bool(decision < bundle.anomaly_threshold)
     return {
         "failure_probability": failure_probability,
         "failure_type": failure_type,
         "anomaly_score": anomaly_score,
-        "anomaly_flag": bool(decision < bundle.anomaly_threshold),
+        "anomaly_flag": anomaly_flag,
         "anomaly_decision_value": decision,
         "anomaly_feature_names": names,
         "anomaly_model_inputs": {

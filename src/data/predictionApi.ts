@@ -27,16 +27,24 @@ function isPredictionResponse(value: unknown): value is PredictionResponse {
     result.machine_inputs_simulated === (inputs.machine_input_source === 'simulated') &&
     result.sensor_inputs_simulated === (inputs.sensor_input_source === 'simulated') &&
     typeof result.anomaly_input_reading_count === 'number' &&
-    result.anomaly_input_reading_count > 0 &&
+    result.anomaly_input_reading_count >= 0 &&
+    (inputs.sensor_input_source === 'simulated'
+      ? result.anomaly_score === null &&
+        result.anomaly_flag === null &&
+        result.anomaly_input_reading_count === 0
+      : result.anomaly_score !== null &&
+        result.anomaly_flag !== null &&
+        result.anomaly_input_reading_count > 0) &&
     typeof result.latest_reading_at === 'string' &&
     !Number.isNaN(Date.parse(result.latest_reading_at)) &&
     typeof result.failure_probability === 'number' &&
     result.failure_probability >= 0 &&
     result.failure_probability <= 1 &&
-    typeof result.anomaly_score === 'number' &&
-    result.anomaly_score >= 0 &&
-    result.anomaly_score <= 1 &&
-    typeof result.anomaly_flag === 'boolean' &&
+    (result.anomaly_score === null ||
+      (typeof result.anomaly_score === 'number' &&
+        result.anomaly_score >= 0 &&
+        result.anomaly_score <= 1)) &&
+    (result.anomaly_flag === null || typeof result.anomaly_flag === 'boolean') &&
     typeof result.health_score === 'number' &&
     result.health_score >= 0 &&
     result.health_score <= 100 &&
@@ -68,7 +76,6 @@ export async function requestPrediction(
   thresholds: Thresholds,
 ): Promise<PredictionResponse> {
   const requestInputs = { ...inputs }
-  delete requestInputs.demo_health_band
   const request = (includeThresholds: boolean) => fetch('/api/predict', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

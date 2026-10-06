@@ -6,7 +6,6 @@ export type MachineStatus = 'Operational' | 'Warning' | 'Critical' | 'Under Main
 export type PredictionStatus = 'loading' | 'available' | 'unavailable'
 export type MachineTypeCode = 'H' | 'L' | 'M'
 export type SimulationState = 'NORMAL' | 'DEGRADING' | 'CRITICAL'
-export type DemoHealthBand = 'VERY_GOOD' | 'GOOD' | 'MEDIUM' | 'BELOW_AVERAGE' | 'POOR'
 export type Severity = 'critical' | 'warning' | 'info' | 'success'
 export type SensorLevel = 'green' | 'amber' | 'red'
 export type MaintenanceStatus = 'Recommended' | 'Scheduled' | 'In Progress' | 'Completed' | 'Cancelled'
@@ -42,7 +41,6 @@ export interface PredictionInputs {
   machine_input_source: 'simulated' | 'provided'
   sensor_input_source: 'simulated' | 'provided'
   simulation_state: SimulationState
-  demo_health_band?: DemoHealthBand
   sensor_window?: { timestamp?: string; [channel: string]: number | string | null | undefined }[]
 }
 
@@ -53,8 +51,8 @@ export interface PredictionResponse {
   sensor_input_source: 'simulated' | 'provided'
   failure_probability: number
   failure_type: string | null
-  anomaly_score: number
-  anomaly_flag: boolean
+  anomaly_score: number | null
+  anomaly_flag: boolean | null
   health_score: number
   status: Exclude<MachineStatus, 'Under Maintenance'>
   recommendation: string
@@ -140,7 +138,7 @@ export interface MaintenanceRecord {
   originAlertId?: string
   predictionSnapshot?: {
     failureProbability: number
-    anomalyScore: number
+    anomalyScore: number | null
     healthScore: number
     status: Exclude<MachineStatus, 'Under Maintenance'>
     timestamp: string

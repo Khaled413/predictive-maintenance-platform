@@ -24,7 +24,11 @@ import MachineVisual from '../components/ui/MachineVisual'
 import CircularHealth from '../components/ui/CircularHealth'
 import RiskBar from '../components/ui/RiskBar'
 import ModelInputBars from '../components/ui/ModelInputBars'
-import { MachineStatusBadge, MaintenanceStatusBadge } from '../components/ui/Badges'
+import {
+  MachineStatusBadge,
+  MaintenanceStatusBadge,
+  SimulatedPredictionBadge,
+} from '../components/ui/Badges'
 import Panel, { PanelHeader } from '../components/ui/Panel'
 import { ChartCard, ChartTooltip } from '../components/ui/ChartCard'
 import EmptyState from '../components/ui/EmptyState'
@@ -66,8 +70,11 @@ export default function MachineDetailsPage() {
   const machine = machines.find((m) => m.id === id)
 
   const prediction = machine?.predictionStatus === 'available' ? machine.prediction : undefined
-  const isDemoPrediction = prediction?.machine_input_source === 'simulated' &&
-    prediction.sensor_input_source === 'simulated'
+  const isDemoPrediction = prediction
+    ? prediction.machine_input_source === 'simulated' &&
+      prediction.sensor_input_source === 'simulated'
+    : machine?.predictionInputs.machine_input_source === 'simulated' &&
+      machine.predictionInputs.sensor_input_source === 'simulated'
   const status = prediction?.status ?? null
   const healthScore = prediction?.health_score ?? null
   const failureRisk = prediction ? prediction.failure_probability * 100 : null
@@ -90,7 +97,7 @@ export default function MachineDetailsPage() {
 
   const chartData = useMemo(() => {
     if (!machine) return []
-    return machine.history.filter((point) => !point.isDemo).map((p) => ({
+    return machine.history.map((p) => ({
       ...p,
       short: new Date(p.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
     }))
@@ -197,6 +204,7 @@ return (
             <span className="rounded bg-navy-700/70 px-1.5 py-0.5 text-[9.5px] font-semibold uppercase tracking-wide text-ink-dim">
               {machine.type}
             </span>
+            {isDemoPrediction && <SimulatedPredictionBadge />}
             {status ? (
               <MachineStatusBadge status={status} />
             ) : (
@@ -250,7 +258,10 @@ return (
           )}
           <div className="min-w-0">
             <p className="text-[10px] font-semibold uppercase tracking-wider text-ink-faint">
-              Current Health Score
+              Model health proxy
+            </p>
+            <p className="mt-0.5 text-[9px] text-ink-faint">
+              {t('Derived from failure probability, not live telemetry.')}
             </p>
             <p className="mt-1 text-[11.5px] text-ink-dim">
               {status === null
@@ -265,7 +276,7 @@ return (
             </p>
             {healthScore !== null && (
               <p className="mt-1 text-[10px] font-medium text-ink">
-                {t(healthBandLabel(healthScore))}
+                {t(healthBandLabel(healthScore, thresholds))}
               </p>
             )}
           </div>
@@ -337,7 +348,7 @@ return (
       <div className="grid gap-4 lg:grid-cols-2">
         <ChartCard
           title="Health Score Over Time"
-          subtitle="Stored predictions from provided-input runs; simulated-input results are excluded"
+          subtitle="Recorded model results; simulated predictions are demonstrations, not live telemetry"
           right={
             <div className="flex flex-wrap items-center gap-1.5">
               {Object.entries(EVENT_COLORS).map(([label, color]) => (
@@ -389,7 +400,7 @@ return (
           </ResponsiveContainer>
         </ChartCard>
 
-        <ChartCard title="Failure Probability Over Time" subtitle="Provided-input model outputs only">
+        <ChartCard title="Failure Probability Over Time" subtitle="Recorded model outputs; simulated results are demonstrations">
           <ResponsiveContainer width="100%" height={230}>
             <LineChart data={chartData} margin={{ top: 8, right: 12, bottom: 4, left: -18 }}>
               <CartesianGrid strokeDasharray="3 5" stroke="rgba(148,163,184,0.07)" vertical={false} />
@@ -460,7 +471,11 @@ return (
                 </div>
                 <div className="rounded-xl border border-line bg-navy-900/50 p-3">
                   <p className="text-[10px] font-semibold uppercase tracking-wider text-ink-faint">Anomaly Score</p>
-                  <p className="mt-1 text-[12px] font-semibold text-ink">{(prediction.anomaly_score * 100).toFixed(1)}% · {prediction.anomaly_flag ? 'Flagged' : 'Not flagged'}</p>
+                  <p className="mt-1 text-[12px] font-semibold text-ink">
+                    {prediction.anomaly_score === null
+                      ? t('Not evaluated for simulated sensor readings')
+                      : `${(prediction.anomaly_score * 100).toFixed(1)}% · ${prediction.anomaly_flag ? 'Flagged' : 'Not flagged'}`}
+                  </p>
                 </div>
                 <div className="rounded-xl border border-line bg-navy-900/50 p-3">
                   <p className="text-[10px] font-semibold uppercase tracking-wider text-ink-faint">
@@ -470,7 +485,7 @@ return (
                     {prediction.health_score.toFixed(1)}% · {prediction.status}
                   </p>
                   <p className="mt-1 text-[10px] font-medium text-ink-dim">
-                    {t(healthBandLabel(prediction.health_score))}
+                    {t(healthBandLabel(prediction.health_score, thresholds))}
                   </p>
                 </div>
                 <div className="rounded-xl border border-line bg-navy-900/50 p-3 sm:col-span-2">

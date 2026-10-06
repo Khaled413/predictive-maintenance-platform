@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   CalendarPlus,
@@ -53,6 +53,12 @@ export default function MaintenancePage() {
   const [completionTarget, setCompletionTarget] = useState<MaintenanceRecord | null>(null)
   const [completion, setCompletion] = useState({ downtime: '', cost: '', failureCause: '', technician: '', notes: '' })
 
+  const openCreate = useCallback(() => {
+    setEditId(null)
+    setForm({ ...EMPTY_FORM, machineId: machines[0]?.id ?? '' })
+    setFormOpen(true)
+  }, [machines])
+
   useEffect(() => {
     const query = searchParams.get('search')
     if (query) {
@@ -61,13 +67,7 @@ export default function MaintenancePage() {
     }
     if (searchParams.get('create') === '1') openCreate()
     if (query || searchParams.has('create')) setSearchParams({}, { replace: true })
-  }, [searchParams, setSearchParams])
-
-  const openCreate = () => {
-    setEditId(null)
-    setForm({ ...EMPTY_FORM, machineId: machines[0]?.id ?? '' })
-    setFormOpen(true)
-  }
+  }, [searchParams, setSearchParams, openCreate])
 
   const openEdit = (r: MaintenanceRecord) => {
     setEditId(r.id)

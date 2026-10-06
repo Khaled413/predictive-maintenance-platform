@@ -28,6 +28,17 @@ export function MachineStatusBadge({
   )
 }
 
+export function SimulatedPredictionBadge() {
+  return (
+    <span
+      title="This is a demonstration prediction from simulated inputs, not a machine diagnosis."
+      className="inline-flex items-center rounded border border-amber-400/25 bg-amber-500/10 px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-wide text-amber-300"
+    >
+      Simulated · Not a diagnosis
+    </span>
+  )
+}
+
 export function SeverityBadge({ severity }: { severity: Severity }) {
   const s = severityClasses[severity]
   return (

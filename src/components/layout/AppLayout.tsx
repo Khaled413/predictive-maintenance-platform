@@ -46,7 +46,7 @@ export default function AppLayout() {
           title={language === 'en' ? t('Switch to Arabic') : t('Switch to English')}
         >
           <Languages className="h-4 w-4" />
-          <span>{language === 'en' ? 'AR' : 'عربي'}</span>
+          <span data-no-translate>{language === 'en' ? 'AR' : 'EN'}</span>
         </button>
       </div>
 

@@ -181,6 +181,11 @@ export const translations: Record<string, string> = {
     'وضع تجريبي · تستخدم التنبؤات مدخلات محاكاة وقراءات المستشعرات المعروضة توضيحية فقط',
   'Only predictions using provided machine and sensor inputs; simulated-input outputs are excluded.':
     'تُعرض فقط تنبؤات تستخدم مدخلات آلة ومستشعرات مقدمة؛ تُستبعد نتائج المدخلات المحاكاة.',
+  'Current fleet health from simulated model predictions; not live telemetry.':
+    'صحة الأسطول الحالية من تنبؤات محاكاة؛ وليست قياسات لحظية.',
+  'Fleet health from predictions using provided machine and sensor inputs.':
+    'صحة الأسطول من تنبؤات تستخدم مدخلات آلة ومستشعرات مقدمة.',
+  'Simulated model outputs': 'نتائج نموذج محاكاة',
   'live-input predictions': 'تنبؤات بمدخلات فعلية',
   'demo model outputs use simulated inputs and are not real machine readings. Live fleet KPIs remain unavailable until real readings are connected.':
     'نتائج نموذج توضيحية بمدخلات محاكاة وليست قراءات حقيقية للآلات. تبقى مؤشرات الأسطول الفعلية غير متاحة حتى ربط قراءات حقيقية.',
@@ -207,6 +212,8 @@ export const translations: Record<string, string> = {
   'Model output from simulated inputs': 'ناتج الموديل من مدخلات محاكاة',
   'Trained-model output calculated from simulated inputs.': 'ناتج الموديل المدرّب محسوب من مدخلات محاكاة.',
   'Generate new demo readings': 'إنشاء قراءات تجريبية جديدة',
+  'Each refresh balances good, medium, acceptable and poor demo readings; the trained model determines each machine status and recommendation.':
+    'يوزع كل تحديث القراءات التجريبية بالتساوي بين فئات كويس ومتوسط ومقبول وحش؛ ويحدد النموذج المدرّب حالة كل آلة وتوصيتها.',
   'Recalculating with trained models': 'جارٍ إعادة الحساب بالموديلات المدرّبة',
   'New demo scenario started': 'بدأ سيناريو تجريبي جديد',
   'New demo predictions ready': 'نتائج السيناريو التجريبي الجديد جاهزة',
@@ -227,11 +234,10 @@ export const translations: Record<string, string> = {
   'Warning limit': 'حد التحذير',
   'Critical limit': 'حد الخطر',
   'Trained ML Health Score': 'درجة صحة الموديل المدرّب',
-  'Very good health': 'صحة ممتازة جدًا',
-  'Good health': 'صحة جيدة',
-  'Medium health': 'صحة متوسطة',
-  'Below average health': 'صحة أقل من المتوسط',
-  'Poor health': 'صحة ضعيفة',
+  'Good condition': 'كويس',
+  'Medium condition': 'متوسط',
+  'Acceptable condition': 'مقبول',
+  'Poor condition': 'وحش',
   'Health and status are trained-model outputs from simulated inputs; not live telemetry.':
     'الصحة والحالة ناتجتان عن موديلات مدرّبة بمدخلات محاكاة؛ وليستا قياسات لحظية.',
   'Machine health and status use provided model inputs.':
@@ -251,6 +257,9 @@ export const translations: Record<string, string> = {
   'readings': 'قراءات',
   'Health / status': 'الصحة / الحالة',
   'Sensor model': 'نموذج الحساسات',
+  'Sensor anomaly analysis is unavailable for simulated sensor readings.':
+    'تحليل شذوذ الحساسات غير متاح للقراءات المحاكاة.',
+  'Not evaluated for simulated sensor readings': 'لم يُقيّم لأن قراءات الحساسات محاكاة',
   'anomaly': 'شذوذ',
   'flagged': 'مرصود',
   'not flagged': 'غير مرصود',
@@ -1062,6 +1071,12 @@ Object.assign(translations, {
   'Maintenance is overdue. This schedule state is separate from the model status and recommendation.': 'الصيانة متأخرة. حالة الجدول منفصلة عن حالة النموذج وتوصيته.',
   'Model Recommendation': 'توصية النموذج',
   'Maintenance is overdue. Schedule status is separate from this model recommendation.': 'الصيانة متأخرة. حالة الجدول منفصلة عن توصية النموذج.',
+  'Model status': 'حالة النموذج',
+  'Maintenance schedule': 'جدول الصيانة',
+  'Model health proxy': 'مؤشر صحة النموذج',
+  'Derived from failure probability, not live telemetry.': 'مشتق من احتمال العطل، وليس من قياسات حية للآلة.',
+  'Simulated · Not a diagnosis': 'محاكاة · ليست تشخيصًا',
+  'Model condition can be normal while scheduled maintenance is overdue; complete or reschedule the task.': 'قد تكون حالة الآلة طبيعية حسب النموذج رغم تأخر الصيانة المجدولة؛ أنجز مهمة الصيانة أو أعد جدولتها.',
   'Maintenance is overdue and must be scheduled or completed separately; this model recommendation does not change the maintenance schedule.': 'الصيانة متأخرة ويجب جدولتها أو استكمالها بشكل منفصل؛ توصية النموذج لا تغيّر جدول الصيانة.',
   'No failure type classified by the model': 'لم يصنّف النموذج نوعًا للعطل',
   'Awaiting model output': 'بانتظار مخرجات النموذج',

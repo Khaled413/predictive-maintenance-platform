@@ -204,6 +204,12 @@ def anomaly_feature_values(
             f"sensor_std_rollmean_{window}m": row_std.rolling(
                 window=window, min_periods=5
             ).mean().iloc[-1],
+            f"sensor_mean_rollmin_{window}m": row_mean.rolling(
+                window=window, min_periods=5
+            ).min().iloc[-1],
+            f"sensor_mean_rollmax_{window}m": row_mean.rolling(
+                window=window, min_periods=5
+            ).max().iloc[-1],
         }
         for name, result in rolling_features.items():
             values[name] = float(result) if pd.notna(result) else float("nan")

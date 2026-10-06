@@ -152,15 +152,15 @@ export default function ReportsPage() {
       predictedMachines.reduce((a, m) => a + (m.failureRisk ?? 0), 0) /
         Math.max(1, predictedMachines.length),
     )
-    const anomalyPredictions = predictedMachines.flatMap((machine) =>
-      machine.prediction ? [machine.prediction] : [],
-    )
-    const avgAnomalyScore = anomalyPredictions.length
-      ? anomalyPredictions.reduce((sum, prediction) => sum + prediction.anomaly_score, 0) /
-        anomalyPredictions.length
+    const anomalyScores = predictedMachines
+      .map((machine) => machine.prediction?.anomaly_score)
+      .filter((score): score is number => typeof score === 'number')
+    const avgAnomalyScore = anomalyScores.length
+      ? anomalyScores.reduce((sum, score) => sum + score, 0) /
+        anomalyScores.length
       : null
-    const flaggedAnomalyPredictions = anomalyPredictions.filter(
-      (prediction) => prediction.anomaly_flag,
+    const flaggedAnomalyPredictions = predictedMachines.filter(
+      (machine) => machine.prediction?.anomaly_flag === true,
     ).length
     const avgMttr = downtimeValues.length && downtime !== null
       ? (downtime / downtimeValues.length).toFixed(1)
@@ -184,7 +184,7 @@ export default function ReportsPage() {
       avgRisk,
       avgAnomalyScore,
       flaggedAnomalyPredictions,
-      anomalyPredictionCount: anomalyPredictions.length,
+      anomalyPredictionCount: anomalyScores.length,
       downtime,
       cost,
       avgMttr,
@@ -258,6 +258,11 @@ export default function ReportsPage() {
     (machine) => machine.prediction && inRange(machine.prediction.timestamp),
   )
   const predictionSnapshotDate = inWindowPredictions.find((machine) => machine.prediction)?.prediction?.timestamp
+  const snapshotAnomalyScores = inWindowPredictions.flatMap((machine) =>
+    machine.prediction && machine.prediction.anomaly_score !== null
+      ? [machine.prediction.anomaly_score * 100]
+      : [],
+  )
   const currentPredictionSnapshot = predictionSnapshotDate
     ? [{
         day: shortDay(predictionSnapshotDate),
@@ -269,12 +274,9 @@ export default function ReportsPage() {
           inWindowPredictions.reduce((sum, machine) => sum + (machine.failureRisk ?? 0), 0) /
             inWindowPredictions.length,
         ),
-        anomaly: Math.round(
-          inWindowPredictions.reduce(
-            (sum, machine) => sum + (machine.prediction?.anomaly_score ?? 0) * 100,
-            0,
-          ) / inWindowPredictions.length,
-        ),
+        anomaly: snapshotAnomalyScores.length
+          ? Math.round(snapshotAnomalyScores.reduce((sum, score) => sum + score, 0) / snapshotAnomalyScores.length)
+          : null,
       }]
     : []
   const trendForCharts = healthTrend.length ? healthTrend : currentPredictionSnapshot
@@ -446,8 +448,12 @@ export default function ReportsPage() {
         prediction ? reportHealthFor(machine) ?? 'N/A' : 'N/A',
         prediction ? reportStatusFor(machine) ?? 'Unavailable' : 'Unavailable',
         !prediction || machine.failureRisk === null ? 'N/A' : Number(machine.failureRisk.toFixed(2)),
-        prediction ? Number((prediction.anomaly_score * 100).toFixed(2)) : 'N/A',
-        prediction ? (prediction.anomaly_flag ? 'Yes' : 'No') : 'N/A',
+        prediction?.anomaly_score !== null && prediction
+          ? Number((prediction.anomaly_score * 100).toFixed(2))
+          : 'N/A',
+        prediction?.anomaly_flag !== null && prediction
+          ? (prediction.anomaly_flag ? 'Yes' : 'No')
+          : 'N/A',
         prediction?.failure_type ?? 'N/A',
         prediction?.inputs.air_temperature ?? 'N/A',
         prediction?.inputs.process_temperature ?? 'N/A',

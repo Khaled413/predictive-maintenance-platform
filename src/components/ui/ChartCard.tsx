@@ -26,7 +26,7 @@ export function ChartCard({
 }
 
 /** Shared dark tooltip for all Recharts charts. */
-export const chartTooltipStyle: React.CSSProperties = {
+const chartTooltipStyle: React.CSSProperties = {
   background: 'var(--chart-tooltip-bg)',
   border: '1px solid rgba(148, 163, 184, 0.15)',
   borderRadius: '10px',
@@ -37,16 +37,29 @@ export const chartTooltipStyle: React.CSSProperties = {
   padding: '8px 10px',
 }
 
-export function ChartTooltip({ active, payload, label, formatter }: any) {
+interface ChartTooltipProps {
+  active?: boolean
+  payload?: Array<{
+    name?: string
+    dataKey?: string | number
+    color?: string
+    stroke?: string
+    value?: number
+  }>
+  label?: React.ReactNode
+  formatter?: (value: number) => React.ReactNode
+}
+
+export function ChartTooltip({ active, payload, label, formatter }: ChartTooltipProps) {
   if (!active || !payload?.length) return null
   return (
     <div style={chartTooltipStyle}>
       <p className="mb-1 font-semibold text-ink">{label}</p>
-      {payload.map((p: any) => (
+      {payload.map((p) => (
         <p key={p.name ?? p.dataKey} className="flex items-center gap-2">
           <span className="h-2 w-2 rounded-full" style={{ background: p.color ?? p.stroke }} />
           <span style={{ color: 'var(--chart-tooltip-muted)' }}>{p.name ?? p.dataKey}:</span>
-          <span style={{ color: 'var(--chart-tooltip-text)' }}>{formatter ? formatter(p.value) : p.value}</span>
+          <span style={{ color: 'var(--chart-tooltip-text)' }}>{formatter ? formatter(p.value ?? 0) : p.value}</span>
         </p>
       ))}
     </div>

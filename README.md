@@ -47,14 +47,26 @@ prediction to the dashboard.
 The seeded dashboard profiles use **simulated inputs** by default. Their
 failure-model feature values (air/process temperature, rotational speed,
 torque, and tool wear) are shown in the dashboard and sent unchanged to the
-saved models. The health score, failure risk, status, and recommendation are
-calculated from those model outputs; the sensor anomaly model also evaluates
-its simulated `sensor_XX` window. The dashboard's other named sensor examples
-are illustrative because the anomaly dataset channels have no verified mapping
-to those physical sensor names. Use **Generate new demo readings** to assign a
-deterministic, balanced mix of fixed normal, degrading, and critical input
-profiles across the simulated fleet on every click (profile counts differ by at
-most one machine).
+saved models. For simulated sensor inputs, health, status, and recommendation
+use the failure-model probability only. The sensor anomaly model is not run on
+the synthetic `sensor_XX` window because its channels are not calibrated to the
+anomaly training data; anomaly score and flag are shown as unavailable rather
+than treating out-of-distribution demo values as real anomalies. The dashboard's
+other named sensor examples are illustrative because the anomaly dataset
+channels have no verified mapping to those physical sensor names. Simulated
+feature inputs are generated for a new demo fleet and saved locally; reopening
+the dashboard reuses each machine's saved inputs so its result does not change
+without a new evaluation. Inputs change when **Generate new demo readings** is
+explicitly used. Machine features are sent to the failure model and, when
+applicable, the failure-type model. A newly generated 12-machine fleet assigns
+three machines to each of four condition profiles—good, medium, acceptable and
+poor (كويس، متوسط، مقبول، وحش)—in shuffled random order.
+Failure-model profiles are validated across all three machine-type codes, and
+corner plus Monte-Carlo checks confirm that reading jitter keeps every profile
+inside its predicted health band without flipping its status. The returned model
+prediction—not the assigned input profile—determines displayed health, risk,
+status, recommendation, active model alert, and report snapshot. These remain
+simulated model results, not live telemetry.
 The action clears the previous prediction, submits the new feature values to
 the trained model service, and displays the returned prediction when evaluation
 finishes; it does not reset work orders or other local data. Demo output is a
@@ -63,16 +75,18 @@ field-calibrated reliability estimate.
 
 Machine cards and details show a compact bar for each of the five numeric
 failure-model inputs. The failure-probability bar is the saved model's output
-and marks the configured warning and critical risk thresholds. The
-deterministic scenario cycle is calibrated against the saved artifacts to
-produce a balanced spread of very good, good, medium, below-average, and weak
-model-derived health scores. Each machine receives distinct, repeatable
-readings within its profile, so refreshing the page preserves its current
-readings; the generate button advances the fleet to new profiles and
-recalculates the models. Model outputs still determine the displayed risk,
-health, status, and recommendation. The five health descriptions are derived
-from the returned health score: above 90, above 80, above 65, above 50, and
-50 or below, respectively; they do not modify that score.
+and marks the configured warning and critical risk thresholds. Each machine
+receives independently generated feature values; its inputs and model outputs
+stay fixed across reloads and change only when new demo readings are explicitly
+requested. For simulated inputs, the displayed health score is a proxy computed
+from failure probability, not a direct measurement of machine condition or
+remaining useful life. Model outputs determine the displayed risk, health,
+status, and recommendation. The four
+condition labels are derived from the returned health score and the same
+thresholds that decide the status—above the warning-threshold midpoint (كويس),
+above the warning threshold (متوسط), above the critical threshold (مقبول), and
+at or below the critical threshold (وحش)—so the label always agrees with the
+displayed status and recommendation; they never modify the score.
 Maintenance urgency is also derived from the current model status: operational
 is on schedule, warning is due soon, and critical calls for immediate service.
 “Overdue” is reserved for a maintenance date that has actually passed.
@@ -84,7 +98,7 @@ is on schedule, warning is due soon, and critical calls for immediate service.
 | Failure probability and failure-type inference | Trained model service |
 | Sensor anomaly score | Trained anomaly model; demo sensor inputs are simulated |
 | Trained ML health score and model recommendation | Derived from model outputs and configured thresholds |
-| Seeded demo failure-model inputs | Displayed and sent unchanged to the trained model service |
+| Randomized demo failure-model inputs | Generated within training-data ranges, then sent unchanged to the trained model service |
 | Dashboard's other named sensor examples | Illustrative demo data; not model inputs |
 | Maintenance work orders | Browser-local workflow; not connected to a CMMS |
 | Actual downtime and actual cost KPIs | Calculated only from completed orders with explicitly recorded actual values |
