@@ -156,7 +156,7 @@ return (
       Demo simulation only: this page generates illustrative results from a filename and displays sample thumbnails. It is not connected to a trained vision model; PASS/FAIL, defect locations and confidence are not real inspection results.
     </div>
     {/* Stats */}
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+    <div className="grid grid-cols-1 gap-3 min-[400px]:grid-cols-2 sm:grid-cols-3 2xl:grid-cols-5">
       <KpiCard label="Demo Inspections" value={stats.total} icon={<ScanLine className="h-4 w-4" />} tone="blue" sub="Illustrative records only" />
       <KpiCard label="Demo PASS" value={stats.passed} icon={<CheckCircle2 className="h-4 w-4" />} tone="gray" sub="Not production results" />
       <KpiCard label="Demo FAIL" value={stats.failed} icon={<XCircle className="h-4 w-4" />} tone="gray" sub="Not production results" />

@@ -279,7 +279,7 @@ export default function AssistantPage() {
     refreshTimestamp()
   }
 return (
-    <div className="grid items-start gap-4 lg:grid-cols-[250px_1fr_300px]">
+    <div className="grid min-w-0 items-start gap-4 xl:grid-cols-[minmax(220px,250px)_minmax(0,1fr)_minmax(260px,300px)]">
       {/* Left — saved conversations */}
       <Panel className="flex max-h-[720px] flex-col overflow-hidden xl:max-h-[760px]">
         <PanelHeader

@@ -239,7 +239,7 @@ return (
       </div>
 
       {/* Summary */}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 min-[400px]:grid-cols-2 lg:grid-cols-4">
         <Panel className="flex items-center gap-4 p-4">
           {healthScore !== null ? (
             <CircularHealth

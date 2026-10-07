@@ -69,7 +69,7 @@ export default function TopHeader({ onMenu }: TopHeaderProps) {
         <span className="hidden rounded-lg border border-amber-400/25 bg-amber-400/5 px-2 py-1.5 text-[9px] font-bold uppercase tracking-wider text-amber-300 sm:inline">
           DEMO MODE · simulated inputs / model outputs
         </span>
-        <span className="rounded-md border border-amber-400/25 bg-amber-400/5 px-1.5 py-1 text-[8px] font-bold text-amber-300 sm:hidden">
+        <span className="top-header-demo rounded-md border border-amber-400/25 bg-amber-400/5 px-1.5 py-1 text-[8px] font-bold text-amber-300 sm:hidden">
           DEMO
         </span>
         <div className="hidden items-center gap-1.5 rounded-lg border border-line bg-navy-800/60 px-2.5 py-1.5 text-[11px] font-medium text-ink-dim xl:flex">
@@ -101,7 +101,7 @@ export default function TopHeader({ onMenu }: TopHeaderProps) {
 
         <div
           className={cx(
-            'flex min-w-0 max-w-[132px] items-center gap-1.5 rounded-lg border px-2 py-1.5 sm:max-w-none sm:gap-2 sm:px-3',
+            'top-header-status flex min-w-0 max-w-[132px] items-center gap-1.5 rounded-lg border px-2 py-1.5 sm:max-w-none sm:gap-2 sm:px-3',
             status === null
               ? 'border-amber-400/25 bg-amber-400/5'
               : status === 'Operational'
@@ -153,7 +153,7 @@ export default function TopHeader({ onMenu }: TopHeaderProps) {
         <button
           type="button"
           onClick={() => navigate('/settings')}
-          className="flex items-center gap-2 rounded-lg border border-line bg-navy-800/60 py-1 pl-1 pr-2 transition-colors hover:border-sky-400/30"
+          className="top-header-profile flex items-center gap-2 rounded-lg border border-line bg-navy-800/60 py-1 pl-1 pr-2 transition-colors hover:border-sky-400/30"
         >
           <div className="flex h-7 w-7 items-center justify-center rounded-md bg-gradient-to-br from-sky-500/80 to-blue-700 text-[11px] font-bold text-white">
             {language === 'ar' ? 'مس' : 'ES'}

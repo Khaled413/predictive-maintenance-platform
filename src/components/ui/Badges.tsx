@@ -1,8 +1,4 @@
-import {
-  statusBadge,
-  severityClasses,
-  cx,
-} from '../../utils/helpers'
+import { statusBadge, severityClasses, cx } from '../../utils/helpers'
 import type { MachineStatus, Severity } from '../../types'
 
 export function MachineStatusBadge({
@@ -19,11 +15,22 @@ export function MachineStatusBadge({
         'inline-flex items-center gap-1.5 rounded-lg border px-2 py-1 text-[10.5px] font-semibold',
         s.pill,
         s.text,
-        className,
+        className
       )}
     >
       <span className={cx('h-1.5 w-1.5 rounded-full', s.dot)} />
       {status}
+    </span>
+  )
+}
+
+export function SimulatedPredictionBadge() {
+  return (
+    <span
+      title="This is a demonstration prediction from simulated inputs, not a machine diagnosis."
+      className="inline-flex max-w-full items-center rounded border border-amber-400/25 bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase leading-tight tracking-wide text-amber-300"
+    >
+      Simulated · Not a diagnosis
     </span>
   )
 }
@@ -35,7 +42,7 @@ export function SeverityBadge({ severity }: { severity: Severity }) {
       className={cx(
         'inline-flex items-center gap-1.5 rounded-lg border px-2 py-1 text-[10.5px] font-semibold uppercase tracking-wide',
         s.pill,
-        s.text,
+        s.text
       )}
     >
       {severity}
@@ -54,7 +61,7 @@ export function PriorityBadge({ priority }: { priority: string }) {
     <span
       className={cx(
         'inline-flex items-center rounded-lg border px-2 py-1 text-[10.5px] font-semibold',
-        PRIORITY_STYLES[priority] ?? PRIORITY_STYLES.Medium,
+        PRIORITY_STYLES[priority] ?? PRIORITY_STYLES.Medium
       )}
     >
       {priority}
@@ -63,19 +70,31 @@ export function PriorityBadge({ priority }: { priority: string }) {
 }
 
 const MAINT_STATUS_STYLES: Record<string, { pill: string; text: string }> = {
-  Completed: { pill: 'border-emerald-400/25 bg-emerald-500/10', text: 'text-emerald-300' },
+  Completed: {
+    pill: 'border-emerald-400/25 bg-emerald-500/10',
+    text: 'text-emerald-300',
+  },
   Cancelled: { pill: 'border-line bg-navy-700/40', text: 'text-ink-faint' },
   'In Progress': { pill: 'border-sky-400/25 bg-sky-500/10', text: 'text-sky-300' },
   Scheduled: { pill: 'border-blue-400/25 bg-blue-500/10', text: 'text-blue-300' },
   Recommended: { pill: 'border-amber-400/25 bg-amber-500/10', text: 'text-amber-300' },
-  'On Schedule': { pill: 'border-emerald-400/25 bg-emerald-500/10', text: 'text-emerald-300' },
+  'On Schedule': {
+    pill: 'border-emerald-400/25 bg-emerald-500/10',
+    text: 'text-emerald-300',
+  },
   'Due Soon': { pill: 'border-amber-400/25 bg-amber-500/10', text: 'text-amber-300' },
   Immediate: { pill: 'border-red-400/30 bg-red-500/10', text: 'text-red-300' },
   Overdue: { pill: 'border-red-400/30 bg-red-500/10', text: 'text-red-300' },
   'Not Required': { pill: 'border-line bg-navy-700/40', text: 'text-ink-faint' },
 }
 
-export function MaintenanceStatusBadge({ status }: { status: string }) {
+export function MaintenanceStatusBadge({
+  status,
+  className,
+}: {
+  status: string
+  className?: string
+}) {
   const s = MAINT_STATUS_STYLES[status] ?? MAINT_STATUS_STYLES['Not Required']
   return (
     <span
@@ -83,6 +102,7 @@ export function MaintenanceStatusBadge({ status }: { status: string }) {
         'inline-flex items-center rounded-lg border px-2 py-1 text-[10.5px] font-semibold',
         s.pill,
         s.text,
+        className
       )}
     >
       {status}
@@ -105,7 +125,7 @@ export function MaintenanceRecordStatusBadge({ status }: { status: string }) {
       className={cx(
         'inline-flex items-center rounded-lg border px-2 py-1 text-[10.5px] font-semibold',
         s.pill,
-        s.text,
+        s.text
       )}
     >
       {status}
