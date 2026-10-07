@@ -54,11 +54,7 @@ export function healthBandLabel(
 
 export function maintenanceStatusFromPrediction(
   status: Exclude<MachineStatus, 'Under Maintenance'>,
-  nextMaintenance: string,
-  now = Date.now(),
 ) {
-  const dueAt = Date.parse(nextMaintenance)
-  if (Number.isFinite(dueAt) && dueAt < now) return 'Overdue'
   if (status === 'Critical') return 'Immediate'
   if (status === 'Warning') return 'Due Soon'
   return 'On Schedule'

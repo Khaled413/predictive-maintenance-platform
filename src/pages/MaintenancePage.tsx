@@ -198,7 +198,7 @@ export default function MaintenancePage() {
     if (m) {
       updateMachine(m.id, {
         maintenanceStatus: m.prediction
-          ? maintenanceStatusFromPrediction(m.prediction.status, m.nextMaintenance)
+          ? maintenanceStatusFromPrediction(m.prediction.status)
           : 'On Schedule',
         lastMaintenance: new Date().toISOString(),
       })

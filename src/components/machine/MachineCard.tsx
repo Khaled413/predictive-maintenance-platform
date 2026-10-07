@@ -44,6 +44,7 @@ export default function MachineCard({ machine }: { machine: Machine }) {
               {machine.status ? (
                 <MachineStatusBadge
                   status={machine.status}
+                  label={t(machine.status)}
                   className="px-1.5 py-0.5 text-[9px]"
                 />
               ) : (
@@ -60,6 +61,7 @@ export default function MachineCard({ machine }: { machine: Machine }) {
             >
               <MaintenanceStatusBadge
                 status={machine.maintenanceStatus}
+                label={t(machine.maintenanceStatus)}
                 className="px-1.5 py-0.5 text-[9px]"
               />
             </div>

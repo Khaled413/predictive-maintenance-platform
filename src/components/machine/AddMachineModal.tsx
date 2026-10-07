@@ -312,10 +312,7 @@ const toggleSensor = (name: string) => {
           machine.prediction = prediction
           machine.predictionStatus = 'available'
           machine.status = prediction.status
-          machine.maintenanceStatus = maintenanceStatusFromPrediction(
-            prediction.status,
-            machine.nextMaintenance,
-          )
+          machine.maintenanceStatus = maintenanceStatusFromPrediction(prediction.status)
           machine.healthScore = prediction.health_score
           machine.failureRisk = prediction.failure_probability * 100
           machine.recommendation = prediction.recommendation

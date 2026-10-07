@@ -3,9 +3,11 @@ import type { MachineStatus, Severity } from '../../types'
 
 export function MachineStatusBadge({
   status,
+  label = status,
   className,
 }: {
   status: MachineStatus
+  label?: string
   className?: string
 }) {
   const s = statusBadge[status]
@@ -19,7 +21,7 @@ export function MachineStatusBadge({
       )}
     >
       <span className={cx('h-1.5 w-1.5 rounded-full', s.dot)} />
-      {status}
+      {label}
     </span>
   )
 }
@@ -90,9 +92,11 @@ const MAINT_STATUS_STYLES: Record<string, { pill: string; text: string }> = {
 
 export function MaintenanceStatusBadge({
   status,
+  label = status,
   className,
 }: {
   status: string
+  label?: string
   className?: string
 }) {
   const s = MAINT_STATUS_STYLES[status] ?? MAINT_STATUS_STYLES['Not Required']
@@ -105,7 +109,7 @@ export function MaintenanceStatusBadge({
         className
       )}
     >
-      {status}
+      {label}
     </span>
   )
 }

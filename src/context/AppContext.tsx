@@ -353,10 +353,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           prediction: effectivePrediction,
           predictionInputs: inputs,
           status: effectivePrediction.status,
-          maintenanceStatus: maintenanceStatusFromPrediction(
-            effectivePrediction.status,
-            machine.nextMaintenance,
-          ),
+          maintenanceStatus: maintenanceStatusFromPrediction(effectivePrediction.status),
           healthScore: effectivePrediction.health_score,
           failureRisk: effectivePrediction.failure_probability * 100,
           recommendation: effectivePrediction.recommendation,
@@ -609,10 +606,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         return {
           ...machine,
           status,
-          maintenanceStatus: maintenanceStatusFromPrediction(
-            status,
-            machine.nextMaintenance,
-          ),
+          maintenanceStatus: maintenanceStatusFromPrediction(status),
           recommendation,
           prediction: { ...machine.prediction, status, recommendation },
         }
@@ -702,6 +696,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
               predictionStatus: 'loading',
               predictionError: undefined,
               status: null,
+              maintenanceStatus: 'Prediction pending',
               healthScore: null,
               failureRisk: null,
               recommendation: null,

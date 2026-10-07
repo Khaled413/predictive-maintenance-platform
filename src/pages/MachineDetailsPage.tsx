@@ -175,7 +175,7 @@ export default function MachineDetailsPage() {
     })
     updateMachine(machine.id, {
       maintenanceStatus: prediction
-        ? maintenanceStatusFromPrediction(prediction.status, new Date(plan.date).toISOString())
+        ? maintenanceStatusFromPrediction(prediction.status)
         : 'Due Soon',
       nextMaintenance: new Date(plan.date).toISOString(),
     })

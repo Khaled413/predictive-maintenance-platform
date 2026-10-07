@@ -177,10 +177,9 @@ try {
     return [status, recommendationForStatus(status)]
   })
   const maintenanceDecisions = [
-    maintenanceStatusFromPrediction('Operational', '2030-01-01T00:00:00.000Z', Date.parse('2029-01-01T00:00:00.000Z')),
-    maintenanceStatusFromPrediction('Warning', '2030-01-01T00:00:00.000Z', Date.parse('2029-01-01T00:00:00.000Z')),
-    maintenanceStatusFromPrediction('Critical', '2030-01-01T00:00:00.000Z', Date.parse('2029-01-01T00:00:00.000Z')),
-    maintenanceStatusFromPrediction('Operational', '2028-01-01T00:00:00.000Z', Date.parse('2029-01-01T00:00:00.000Z')),
+    maintenanceStatusFromPrediction('Operational'),
+    maintenanceStatusFromPrediction('Warning'),
+    maintenanceStatusFromPrediction('Critical'),
   ]
   const scenariosMatchRanges = scenarioEntries
     .every(([condition, inputs]) => {
@@ -251,7 +250,6 @@ try {
       'On Schedule',
       'Due Soon',
       'Immediate',
-      'Overdue',
     ]) ||
     !scenariosMatchRanges ||
     !inputsStayWithinTrainingRanges ||
