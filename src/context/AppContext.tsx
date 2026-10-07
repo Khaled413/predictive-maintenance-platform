@@ -29,7 +29,6 @@ import {
 import { requestModelStatus, requestPrediction } from '../data/predictionApi'
 import {
   balancedConditionCategories,
-  hasReusableSimulatedInputs,
   machineTypeCode,
   simulateMachineInputs,
 } from '../utils/simulatedInputs'
@@ -123,15 +122,12 @@ function loadState(): PersistedState {
               !storedMaintenance.some((storedRecord) => storedRecord.id === record.id),
           ),
         ]
-        const machinesNeedingDemoInputs = machinesToLoad.filter((machine) => {
-          const modelTypeCode = machineTypeCode(machine.type)
-          const hasProvidedInputs =
-            machine.predictionInputs?.machine_input_source === 'provided' ||
-            machine.predictionInputs?.sensor_input_source === 'provided'
-          return !hasProvidedInputs &&
-            !hasReusableSimulatedInputs(machine.predictionInputs, machine.id, modelTypeCode)
-        })
-        const demoConditions = balancedConditionCategories(machinesNeedingDemoInputs.length)
+        const demoMachineCount = machinesToLoad.filter(
+          (machine) =>
+            machine.predictionInputs?.machine_input_source !== 'provided' &&
+            machine.predictionInputs?.sensor_input_source !== 'provided',
+        ).length
+        const demoConditions = balancedConditionCategories(demoMachineCount)
         let demoConditionIndex = 0
         return {
           machines: machinesToLoad.map((machine) => {
@@ -139,16 +135,9 @@ function loadState(): PersistedState {
             const hasProvidedInputs =
               machine.predictionInputs?.machine_input_source === 'provided' ||
               machine.predictionInputs?.sensor_input_source === 'provided'
-            const hasStoredDemoInputs = hasReusableSimulatedInputs(
-              machine.predictionInputs,
-              machine.id,
-              modelTypeCode,
-            )
             const predictionInputs = hasProvidedInputs
               ? machine.predictionInputs
-              : hasStoredDemoInputs
-                ? machine.predictionInputs
-                : simulateMachineInputs(machine.id, machine.type, demoConditions[demoConditionIndex++])
+              : simulateMachineInputs(machine.id, machine.type, demoConditions[demoConditionIndex++])
             return {
               ...machine,
               modelTypeCode,
@@ -644,8 +633,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const resetDemo = useCallback(() => {
     localStorage.removeItem(STORAGE_KEY)
     predictionRequestTokens.current.clear()
-    const machines = SEED_MACHINES.map((machine) => ({
+    const demoConditions = balancedConditionCategories(SEED_MACHINES.length)
+    const machines = SEED_MACHINES.map((machine, index) => ({
       ...machine,
+      predictionInputs: simulateMachineInputs(
+        machine.id,
+        machine.type,
+        demoConditions[index],
+      ),
       prediction: undefined,
       predictionStatus: 'loading' as const,
       status: null,

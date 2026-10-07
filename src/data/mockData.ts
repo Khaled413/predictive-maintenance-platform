@@ -13,7 +13,7 @@ import type {
 } from '../types'
 import { daysAgo, hoursAgo, seededRandom } from '../utils/helpers'
 import {
-  type ConditionCategory,
+  balancedConditionCategories,
   machineTypeCode,
   simulateMachineInputs,
 } from '../utils/simulatedInputs'
@@ -478,9 +478,7 @@ const SEEDED_MACHINE_PROFILES: Machine[] = [
     112,
   ),
 ]
-const seedConditions: ConditionCategory[] = SEEDED_MACHINE_PROFILES.map(
-  (_, index) => (['GOOD', 'MEDIUM', 'ACCEPTABLE', 'BAD'] as const)[index % 4],
-)
+const seedConditions = balancedConditionCategories(SEEDED_MACHINE_PROFILES.length)
 export const SEED_MACHINES: Machine[] = SEEDED_MACHINE_PROFILES.map((machine, index) => ({
   ...machine,
   predictionInputs: simulateMachineInputs(
