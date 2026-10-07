@@ -50,17 +50,54 @@ const failures = []
 
 try {
   const { MemoryRouter, Route, Routes } = await vite.ssrLoadModule('react-router-dom')
-  const { AppProvider } = await vite.ssrLoadModule('/src/context/AppContext.tsx')
+  const { AppProvider, useApp } = await vite.ssrLoadModule('/src/context/AppContext.tsx')
   const { PreferencesProvider } = await vite.ssrLoadModule('/src/context/PreferencesContext.tsx')
   const { default: AppLayout } = await vite.ssrLoadModule('/src/components/layout/AppLayout.tsx')
   const { default: RiskBar } = await vite.ssrLoadModule('/src/components/ui/RiskBar.tsx')
   const { default: ModelInputBars } = await vite.ssrLoadModule('/src/components/ui/ModelInputBars.tsx')
-  const { balancedConditionCategories, simulateMachineInputs } = await vite.ssrLoadModule('/src/utils/simulatedInputs.ts')
+  const { balancedConditionCategories, hasReusableSimulatedInputs, simulateMachineInputs } = await vite.ssrLoadModule('/src/utils/simulatedInputs.ts')
   const { SEED_MACHINES, DEFAULT_THRESHOLDS } = await vite.ssrLoadModule('/src/data/mockData.ts')
   const { fleetHealth } = await vite.ssrLoadModule('/src/utils/operationalMetrics.ts')
   const { healthBandLabel, maintenanceStatusFromPrediction, statusForPrediction, recommendationForStatus } = await vite.ssrLoadModule('/src/utils/predictionThresholds.ts')
   const goodScenario = simulateMachineInputs('M-012', 'Compressor', 'GOOD')
   const sameGoodScenario = simulateMachineInputs('M-012', 'Compressor', 'GOOD')
+  const persistedGoodScenario = simulateMachineInputs('M-012', 'Compressor', 'GOOD')
+  const persistedInputsAreReusable =
+    hasReusableSimulatedInputs(persistedGoodScenario, 'M-012', 'H') &&
+    !hasReusableSimulatedInputs(persistedGoodScenario, 'M-013', 'H') &&
+    !hasReusableSimulatedInputs(persistedGoodScenario, 'M-012', 'L')
+  const storedMachine = SEED_MACHINES.find((machine) => machine.id === 'M-003')
+  const persistedInputs = simulateMachineInputs('M-003', storedMachine.type, 'GOOD')
+  const seededSimulationStates = SEED_MACHINES.slice(0, 4).map(
+    (machine) => machine.predictionInputs.simulation_state,
+  )
+  const storage = new Map()
+  globalThis.localStorage = {
+    getItem: (key) => storage.get(key) ?? null,
+    setItem: (key, value) => storage.set(key, String(value)),
+    removeItem: (key) => storage.delete(key),
+    clear: () => storage.clear(),
+  }
+  globalThis.window.localStorage = globalThis.localStorage
+  storage.set('iap-state-v4', JSON.stringify({
+    machines: [{ ...storedMachine, predictionInputs: persistedInputs }],
+    maintenance: [],
+    alerts: [],
+    inspections: [],
+    documents: [],
+    thresholds: DEFAULT_THRESHOLDS,
+  }))
+  const PersistedInputsProbe = () => {
+    const { machines } = useApp()
+    return React.createElement('output', null, machines[0].predictionInputs.air_temperature)
+  }
+  const persistedStateHtml = renderToString(
+    React.createElement(AppProvider, null, React.createElement(PersistedInputsProbe)),
+  )
+  const startupReusesPersistedInputs = persistedStateHtml.includes(
+    String(persistedInputs.air_temperature),
+  )
+  globalThis.localStorage.removeItem('iap-state-v4')
   const mediumScenario = simulateMachineInputs('M-012', 'Compressor', 'MEDIUM')
   const acceptableScenario = simulateMachineInputs('M-012', 'Compressor', 'ACCEPTABLE')
   const badScenario = simulateMachineInputs('M-012', 'Compressor', 'BAD')
@@ -182,6 +219,14 @@ try {
   )
   if (
     JSON.stringify(goodScenario) === JSON.stringify(sameGoodScenario) ||
+    !persistedInputsAreReusable ||
+    !startupReusesPersistedInputs ||
+    JSON.stringify(seededSimulationStates) !== JSON.stringify([
+      'NORMAL',
+      'DEGRADING',
+      'DEGRADING',
+      'CRITICAL',
+    ]) ||
     !randomizedFleetHasVariedInputs ||
     !repeatedInputsAreUnique ||
     SEED_MACHINES.length !== 12 ||
@@ -218,6 +263,9 @@ try {
     console.log('FAIL fresh randomized demo model-inputs and 12-machine fleet')
     console.log(JSON.stringify({
       repeatedCallChanged: JSON.stringify(goodScenario) !== JSON.stringify(sameGoodScenario),
+      persistedInputsAreReusable,
+      startupReusesPersistedInputs,
+      seededSimulationStates,
       randomizedFleetHasVariedInputs,
       repeatedMachineUnique: repeatedInputsAreUnique,
       machineCount: SEED_MACHINES.length,
@@ -231,7 +279,7 @@ try {
     }, null, 2))
     failures.push('fresh randomized demo model-inputs and 12-machine fleet')
   } else {
-    console.log('PASS fresh randomized model inputs · 4 condition categories · 12-machine fleet · status/recommendation consistency')
+    console.log('PASS saved inputs survive reload · explicit demo regeneration · 4 condition categories · 12-machine fleet')
   }
 
   const riskBarHtml = renderToString(
@@ -314,9 +362,10 @@ try {
         const hasMaintenanceSeparation =
           html.includes('Maintenance is overdue.') &&
           html.includes('separate from the model status and recommendation')
+        const marksDemoPrediction = html.includes('Simulated · Not a diagnosis')
         const hasSensorSourceDisclosure =
           html.includes('Show illustrative sensor examples (not model inputs)')
-        if (!hasMaintenanceSeparation || !hasSensorSourceDisclosure) {
+        if (!hasMaintenanceSeparation || !marksDemoPrediction || !hasSensorSourceDisclosure) {
           console.log('FAIL /machines/M-003 missing maintenance or sensor-source disclosure')
           failures.push('/machines/M-003 disclosures')
         }

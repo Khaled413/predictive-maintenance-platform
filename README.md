@@ -54,11 +54,13 @@ anomaly training data; anomaly score and flag are shown as unavailable rather
 than treating out-of-distribution demo values as real anomalies. The dashboard's
 other named sensor examples are illustrative because the anomaly dataset
 channels have no verified mapping to those physical sensor names. Simulated
-feature inputs are freshly randomized for each machine on startup and whenever
-**Generate new demo readings** is used. Machine features are sent to the failure
-model and, when applicable, the failure-type model. Each 12-machine fleet
-refresh assigns three machines to each of four condition profiles—good,
-medium, acceptable and poor (كويس، متوسط، مقبول، وحش)—in shuffled random order.
+feature inputs are generated for a new demo fleet and saved locally; reopening
+the dashboard reuses each machine's saved inputs so its result does not change
+without a new evaluation. Inputs change when **Generate new demo readings** is
+explicitly used. Machine features are sent to the failure model and, when
+applicable, the failure-type model. A newly generated 12-machine fleet assigns
+three machines to each of four condition profiles—good, medium, acceptable and
+poor (كويس، متوسط، مقبول، وحش)—in shuffled random order.
 Failure-model profiles are validated across all three machine-type codes, and
 corner plus Monte-Carlo checks confirm that reading jitter keeps every profile
 inside its predicted health band without flipping its status. The returned model
@@ -74,9 +76,12 @@ field-calibrated reliability estimate.
 Machine cards and details show a compact bar for each of the five numeric
 failure-model inputs. The failure-probability bar is the saved model's output
 and marks the configured warning and critical risk thresholds. Each machine
-receives independently generated feature values, so its inputs and model
-outputs can differ on every refresh or new-reading request. Model outputs
-determine the displayed risk, health, status, and recommendation. The four
+receives independently generated feature values; its inputs and model outputs
+stay fixed across reloads and change only when new demo readings are explicitly
+requested. For simulated inputs, the displayed health score is a proxy computed
+from failure probability, not a direct measurement of machine condition or
+remaining useful life. Model outputs determine the displayed risk, health,
+status, and recommendation. The four
 condition labels are derived from the returned health score and the same
 thresholds that decide the status—above the warning-threshold midpoint (كويس),
 above the warning threshold (متوسط), above the critical threshold (مقبول), and

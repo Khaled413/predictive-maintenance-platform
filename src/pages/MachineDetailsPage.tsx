@@ -24,7 +24,11 @@ import MachineVisual from '../components/ui/MachineVisual'
 import CircularHealth from '../components/ui/CircularHealth'
 import RiskBar from '../components/ui/RiskBar'
 import ModelInputBars from '../components/ui/ModelInputBars'
-import { MachineStatusBadge, MaintenanceStatusBadge } from '../components/ui/Badges'
+import {
+  MachineStatusBadge,
+  MaintenanceStatusBadge,
+  SimulatedPredictionBadge,
+} from '../components/ui/Badges'
 import Panel, { PanelHeader } from '../components/ui/Panel'
 import { ChartCard, ChartTooltip } from '../components/ui/ChartCard'
 import EmptyState from '../components/ui/EmptyState'
@@ -66,8 +70,11 @@ export default function MachineDetailsPage() {
   const machine = machines.find((m) => m.id === id)
 
   const prediction = machine?.predictionStatus === 'available' ? machine.prediction : undefined
-  const isDemoPrediction = prediction?.machine_input_source === 'simulated' &&
-    prediction.sensor_input_source === 'simulated'
+  const isDemoPrediction = prediction
+    ? prediction.machine_input_source === 'simulated' &&
+      prediction.sensor_input_source === 'simulated'
+    : machine?.predictionInputs.machine_input_source === 'simulated' &&
+      machine.predictionInputs.sensor_input_source === 'simulated'
   const status = prediction?.status ?? null
   const healthScore = prediction?.health_score ?? null
   const failureRisk = prediction ? prediction.failure_probability * 100 : null
@@ -197,6 +204,7 @@ return (
             <span className="rounded bg-navy-700/70 px-1.5 py-0.5 text-[9.5px] font-semibold uppercase tracking-wide text-ink-dim">
               {machine.type}
             </span>
+            {isDemoPrediction && <SimulatedPredictionBadge />}
             {status ? (
               <MachineStatusBadge status={status} />
             ) : (
@@ -250,7 +258,10 @@ return (
           )}
           <div className="min-w-0">
             <p className="text-[10px] font-semibold uppercase tracking-wider text-ink-faint">
-              Current Health Score
+              Model health proxy
+            </p>
+            <p className="mt-0.5 text-[9px] text-ink-faint">
+              {t('Derived from failure probability, not live telemetry.')}
             </p>
             <p className="mt-1 text-[11.5px] text-ink-dim">
               {status === null

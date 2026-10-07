@@ -17,6 +17,25 @@ import type { MachineTypeCode, PredictionInputs, SimulationState } from '../type
  */
 export type ConditionCategory = 'GOOD' | 'MEDIUM' | 'ACCEPTABLE' | 'BAD'
 
+export function hasReusableSimulatedInputs(
+  inputs: PredictionInputs | undefined,
+  machineId: string,
+  type: MachineTypeCode,
+): inputs is PredictionInputs {
+  return inputs?.machine_id === machineId &&
+    inputs.type === type &&
+    inputs.machine_input_source === 'simulated' &&
+    inputs.sensor_input_source === 'simulated' &&
+    ['NORMAL', 'DEGRADING', 'CRITICAL'].includes(inputs.simulation_state) &&
+    [
+      inputs.air_temperature,
+      inputs.process_temperature,
+      inputs.rotational_speed,
+      inputs.torque,
+      inputs.tool_wear,
+    ].every(Number.isFinite)
+}
+
 type ScenarioProfile = {
   air: number
   delta: number
@@ -158,4 +177,3 @@ export function simulateMachineInputs(
     simulation_state: SIMULATION_STATE_BY_CONDITION[category],
   }
 }
-

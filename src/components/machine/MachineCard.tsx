@@ -5,7 +5,11 @@ import MachineVisual from '../ui/MachineVisual'
 import CircularHealth from '../ui/CircularHealth'
 import RiskBar from '../ui/RiskBar'
 import ModelInputBars from '../ui/ModelInputBars'
-import { MachineStatusBadge, MaintenanceStatusBadge } from '../ui/Badges'
+import {
+  MachineStatusBadge,
+  MaintenanceStatusBadge,
+  SimulatedPredictionBadge,
+} from '../ui/Badges'
 import { formatDate, cx } from '../../utils/helpers'
 import { useApp } from '../../context/AppContext'
 import { usePreferences } from '../../context/PreferencesContext'
@@ -33,6 +37,10 @@ export default function MachineCard({ machine }: { machine: Machine }) {
             <span className="rounded bg-navy-700/70 px-1.5 py-0.5 text-[9.5px] font-semibold uppercase tracking-wide text-ink-dim">
               {machine.type}
             </span>
+            {machine.predictionInputs?.machine_input_source === 'simulated' &&
+              machine.predictionInputs.sensor_input_source === 'simulated' && (
+                <SimulatedPredictionBadge />
+              )}
           </div>
           <p className="mt-1 truncate text-[11.5px] text-ink-dim">{machine.name}</p>
           <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1.5">
@@ -65,7 +73,10 @@ export default function MachineCard({ machine }: { machine: Machine }) {
                 status={machine.prediction?.status}
               />
               <p className="mt-0.5 text-[8px] text-ink-faint">
-                {t('Model health / status')}
+                {t('Model health proxy')}
+              </p>
+              <p className="text-[8px] text-ink-faint">
+                {t('Derived from failure probability, not live telemetry.')}
               </p>
               <p className="text-[8px] font-medium text-ink-dim">
                 {t(healthBandLabel(machine.healthScore, thresholds))}
