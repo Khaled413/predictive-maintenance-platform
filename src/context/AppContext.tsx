@@ -191,7 +191,10 @@ function loadState(): PersistedState {
           })),
           documents: (parsed.documents ?? SEED_DOCUMENTS).map((document) => ({
             ...document,
-            status: document.status === 'Processed' ? 'Metadata Only' : document.status,
+            status:
+              document.status === 'Processed' && !document.indexedDocumentId
+                ? 'Metadata Only'
+                : document.status,
             pages: document.pages ?? null,
             isDemo: document.isDemo ?? true,
           })),
@@ -582,7 +585,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const addDocument = useCallback((d: KnowledgeDoc) => {
     setState((s) => ({
       ...s,
-      documents: [{ ...d, isDemo: d.isDemo ?? false }, ...s.documents],
+      documents: s.documents.some(
+        (document) =>
+          document.id === d.id ||
+          (!!d.indexedDocumentId && document.indexedDocumentId === d.indexedDocumentId),
+      )
+        ? s.documents
+        : [{ ...d, isDemo: d.isDemo ?? false }, ...s.documents],
     }))
   }, [])
 

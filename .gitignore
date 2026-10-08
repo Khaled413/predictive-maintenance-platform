@@ -73,6 +73,7 @@ ml/quality/weights/
 ml/quality/data/
 ml/quality/results/
 .venv-quality/
+ml/assistant/data/
 
 # Jupyter
 .ipynb_checkpoints

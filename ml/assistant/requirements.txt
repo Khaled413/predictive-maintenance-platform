@@ -1,0 +1,11 @@
+-c ../requirements.txt
+groq>=0.13,<1
+qdrant-client>=1.12,<2
+sentence-transformers>=3.3,<6
+hf-xet>=1,<2
+pypdf>=5,<7
+python-dotenv>=1,<2
+gradio-client>=1.7,<2
+PyMuPDF>=1.24,<2
+easyocr>=1.7,<2
+opencv-python-headless==4.11.0.86

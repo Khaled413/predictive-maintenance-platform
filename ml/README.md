@@ -84,6 +84,17 @@ It does not classify defect names. If the checkpoint or optional dependency is
 missing, the endpoint returns HTTP 503; it does not return a heuristic or
 simulated verdict. See [the quality setup guide](quality/README.md).
 
+## AI Assistant and RAG
+
+The React assistant is backed by the same FastAPI process as maintenance
+inference. It uses a local multilingual embedding model and local persistent
+Qdrant storage for PDF/TXT retrieval, and can include current non-demo machine
+predictions and work orders as explicit context. Optional cloud features use
+Groq for chat, vision, and audio transcription, and a hosted Gradio Space for
+speech output. See [the assistant setup guide](assistant/README.md) for
+dependencies, local `.env` configuration, data boundaries, and model download
+requirements.
+
 Run the backend locally from this directory with
 `python -m pip install -r requirements.txt` and
 `python -m uvicorn main:app --host 0.0.0.0 --port 8001`. Research and notebook

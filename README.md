@@ -34,7 +34,7 @@ a Python inference service for predictive maintenance.
 | `/alerts` | Machine alerts, severity filters, and recommended actions |
 | `/reports` | Analytics from eligible prediction and work-order records; CSV export |
 | `/quality` | Explicitly simulated image-inspection demo |
-| `/assistant` | Local-state assistant demo and metadata-only document list |
+| `/assistant` | RAG assistant for indexed documents, current model outputs, and work orders |
 | `/settings` | Display thresholds, preferences, and local data management |
 
 ## How predictions work
@@ -91,6 +91,25 @@ environment used by the ML service. This is separate from the default
 `setup:ml` install; the existing demo and failure-prediction API do not require
 anomalib.
 
+## AI Assistant and document retrieval
+
+The `/assistant` screen keeps the project's React design and calls the main
+FastAPI service for RAG chat, PDF/TXT indexing, optional image analysis,
+microphone transcription, and response speech. Embeddings and Qdrant vectors
+stay local. Groq receives questions, retrieved document passages, and optional
+images/audio; response text is sent to the hosted TTS service when read aloud.
+The source project's `.env`, virtual environment, and standalone HTML UI are
+not copied.
+
+Install the optional runtime with `npm run setup:assistant`, then add
+`GROQ_API_KEY` to the ignored root `.env` file. The first document upload or
+search downloads the multilingual E5 embedding model (about 2 GB). Only PDF
+and UTF-8 TXT files are supported for indexing. See
+[the assistant setup guide](ml/assistant/README.md) for local storage, privacy,
+model configuration, and OCR details. Missing dependencies or credentials
+produce explicit unavailable/error states; the UI no longer fabricates chat
+answers or claims document contents are indexed when they are not.
+
 Machine cards and details show a compact bar for each of the five numeric
 failure-model inputs. The failure-probability bar is the saved model's output
 and marks the configured warning and critical risk thresholds. Each machine
@@ -124,8 +143,8 @@ is on schedule, warning is due soon, and critical calls for immediate service.
 | Reports export | CSV is generated; PDF and Excel export are unavailable |
 | Arabic and English UI | Central translation dictionary with RTL layout |
 | Global search and dashboard actions | Search local machine, alert, and work-order records; actions navigate to existing flows |
-| Assistant responses | Rule-based local/demo summaries; no LLM or document retrieval |
-| Document upload | Metadata-only browser record; file contents are not stored, parsed, or searchable |
+| Assistant responses | Groq answers grounded in local document retrieval and current non-demo project predictions/work orders |
+| Document upload | PDF/TXT parsing and local vector indexing; optional Arabic/English OCR for scanned PDFs |
 | Image quality inspection | Deterministic demo output; not connected to a trained vision model |
 
 Model recommendations are decision-support outputs, not safety instructions.

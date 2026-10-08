@@ -1,7 +1,7 @@
 from datetime import datetime
 import math
 import re
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import (
     BaseModel,
@@ -187,3 +187,109 @@ class QualityHealthResponse(BaseModel):
     model_available: bool
     checkpoint: str
     message: str | None
+
+
+class AssistantHistoryMessage(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str = Field(min_length=1, max_length=2000)
+
+
+class AssistantChatRequest(BaseModel):
+    question: str = Field(min_length=1, max_length=4000)
+    context: Literal["factory", "machine", "knowledge", "document"] = "factory"
+    machine_id: str | None = Field(default=None, max_length=128)
+    document_id: str | None = Field(default=None, max_length=64)
+    history: list[AssistantHistoryMessage] = Field(default_factory=list, max_length=12)
+    operational_context: str = Field(default="{}", max_length=20000)
+
+    @field_validator("question")
+    @classmethod
+    def question_must_not_be_blank(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("question must not be blank")
+        return value.strip()
+
+    @field_validator("operational_context")
+    @classmethod
+    def operational_context_must_be_json(cls, value: str) -> str:
+        import json
+
+        try:
+            parsed = json.loads(value)
+        except json.JSONDecodeError as exc:
+            raise ValueError("operational_context must be valid JSON") from exc
+        if not isinstance(parsed, dict):
+            raise ValueError("operational_context must be a JSON object")
+        return value
+
+    @model_validator(mode="after")
+    def selected_context_must_have_its_identifier(self) -> "AssistantChatRequest":
+        if self.context == "machine" and not self.machine_id:
+            raise ValueError("machine_id is required for machine context")
+        if self.context == "document" and not self.document_id:
+            raise ValueError("document_id is required for document context")
+        return self
+
+
+class AssistantSource(BaseModel):
+    filename: str
+    page: int | None = None
+    machine: str | None = None
+    section: str | None = None
+    subsection: str | None = None
+    topic: str | None = None
+    error_code: str | None = None
+    content_type: str | None = None
+    score: FiniteFloat = Field(ge=0, le=1)
+
+
+class AssistantChatResponse(BaseModel):
+    answer: str
+    sources: list[AssistantSource] = Field(default_factory=list)
+    intent: str
+    image_analysis: str | None = None
+
+
+class AssistantHealthResponse(BaseModel):
+    status: Literal["ready", "unavailable"]
+    provider_configured: bool
+    embedding_model_loaded: bool
+    indexed_documents: int | None
+    ocr_available: bool
+    speech_output_available: bool
+    message: str | None
+
+
+class AssistantDocumentResponse(BaseModel):
+    document_id: str
+    filename: str
+    pages: int
+    chunks: int = Field(ge=1)
+    warnings: list[str] = Field(default_factory=list)
+
+
+class IndexedAssistantDocument(BaseModel):
+    document_id: str
+    filename: str
+    pages: int = Field(ge=0)
+    chunks: int = Field(ge=1)
+    uploaded_at: int = Field(ge=0)
+
+
+class AssistantDocumentListResponse(BaseModel):
+    documents: list[IndexedAssistantDocument]
+
+
+class AssistantSpeechRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=2500)
+
+    @field_validator("text")
+    @classmethod
+    def speech_text_must_not_be_blank(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("text must not be blank")
+        return value.strip()
+
+
+class AssistantSpeechChunksResponse(BaseModel):
+    chunks: list[str]

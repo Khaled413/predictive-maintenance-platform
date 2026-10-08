@@ -6,11 +6,19 @@ import {
   Database,
   Eye,
   FileText,
+  ImagePlus,
+  LoaderCircle,
+  Mic,
+  MicOff,
   Plus,
+  PhoneCall,
+  PhoneOff,
   Router,
   SendHorizonal,
   Sparkles,
   Trash2,
+  Volume2,
+  X,
 } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { usePreferences } from '../context/PreferencesContext'
@@ -19,13 +27,24 @@ import UploadZone from '../components/ui/UploadZone'
 import { cx, formatDateTime, nowIso, timeAgo } from '../utils/helpers'
 import { hasProvidedPrediction } from '../utils/operationalMetrics'
 import type { ChatMessage, Conversation, KnowledgeDoc, Machine, MaintenanceRecord } from '../types'
+import {
+  askAssistant,
+  deleteIndexedAssistantDocument,
+  getAssistantHealth,
+  listIndexedAssistantDocuments,
+  splitAssistantSpeech,
+  synthesizeAssistantSpeech,
+  transcribeAssistantAudio,
+  uploadAssistantDocument,
+} from '../data/assistantApi'
+import type { AssistantHealth } from '../data/assistantApi'
 
 type AskContext = 'factory' | 'machine' | 'knowledge' | 'document'
 
 const CONTEXTS: { key: AskContext; label: string; desc: string }[] = [
-  { key: 'factory', label: 'Entire Factory', desc: 'Answers across the whole fleet' },
-  { key: 'machine', label: 'Specific Machine', desc: 'Answers scoped to one machine' },
-  { key: 'knowledge', label: 'Knowledge Base', desc: 'Answers grounded in documents' },
+  { key: 'factory', label: 'Entire Factory', desc: 'Current model outputs and work orders' },
+  { key: 'machine', label: 'Specific Machine', desc: 'Current model output for one machine' },
+  { key: 'knowledge', label: 'Knowledge Base', desc: 'Answers grounded in indexed documents' },
   { key: 'document', label: 'Uploaded Document', desc: 'Answers from a single file' },
 ]
 
@@ -38,136 +57,74 @@ const SUGGESTED_PROMPTS = [
   'What machines have abnormal vibration?',
 ]
 
-const DOC_TYPES = ['PDF', 'DOCX', 'TXT', 'CSV', 'XLSX']
+const DOC_TYPES = ['PDF', 'TXT']
 
-function summarize(
-  machines: Machine[],
-  maintenance: MaintenanceRecord[],
-): { atRisk: Machine[]; critical: Machine[]; vibration: Machine[]; due: MaintenanceRecord[]; avgHealth: number | null; predicted: Machine[] } {
-  const predicted = machines.filter(hasProvidedPrediction)
-  const atRisk = predicted.filter((m) => m.status === 'Critical' || m.status === 'Warning')
-  const critical = predicted.filter((m) => m.status === 'Critical')
-  const vibration = machines.filter((m) =>
-    m.sensors.some((s) => s.name.toLowerCase() === 'vibration' && s.level !== 'green'),
-  )
-  const nextWeek = Date.now() + 7 * 86_400_000
-  const due = maintenance.filter((r) => {
-    const date = Date.parse(r.date)
-    return !r.isDemo && (r.status === 'Scheduled' || r.status === 'Recommended' || r.status === 'In Progress') &&
-      Number.isFinite(date) && date >= Date.now() && date <= nextWeek
-  })
-  const avgHealth = predicted.length
-    ? Math.round(predicted.reduce((a, m) => a + (m.healthScore ?? 0), 0) / predicted.length)
-    : null
-  return { atRisk, critical, vibration, due, avgHealth, predicted }
-}
-function buildReply(
-  text: string,
-  machines: Machine[],
-  maintenance: MaintenanceRecord[],
-  docs: KnowledgeDoc[],
+function buildOperationalContext(
   context: AskContext,
-  contextMachine?: Machine,
-): { content: string; sources?: string[] } {
-  const t = text.toLowerCase()
-  const agg = summarize(machines, maintenance)
-  const m = contextMachine ?? machines.find((x) => x.id === (t.match(/m-\d{3}/)?.[0] ?? '').toUpperCase())
-
-  if (/summarize.*maintenance|maintenance.*history/.test(t)) {
-    const done = maintenance.filter((r) => r.status === 'Completed')
-    const actualCosts = done.filter((record) => record.actualCost !== null && record.actualCost !== undefined)
-    const avgCost = actualCosts.length
-      ? `$${Math.round(actualCosts.reduce((sum, record) => sum + (record.actualCost ?? 0), 0) / actualCosts.length).toLocaleString()}`
-      : 'N/A — no actual completion costs recorded'
+  machineId: string,
+  machines: Machine[],
+  maintenance: MaintenanceRecord[],
+) {
+  if (context !== 'factory' && context !== 'machine') return JSON.stringify({ scope: context })
+  const scopedMachines = context === 'machine'
+    ? machines.filter((machine) => machine.id === machineId)
+    : machines
+  const predictions = scopedMachines.filter(hasProvidedPrediction).map((machine) => {
+    const prediction = machine.prediction!
     return {
-      content:
-        `Local work-order record summary (includes demo records):\n\n• Total work orders: ${maintenance.length}\n• Recommended: ${maintenance.filter((r) => r.status === 'Recommended').length}\n• Scheduled: ${maintenance.filter((r) => r.status === 'Scheduled').length}\n• In progress: ${maintenance.filter((r) => r.status === 'In Progress').length}\n• Completed: ${done.length}\n• Average recorded actual cost: ${avgCost}\n\nWork-type and machine cost rankings are not reported because the available records do not establish that their values are actual.`,
+      machine_id: machine.id,
+      name: machine.name,
+      type: machine.type,
+      health_score: prediction.health_score,
+      failure_probability: prediction.failure_probability,
+      failure_type: prediction.failure_type,
+      status: prediction.status,
+      recommendation: prediction.recommendation,
+      prediction_source: prediction.prediction_source,
+      data_source: prediction.data_source,
+      machine_inputs_simulated: prediction.machine_inputs_simulated,
+      sensor_inputs_simulated: prediction.sensor_inputs_simulated,
+      latest_reading_at: prediction.latest_reading_at,
+      timestamp: prediction.timestamp,
     }
-  }
-
-  if (m && /(\bwhy\b|factors|affecting|vibration|risk|health)/.test(t)) {
-    if (m.predictionStatus !== 'available' || m.healthScore === null || m.failureRisk === null) {
-      return { content: `${m.id} has no current model output. ML prediction service unavailable; health, risk, status, and recommendation are not available.` }
-    }
-    return {
-      content: `${m.id} (${m.name}) — ${m.type}:\n\n• Health score: ${m.healthScore}%\n• Failure probability: ${m.failureRisk.toFixed(1)}%\n• Model status: ${m.status}\n• Model recommendation: ${m.recommendation}${m.maintenanceStatus === 'Overdue' ? '\n• Maintenance schedule: OVERDUE — arrange the overdue maintenance separately; the model recommendation does not update the schedule.' : ''}\n• Model inputs are simulated demo values; the displayed sensor readings below are illustrative only and were not used by the model.\n\nIllustrative display-only readings:\n${m.sensors
-        .map(
-          (s) =>
-            `• ${s.name}: ${s.value} ${s.unit} (band ${s.min}–${s.max}) — ${s.level === 'green' ? 'normal' : s.level === 'amber' ? 'approaching limit' : 'exceeds limit'}`,
-        )
-        .join('\n')}\n\nModel failure type: ${m.likelihood ?? 'No failure type classified by the model'}. Follow the model recommendation above separately from the maintenance schedule.`,
-    }
-  }
-
-  if (/(risk|at risk|critical|concern)/.test(t)) {
-    if (!agg.atRisk.length) {
-      return {
-        content: agg.predicted.length
-          ? 'No currently available model predictions place a machine at risk.'
-          : 'ML prediction service unavailable. Current fleet risk status cannot be determined.',
-      }
-    }
-    return {
-      content: `Currently ${agg.atRisk.length} machines are at risk:\n\n${agg.atRisk
-        .map((x) => `• ${x.id} — ${x.type}: health ${x.healthScore}%, failure risk ${x.failureRisk?.toFixed(1) ?? '—'}% (${x.likelihood ?? 'No failure type classified'})`)
-        .join('\n')}\n\n${agg.critical.length
-        ? `Priority: ${agg.critical.map((c) => c.id).join(', ')} should be addressed first.`
-        : 'Monitoring continues — no critical threshold crossed yet.'}`,
-    }
-  }
-
-  if (/maintenance.*(week|due|next)|due.*maintenance|need maintenance/.test(t)) {
-    if (!agg.due.length) {
-      return { content: 'No active work orders are dated within the next 7 days in the local records. Schedule capacity is not available.' }
-    }
-    return {
-      content: `${agg.due.length} active work orders are dated within the next 7 days in the local records:\n\n${agg.due
-        .map((r) => `• ${r.machineId} — ${r.type} (${r.status.toLowerCase()}, priority ${r.priority})`)
-        .join('\n')}`,
-    }
-  }
-
-  if (/vibration|abnormal/.test(t)) {
-    if (!agg.vibration.length) {
-      return { content: 'No illustrative demo vibration readings are currently outside their display bands. These values are not live sensor telemetry and are not model inputs.' }
-    }
-    return {
-      content: `Machines with abnormal vibration:\n\n${agg.vibration
-        .map(
-          (x) =>
-            `• ${x.id} — ${x.name}: illustrative demo vibration reading ${x.sensors.find((s) => s.name.toLowerCase() === 'vibration')?.value}${x.sensors.find((s) => s.name.toLowerCase() === 'vibration')?.unit}; not used by model (${x.status?.toLowerCase() ?? 'prediction unavailable'})`,
-        )
-        .join('\n')}\n\nThese are illustrative display-only values. The platform cannot determine physical vibration condition or recommend a cause from them.`,
-    }
-  }
-
-  if (/(document|manual|pdf|procedure|knowledge)/.test(t)) {
-    const tracked = docs.length
-    return {
-      content: tracked
-        ? `${tracked} document record(s) are listed, but document content retrieval is not implemented. I cannot search their contents or provide document-grounded answers.`
-        : 'No document records are available. Document-content retrieval is not implemented.',
-    }
-  }
-
-  if (/health/.test(t)) {
-    if (agg.avgHealth === null) {
-      return { content: 'ML prediction service unavailable. No current model health scores are available.' }
-    }
-    return {
-      content: `Average current model health score is ${Math.round(agg.avgHealth)}% across ${agg.predicted.length} machines with available predictions. Model status counts: ${agg.predicted.filter((machine) => machine.status === 'Operational').length} operational, ${agg.predicted.filter((machine) => machine.status === 'Warning').length} warning, ${agg.predicted.filter((machine) => machine.status === 'Critical').length} critical.`,
-    }
-  }
-
-  const machineLabel = m ? `${m.id} (${m.name})` : context === 'machine' ? 'the selected machine' : 'the fleet'
-  const ctxNote =
-    context === 'knowledge' || context === 'document'
-      ? 'I used the uploaded documents to ground this answer.'
-      : 'This answer is generated from the current local demo state and saved model outputs; sensor display values are illustrative, not live telemetry.'
-  return {
-    content: `Here is what I can tell you about ${machineLabel}:\n\n• Fleet average health: ${agg.avgHealth === null ? 'ML prediction service unavailable' : `${Math.round(agg.avgHealth)}%`}\n• At-risk machines: ${agg.atRisk.length} (${agg.atRisk.length ? agg.atRisk.map((x) => x.id).join(', ') : agg.predicted.length ? 'none in current predictions' : 'prediction service unavailable'})\n• Due maintenance: ${agg.due.length} tasks\n\n${ctxNote}\n\nI can help with machine details (“Why is M-003 critical?”), weekly maintenance planning, vibration anomalies, health trends and knowledge base questions.`,
-  }
+  })
+  const workOrders = maintenance
+    .filter((record) =>
+      !record.isDemo &&
+      (context !== 'machine' || record.machineId === machineId),
+    )
+    .slice(0, 100)
+    .map((record) => ({
+      machine_id: record.machineId,
+      type: record.type,
+      reason: record.reason,
+      priority: record.priority,
+      date: record.date,
+      status: record.status,
+      actual_cost: record.actualCost,
+      completion_notes: record.completionNotes,
+    }))
+  return JSON.stringify({
+    scope: context,
+    generated_at: new Date().toISOString(),
+    source: 'Current project model outputs and non-demo work orders',
+    model_predictions: predictions,
+    unavailable_prediction_machine_ids: scopedMachines
+      .filter((machine) => !hasProvidedPrediction(machine))
+      .map((machine) => machine.id),
+    work_orders: workOrders,
+    rule: 'Illustrative sensor display values and demo records are excluded.',
+  })
 }
+
+function formatSources(
+  sources: { filename: string; page: number | null; section: string | null }[],
+) {
+  return sources.map((source) =>
+    `${source.filename}${source.page ? ` · p. ${source.page}` : ''}${source.section ? ` · ${source.section}` : ''}`,
+  )
+}
+
 type CtxMap = {
   factory: { label: string; desc: string }
   machine: { label: string; desc: string }
@@ -182,47 +139,165 @@ export default function AssistantPage() {
 
   const [ctx, setCtx] = useState<AskContext>('factory')
   const [machineId, setMachineId] = useState('M-003')
-  const [docId, setDocId] = useState('DOC-001')
+  const [docId, setDocId] = useState('')
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [typing, setTyping] = useState(false)
   const [conversations, setConversations] = useState<Conversation[]>([])
+  const [assistantHealth, setAssistantHealth] = useState<AssistantHealth | null>(null)
+  const [uploadingDocument, setUploadingDocument] = useState(false)
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [recording, setRecording] = useState(false)
+  const [transcribing, setTranscribing] = useState(false)
+  const [speakingMessage, setSpeakingMessage] = useState<string | null>(null)
+  const [liveVoiceOpen, setLiveVoiceOpen] = useState(false)
+  const [liveVoiceStatus, setLiveVoiceStatus] = useState<'idle' | 'requesting' | 'listening' | 'transcribing' | 'thinking' | 'speaking' | 'error'>('idle')
+  const [liveVoiceCaption, setLiveVoiceCaption] = useState('')
   const scrollRef = useRef<HTMLDivElement>(null)
+  const imageInputRef = useRef<HTMLInputElement>(null)
+  const recorderRef = useRef<MediaRecorder | null>(null)
+  const mediaStreamRef = useRef<MediaStream | null>(null)
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+  const audioUrlRef = useRef<string | null>(null)
+  const liveVoiceActiveRef = useRef(false)
+  const liveVoiceSessionRef = useRef(0)
+  const liveVoiceStreamRef = useRef<MediaStream | null>(null)
+  const liveVoiceRecorderRef = useRef<MediaRecorder | null>(null)
+  const liveVoiceAudioContextRef = useRef<AudioContext | null>(null)
+  const liveVoiceAnimationRef = useRef<number | null>(null)
+  const liveVoiceAudioRef = useRef<HTMLAudioElement | null>(null)
+  const liveVoiceAudioUrlRef = useRef<string | null>(null)
+  const liveVoiceAudioStopRef = useRef<(() => void) | null>(null)
+  const liveVoiceRetryTimerRef = useRef<number | null>(null)
+  const liveVoiceMessagesRef = useRef<ChatMessage[]>([])
+  const liveVoiceContextRef = useRef<{
+    context: AskContext
+    machineId: string
+    documentId?: string
+    operationalContext: string
+  } | null>(null)
+  const indexedSyncStarted = useRef(false)
+  const initialDocuments = useRef(documents)
+  const appActions = useRef({ addDocument, notify })
+  const indexedDocs = documents.filter((document) => !!document.indexedDocumentId)
+  appActions.current = { addDocument, notify }
 
   const ctxMeta: CtxMap = {
     factory: { label: 'Entire Factory', desc: 'Answers across the whole fleet' },
     machine: { label: 'Specific Machine', desc: machineId },
-    knowledge: { label: 'Knowledge Base', desc: `${documents.length} document records; content search unavailable` },
-    document: { label: 'Uploaded Document', desc: documents.find((d) => d.id === docId)?.name ?? '—' },
+    knowledge: { label: 'Knowledge Base', desc: `${indexedDocs.length} indexed documents` },
+    document: { label: 'Uploaded Document', desc: indexedDocs.find((d) => d.id === docId)?.name ?? 'Select an indexed file' },
   }
-//<<NEXT2>>
 
-  const send = (textOverride?: string) => {
+  useEffect(() => {
+    void getAssistantHealth()
+      .then((health) => {
+        setAssistantHealth(health)
+      })
+      .catch((error: unknown) => {
+        setAssistantHealth(null)
+        appActions.current.notify('warning', 'AI Assistant status unavailable', error instanceof Error ? error.message : 'Could not reach the assistant API.')
+      })
+    if (indexedSyncStarted.current) return
+    indexedSyncStarted.current = true
+    void listIndexedAssistantDocuments()
+      .then((serverDocuments) => {
+        serverDocuments.forEach((document) => {
+          if (initialDocuments.current.some((stored) => stored.indexedDocumentId === document.document_id)) return
+          const extension = document.filename.split('.').pop()?.toUpperCase() ?? 'PDF'
+          appActions.current.addDocument({
+            id: `DOC-${document.document_id}`,
+            name: document.filename,
+            type: extension,
+            size: 'Indexed',
+            uploadDate: new Date(document.uploaded_at).toISOString(),
+            status: 'Processed',
+            pages: document.pages,
+            source: 'Local RAG index',
+            indexedDocumentId: document.document_id,
+            chunkCount: document.chunks,
+            isDemo: false,
+          })
+        })
+      })
+      .catch((error: unknown) => appActions.current.notify(
+        'warning',
+        'Indexed documents could not be loaded',
+        error instanceof Error ? error.message : 'Could not load the local document index.',
+      ))
+  }, [])
+
+  useEffect(() => {
+    if (indexedDocs.some((document) => document.id === docId)) return
+    setDocId(indexedDocs[0]?.id ?? '')
+  }, [docId, indexedDocs])
+
+  useEffect(() => () => {
+    recorderRef.current?.stop()
+    mediaStreamRef.current?.getTracks().forEach((track) => track.stop())
+    audioRef.current?.pause()
+    if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current)
+    liveVoiceActiveRef.current = false
+    liveVoiceSessionRef.current += 1
+    if (liveVoiceAnimationRef.current !== null) cancelAnimationFrame(liveVoiceAnimationRef.current)
+    if (liveVoiceRetryTimerRef.current !== null) window.clearTimeout(liveVoiceRetryTimerRef.current)
+    if (liveVoiceRecorderRef.current?.state !== 'inactive') liveVoiceRecorderRef.current?.stop()
+    liveVoiceStreamRef.current?.getTracks().forEach((track) => track.stop())
+    void liveVoiceAudioContextRef.current?.close()
+    liveVoiceAudioRef.current?.pause()
+    if (liveVoiceAudioUrlRef.current) URL.revokeObjectURL(liveVoiceAudioUrlRef.current)
+    liveVoiceAudioStopRef.current?.()
+  }, [])
+
+  const send = async (textOverride?: string) => {
     const text = (textOverride ?? input).trim()
-    if (!text || typing) return
-    const contextMachine = ctx === 'machine' ? machines.find((m) => m.id === machineId) : undefined
+    if (!text || typing || (ctx === 'document' && !docId)) {
+      if (ctx === 'document' && !docId) {
+        notify('warning', 'Select an indexed document', 'Upload and index a PDF or TXT file before asking about one document.')
+      }
+      return
+    }
+    const currentImage = imageFile
+    const previousMessages = messages
     const userMsg: ChatMessage = {
       id: `u-${Date.now()}`,
       role: 'user',
-      content: text,
+      content: currentImage ? `${text}\n[Image attached: ${currentImage.name}]` : text,
       timestamp: nowIso(),
     }
-    setMessages((m) => [...m, userMsg])
+    setMessages([...previousMessages, userMsg])
     setInput('')
+    setImageFile(null)
     setTyping(true)
-    const reply = buildReply(text, machines, maintenance, documents, ctx, contextMachine)
-    window.setTimeout(() => {
+    try {
+      const reply = await askAssistant({
+        question: text,
+        context: ctx,
+        machineId: ctx === 'machine' ? machineId : undefined,
+        documentId: ctx === 'document'
+          ? indexedDocs.find((document) => document.id === docId)?.indexedDocumentId
+          : undefined,
+        history: previousMessages.slice(-10).map(({ role, content }) => ({ role, content })),
+        operationalContext: buildOperationalContext(ctx, machineId, machines, maintenance),
+      }, currentImage)
       const assistantMsg: ChatMessage = {
         id: `a-${Date.now()}`,
         role: 'assistant',
-        content: reply.content,
-        sources: reply.sources,
+        content: reply.image_analysis
+          ? `Image analysis:\n${reply.image_analysis}\n\n${reply.answer}`
+          : reply.answer,
+        sources: formatSources(reply.sources),
         timestamp: nowIso(),
       }
       setMessages((m) => [...m, assistantMsg])
-      setTyping(false)
+      setAssistantHealth((health) => health ? { ...health, embedding_model_loaded: true } : health)
       refreshTimestamp()
-    }, 850 + Math.floor(Math.random() * 600))
+    } catch (error) {
+      setImageFile(currentImage)
+      notify('error', 'AI Assistant request failed', error instanceof Error ? error.message : 'The assistant could not complete the request.')
+    } finally {
+      setTyping(false)
+    }
   }
 
   const newChat = () => {
@@ -257,29 +332,422 @@ export default function AssistantPage() {
     setSearchParams({}, { replace: true })
   }, [searchParams, setSearchParams])
 
-  const handleDocUpload = (file: File) => {
-    // Determine type from extension
-    const ext = (file.name.split('.').pop() ?? 'pdf').toUpperCase()
-    const type = ext === 'XLS' ? 'XLSX' : DOC_TYPES.includes(ext) ? ext : 'PDF'
-    const id = `DOC-${crypto.randomUUID()}`
+  useEffect(() => {
+    if (!liveVoiceOpen) return
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') closeLiveVoice()
+    }
+    window.addEventListener('keydown', closeOnEscape)
+    return () => window.removeEventListener('keydown', closeOnEscape)
+  }, [liveVoiceOpen])
+
+  const handleDocUpload = async (file: File) => {
+    if (uploadingDocument) return
+    const ext = (file.name.split('.').pop() ?? '').toUpperCase()
+    if (!DOC_TYPES.includes(ext)) {
+      notify('warning', 'Unsupported document format', 'Upload a PDF or UTF-8 TXT file.')
+      return
+    }
     const sizeMb = file.size / (1024 * 1024)
     const size = sizeMb < 1 ? `${Math.max(1, Math.round(sizeMb * 1000))} KB` : `${(sizeMb).toFixed(1)} MB`
-    addDocument({
-      id,
-      name: file.name,
-      type,
-      size,
-      uploadDate: nowIso(),
-      status: 'Metadata Only',
-      pages: null,
-      source: 'Uploaded by user',
-      isDemo: false,
+    setUploadingDocument(true)
+    try {
+      const indexed = await uploadAssistantDocument(file)
+      const indexedDocument: KnowledgeDoc = {
+        id: `DOC-${indexed.document_id}`,
+        name: indexed.filename,
+        type: ext,
+        size,
+        uploadDate: nowIso(),
+        status: 'Processed',
+        pages: indexed.pages,
+        source: 'Indexed in local knowledge base',
+        indexedDocumentId: indexed.document_id,
+        chunkCount: indexed.chunks,
+        isDemo: false,
+      }
+      initialDocuments.current = [...initialDocuments.current, indexedDocument]
+      addDocument(indexedDocument)
+      setAssistantHealth((health) => health
+        ? { ...health, indexed_documents: (health.indexed_documents ?? 0) + 1, embedding_model_loaded: true }
+        : health)
+      notify(
+        indexed.warnings.length ? 'warning' : 'success',
+        indexed.warnings.length ? 'Document indexed with warnings' : 'Document indexed',
+        `${file.name} · ${indexed.chunks} searchable sections${indexed.warnings.length ? ` · ${indexed.warnings.join(' ')}` : ''}`,
+      )
+      refreshTimestamp()
+    } catch (error) {
+      notify('error', 'Document indexing failed', error instanceof Error ? error.message : 'The document was not indexed.')
+    } finally {
+      setUploadingDocument(false)
+    }
+  }
+
+  const toggleRecording = async () => {
+    if (recording) {
+      recorderRef.current?.stop()
+      setRecording(false)
+      return
+    }
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
+      notify('warning', 'Microphone unavailable', 'This browser does not support audio recording.')
+      return
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      mediaStreamRef.current = stream
+      const recorder = new MediaRecorder(stream)
+      const chunks: BlobPart[] = []
+      recorderRef.current = recorder
+      recorder.ondataavailable = (event) => {
+        if (event.data.size) chunks.push(event.data)
+      }
+      recorder.onerror = () => {
+        stream.getTracks().forEach((track) => track.stop())
+        setRecording(false)
+        notify('error', 'Recording failed', 'The browser could not record microphone audio.')
+      }
+      recorder.onstop = () => {
+        stream.getTracks().forEach((track) => track.stop())
+        mediaStreamRef.current = null
+        recorderRef.current = null
+        const audio = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' })
+        if (!audio.size) return
+        setTranscribing(true)
+        void transcribeAssistantAudio(audio)
+          .then((text) => setInput((current) => current ? `${current} ${text}` : text))
+          .then(() => notify('success', 'Audio transcribed', 'Review the recognized text before sending.'))
+          .catch((error: unknown) => notify('error', 'Audio transcription failed', error instanceof Error ? error.message : 'The audio could not be transcribed.'))
+          .finally(() => setTranscribing(false))
+      }
+      recorder.start()
+      setRecording(true)
+    } catch (error) {
+      mediaStreamRef.current?.getTracks().forEach((track) => track.stop())
+      mediaStreamRef.current = null
+      notify('error', 'Microphone access failed', error instanceof Error ? error.message : 'Allow microphone access and try again.')
+    }
+  }
+
+  const speakMessage = async (message: ChatMessage) => {
+    if (speakingMessage === message.id) {
+      audioRef.current?.pause()
+      audioRef.current = null
+      if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current)
+      audioUrlRef.current = null
+      setSpeakingMessage(null)
+      return
+    }
+    try {
+      audioRef.current?.pause()
+      if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current)
+      const blob = await synthesizeAssistantSpeech(message.content)
+      const url = URL.createObjectURL(blob)
+      const audio = new Audio(url)
+      audioRef.current = audio
+      audioUrlRef.current = url
+      audio.onended = () => {
+        URL.revokeObjectURL(url)
+        audioUrlRef.current = null
+        audioRef.current = null
+        setSpeakingMessage(null)
+      }
+      setSpeakingMessage(message.id)
+      await audio.play()
+    } catch (error) {
+      setSpeakingMessage(null)
+      notify('error', 'Speech playback failed', error instanceof Error ? error.message : 'Could not generate speech.')
+    }
+  }
+
+  const closeLiveVoice = () => {
+    liveVoiceActiveRef.current = false
+    liveVoiceSessionRef.current += 1
+    setLiveVoiceOpen(false)
+    setLiveVoiceStatus('idle')
+    setLiveVoiceCaption('')
+    if (liveVoiceAnimationRef.current !== null) {
+      cancelAnimationFrame(liveVoiceAnimationRef.current)
+      liveVoiceAnimationRef.current = null
+    }
+    if (liveVoiceRetryTimerRef.current !== null) {
+      window.clearTimeout(liveVoiceRetryTimerRef.current)
+      liveVoiceRetryTimerRef.current = null
+    }
+    if (liveVoiceRecorderRef.current?.state !== 'inactive') liveVoiceRecorderRef.current?.stop()
+    liveVoiceRecorderRef.current = null
+    liveVoiceStreamRef.current?.getTracks().forEach((track) => track.stop())
+    liveVoiceStreamRef.current = null
+    void liveVoiceAudioContextRef.current?.close()
+    liveVoiceAudioContextRef.current = null
+    liveVoiceAudioStopRef.current?.()
+    liveVoiceAudioStopRef.current = null
+    liveVoiceAudioRef.current?.pause()
+    liveVoiceAudioRef.current = null
+    if (liveVoiceAudioUrlRef.current) URL.revokeObjectURL(liveVoiceAudioUrlRef.current)
+    liveVoiceAudioUrlRef.current = null
+  }
+
+  const startLiveVoiceTurn = async (session: number): Promise<void> => {
+    const stream = liveVoiceStreamRef.current
+    if (!liveVoiceActiveRef.current || !stream || session !== liveVoiceSessionRef.current) return
+
+    const audioContext = new AudioContext()
+    liveVoiceAudioContextRef.current = audioContext
+    try {
+      await audioContext.resume()
+      const analyser = audioContext.createAnalyser()
+      analyser.fftSize = 2048
+      audioContext.createMediaStreamSource(stream).connect(analyser)
+      const levels = new Uint8Array(analyser.fftSize)
+      const recorder = new MediaRecorder(stream)
+      const chunks: Blob[] = []
+      let hasSpoken = false
+      let silenceStartedAt: number | null = null
+      const startedAt = Date.now()
+      let stopped = false
+      liveVoiceRecorderRef.current = recorder
+      setLiveVoiceStatus('listening')
+
+      const stopTurn = () => {
+        if (stopped) return
+        stopped = true
+        if (liveVoiceAnimationRef.current !== null) {
+          cancelAnimationFrame(liveVoiceAnimationRef.current)
+          liveVoiceAnimationRef.current = null
+        }
+        if (recorder.state !== 'inactive') recorder.stop()
+        if (liveVoiceAudioContextRef.current === audioContext) {
+          liveVoiceAudioContextRef.current = null
+        }
+        void audioContext.close()
+      }
+
+      recorder.ondataavailable = (event) => {
+        if (event.data.size) chunks.push(event.data)
+      }
+      recorder.onerror = () => {
+        if (session !== liveVoiceSessionRef.current) return
+        notify('error', 'Live voice recording failed', 'The browser could not record microphone audio.')
+        closeLiveVoice()
+      }
+      recorder.onstop = () => {
+        if (liveVoiceRecorderRef.current === recorder) liveVoiceRecorderRef.current = null
+        if (!liveVoiceActiveRef.current || session !== liveVoiceSessionRef.current) return
+        if (!hasSpoken) {
+          liveVoiceRetryTimerRef.current = window.setTimeout(() => void startLiveVoiceTurn(session), 150)
+          return
+        }
+        const audio = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' })
+        if (!audio.size) {
+          liveVoiceRetryTimerRef.current = window.setTimeout(() => void startLiveVoiceTurn(session), 150)
+          return
+        }
+        void processLiveVoiceTurn(audio, session)
+      }
+
+      recorder.start()
+      const detectSpeech = () => {
+        if (stopped || !liveVoiceActiveRef.current || session !== liveVoiceSessionRef.current) return
+        analyser.getByteTimeDomainData(levels)
+        let sum = 0
+        for (const sample of levels) {
+          const centered = sample - 128
+          sum += centered * centered
+        }
+        const volume = Math.sqrt(sum / levels.length)
+        const now = Date.now()
+        if (volume > 6) {
+          hasSpoken = true
+          silenceStartedAt = null
+        } else if (hasSpoken) {
+          silenceStartedAt ??= now
+          if (now - silenceStartedAt >= 900) {
+            stopTurn()
+            return
+          }
+        }
+        if (now - startedAt >= 20_000) {
+          stopTurn()
+          return
+        }
+        liveVoiceAnimationRef.current = requestAnimationFrame(detectSpeech)
+      }
+      liveVoiceAnimationRef.current = requestAnimationFrame(detectSpeech)
+    } catch (error) {
+      if (session !== liveVoiceSessionRef.current) return
+      notify('error', 'Live voice unavailable', error instanceof Error ? error.message : 'Could not start microphone recording.')
+      closeLiveVoice()
+    }
+  }
+
+  const playLiveVoiceAudio = (speech: Blob, session: number): Promise<void> => {
+    if (!liveVoiceActiveRef.current || session !== liveVoiceSessionRef.current) return Promise.resolve()
+    const url = URL.createObjectURL(speech)
+    const audioPlayer = new Audio(url)
+    liveVoiceAudioRef.current = audioPlayer
+    liveVoiceAudioUrlRef.current = url
+    return new Promise<void>((resolve, reject) => {
+      let settled = false
+      const finish = (error?: Error) => {
+        if (settled) return
+        settled = true
+        audioPlayer.onended = null
+        audioPlayer.onerror = null
+        liveVoiceAudioStopRef.current = null
+        if (liveVoiceAudioRef.current === audioPlayer) liveVoiceAudioRef.current = null
+        if (liveVoiceAudioUrlRef.current === url) {
+          URL.revokeObjectURL(url)
+          liveVoiceAudioUrlRef.current = null
+        }
+        if (error) reject(error)
+        else resolve()
+      }
+      liveVoiceAudioStopRef.current = () => finish()
+      audioPlayer.onended = () => finish()
+      audioPlayer.onerror = () => finish(new Error('The generated speech could not be played.'))
+      void audioPlayer.play().catch((error: unknown) => {
+        finish(error instanceof Error ? error : new Error('The generated speech could not be played.'))
+      })
     })
-    notify('success', 'Document record saved', `${file.name} metadata was saved. Content parsing and search are not available.`)
-    refreshTimestamp()
+  }
+
+  const processLiveVoiceTurn = async (audio: Blob, session: number) => {
+    if (!liveVoiceActiveRef.current || session !== liveVoiceSessionRef.current) return
+    setLiveVoiceStatus('transcribing')
+    try {
+      const question = await transcribeAssistantAudio(audio)
+      if (!liveVoiceActiveRef.current || session !== liveVoiceSessionRef.current) return
+      setLiveVoiceCaption(question)
+
+      const context = liveVoiceContextRef.current
+      if (!context) throw new Error('The live conversation context is unavailable.')
+      const previousMessages = liveVoiceMessagesRef.current
+      const userMessage: ChatMessage = {
+        id: `u-${Date.now()}`,
+        role: 'user',
+        content: question,
+        timestamp: nowIso(),
+      }
+      const messagesWithQuestion = [...previousMessages, userMessage]
+      liveVoiceMessagesRef.current = messagesWithQuestion
+      setMessages(messagesWithQuestion)
+      setLiveVoiceStatus('thinking')
+
+      const reply = await askAssistant({
+        question,
+        context: context.context,
+        machineId: context.context === 'machine' ? context.machineId : undefined,
+        documentId: context.documentId,
+        history: previousMessages.slice(-10).map(({ role, content }) => ({ role, content })),
+        operationalContext: context.operationalContext,
+      })
+      if (!liveVoiceActiveRef.current || session !== liveVoiceSessionRef.current) return
+      const assistantMessage: ChatMessage = {
+        id: `a-${Date.now()}`,
+        role: 'assistant',
+        content: reply.answer,
+        sources: formatSources(reply.sources),
+        timestamp: nowIso(),
+      }
+      const messagesWithAnswer = [...messagesWithQuestion, assistantMessage]
+      liveVoiceMessagesRef.current = messagesWithAnswer
+      setMessages(messagesWithAnswer)
+      setLiveVoiceCaption(reply.answer)
+      setAssistantHealth((health) => health ? { ...health, embedding_model_loaded: true } : health)
+      refreshTimestamp()
+
+      setLiveVoiceStatus('speaking')
+      const speechChunks = await splitAssistantSpeech(reply.answer)
+      if (!speechChunks.length) throw new Error('The assistant response could not be prepared for speech.')
+      const pendingSpeech: Promise<Blob>[] = []
+      const startSpeech = (index: number) => {
+        pendingSpeech[index] = synthesizeAssistantSpeech(speechChunks[index])
+        return pendingSpeech[index]
+      }
+      if (speechChunks.length) startSpeech(0)
+      for (let index = 0; index < speechChunks.length; index += 1) {
+        if (!liveVoiceActiveRef.current || session !== liveVoiceSessionRef.current) return
+        const speech = await pendingSpeech[index]
+        if (index + 1 < speechChunks.length) startSpeech(index + 1)
+        await playLiveVoiceAudio(speech, session)
+      }
+    } catch (error) {
+      if (!liveVoiceActiveRef.current || session !== liveVoiceSessionRef.current) return
+      notify(
+        'error',
+        'Live voice response failed',
+        error instanceof Error ? error.message : 'The assistant could not complete this voice turn.',
+      )
+    }
+
+    if (liveVoiceActiveRef.current && session === liveVoiceSessionRef.current) {
+      liveVoiceRetryTimerRef.current = window.setTimeout(() => void startLiveVoiceTurn(session), 150)
+    }
+  }
+
+  const startLiveVoice = async () => {
+    if (liveVoiceActiveRef.current) return
+    if (assistantHealth?.status !== 'ready') {
+      notify('warning', 'Assistant unavailable', assistantHealth?.message ?? 'Wait for the assistant status check to finish.')
+      return
+    }
+    const selectedDocumentId = ctx === 'document'
+      ? indexedDocs.find((document) => document.id === docId)?.indexedDocumentId
+      : undefined
+    if (ctx === 'document' && !selectedDocumentId) {
+      notify('warning', 'Select an indexed document', 'Upload and index a PDF or TXT file before starting a document-scoped voice chat.')
+      return
+    }
+
+    const session = liveVoiceSessionRef.current + 1
+    liveVoiceSessionRef.current = session
+    liveVoiceActiveRef.current = true
+    liveVoiceMessagesRef.current = messages
+    liveVoiceContextRef.current = {
+      context: ctx,
+      machineId,
+      documentId: selectedDocumentId,
+      operationalContext: buildOperationalContext(ctx, machineId, machines, maintenance),
+    }
+    setLiveVoiceOpen(true)
+    setLiveVoiceStatus('requesting')
+    setLiveVoiceCaption('')
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+      })
+      if (!liveVoiceActiveRef.current || session !== liveVoiceSessionRef.current) {
+        stream.getTracks().forEach((track) => track.stop())
+        return
+      }
+      liveVoiceStreamRef.current = stream
+      await startLiveVoiceTurn(session)
+    } catch (error) {
+      if (!liveVoiceActiveRef.current || session !== liveVoiceSessionRef.current) return
+      setLiveVoiceStatus('error')
+      notify('error', 'Microphone access failed', error instanceof Error ? error.message : 'Allow microphone access and try again.')
+    }
+  }
+
+  const removeDocument = async (document: KnowledgeDoc) => {
+    try {
+      if (document.indexedDocumentId) {
+        await deleteIndexedAssistantDocument(document.indexedDocumentId)
+        setAssistantHealth((health) => health
+          ? { ...health, indexed_documents: Math.max(0, (health.indexed_documents ?? 1) - 1) }
+          : health)
+      }
+      deleteDocument(document.id)
+      notify('info', 'Document deleted', `${document.name} removed from the knowledge base.`)
+    } catch (error) {
+      notify('error', 'Document deletion failed', error instanceof Error ? error.message : 'The indexed document was not deleted.')
+    }
   }
 return (
-    <div className="grid min-w-0 items-start gap-4 xl:grid-cols-[minmax(220px,250px)_minmax(0,1fr)_minmax(260px,300px)]">
+  <>
+  <div className="grid min-w-0 items-start gap-4 xl:grid-cols-[minmax(220px,250px)_minmax(0,1fr)_minmax(260px,300px)]">
       {/* Left — saved conversations */}
       <Panel className="flex max-h-[720px] flex-col overflow-hidden xl:max-h-[760px]">
         <PanelHeader
@@ -369,9 +837,17 @@ return (
             </span>
           }
           right={
-            <span className="chip border-sky-400/25 bg-sky-500/10 text-sky-300">
+            <span
+              className={cx(
+                'chip',
+                assistantHealth?.status === 'ready'
+                  ? 'border-sky-400/25 bg-sky-500/10 text-sky-300'
+                  : 'border-amber-400/25 bg-amber-500/10 text-amber-300',
+              )}
+              title={assistantHealth?.message ?? 'RAG with local embeddings and current project data'}
+            >
               <Sparkles className="h-3 w-3" />
-              Prototype copilot
+              {assistantHealth === null ? 'Checking assistant' : assistantHealth.status === 'ready' ? 'RAG assistant' : 'Assistant setup needed'}
             </span>
           }
         />
@@ -383,7 +859,7 @@ return (
             <div className="animate-fadeUp rounded-2xl border border-line bg-navy-900/40 p-4">
               <p className="text-[13px] font-semibold text-ink">Ask about your machines, maintenance and documents</p>
               <p className="mt-1 text-[11.5px] leading-relaxed text-ink-faint">
-                Try one of these prompts — the assistant answers with simulated live data and cites sources when using the knowledge base.
+                Answers use current, non-demo model outputs and work orders, plus indexed document sources. Demo sensor values are excluded.
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
                 {SUGGESTED_PROMPTS.map((p) => (
@@ -437,6 +913,17 @@ return (
                     ))}
                   </div>
                 ) : null}
+                {msg.role === 'assistant' && (
+                  <button
+                    type="button"
+                    onClick={() => void speakMessage(msg)}
+                    className="mt-2 inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-[10px] text-ink-faint transition-colors hover:bg-navy-700 hover:text-sky-300"
+                    aria-label={speakingMessage === msg.id ? 'Stop speaking' : 'Read response aloud'}
+                  >
+                    <Volume2 className="h-3.5 w-3.5" />
+                    {speakingMessage === msg.id ? 'Stop audio' : 'Read aloud'}
+                  </button>
+                )}
                 <p className="mt-1.5 text-right font-mono text-[9px] text-ink-faint">
                   {formatDateTime(msg.timestamp)}
                 </p>
@@ -463,28 +950,83 @@ return (
           )}
         </div>
 <div className="border-t border-line px-3 py-3">
+          {imageFile && (
+            <div className="mb-2 flex items-center gap-2 rounded-lg border border-sky-400/20 bg-sky-500/5 px-2.5 py-1.5 text-[10.5px] text-ink-dim">
+              <ImagePlus className="h-3.5 w-3.5 shrink-0 text-sky-300" />
+              <span className="min-w-0 flex-1 truncate">{imageFile.name}</span>
+              <button type="button" onClick={() => setImageFile(null)} aria-label="Remove attached image">
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          )}
+          <input
+            ref={imageInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            className="hidden"
+            onChange={(event) => setImageFile(event.target.files?.[0] ?? null)}
+          />
           <div className="flex items-center gap-2.5 rounded-xl border border-line bg-navy-900/60 px-3 py-2.5">
+            <button
+              type="button"
+              onClick={() => imageInputRef.current?.click()}
+              disabled={typing}
+              className="rounded-lg p-1.5 text-ink-faint transition-colors hover:bg-navy-700 hover:text-sky-300 disabled:opacity-40"
+              aria-label="Attach an image for visual analysis"
+            >
+              <ImagePlus className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => void startLiveVoice()}
+              disabled={typing || transcribing || assistantHealth?.status !== 'ready'}
+              className="rounded-lg p-1.5 text-ink-faint transition-colors hover:bg-sky-500/10 hover:text-sky-300 disabled:opacity-40"
+              aria-label="Start live voice chat"
+              title="Start live voice chat"
+            >
+              <PhoneCall className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => void toggleRecording()}
+              disabled={typing || transcribing}
+              className={cx(
+                'rounded-lg p-1.5 transition-colors disabled:opacity-40',
+                recording ? 'bg-red-500/15 text-red-300' : 'text-ink-faint hover:bg-navy-700 hover:text-sky-300',
+              )}
+              aria-label={recording ? 'Stop recording' : 'Record a voice question'}
+              title={recording ? 'Stop recording' : transcribing ? 'Transcribing audio' : 'Record a voice question'}
+            >
+              {recording ? <MicOff className="h-4 w-4" /> : transcribing ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Mic className="h-4 w-4" />}
+            </button>
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && send()}
-              placeholder="Ask about machines, maintenance, documents…"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault()
+                  void send()
+                }
+              }}
+              placeholder={imageFile ? 'Ask a question about this image…' : 'Ask about machines, maintenance, documents…'}
               className="min-w-0 flex-1 bg-transparent text-[12.5px] text-ink placeholder:text-ink-faint outline-none"
               aria-label="Chat message"
             />
             <button
               type="button"
-              onClick={() => send()}
-              disabled={!input.trim() || typing}
+              onClick={() => void send()}
+              disabled={!input.trim() || typing || transcribing}
               className="btn-primary btn-sm px-2.5"
               aria-label="Send message"
             >
-              <SendHorizonal className="h-4 w-4" />
+              {typing ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <SendHorizonal className="h-4 w-4" />}
             </button>
           </div>
           <div className="mt-1.5 flex items-center gap-1.5 text-[9.5px] text-ink-faint">
             <BrainCircuit className="h-3 w-3" />
-            Simulated assistant — no live LLM calls. Responses are generated from demo data.
+            {assistantHealth?.status === 'ready'
+              ? 'Local document search · project model data · Groq AI'
+              : assistantHealth?.message ?? 'Connect the assistant runtime and configure GROQ_API_KEY to begin.'}
           </div>
         </div>
       </Panel>
@@ -536,7 +1078,8 @@ return (
               onChange={(e) => setDocId(e.target.value)}
               aria-label="Document context"
             >
-              {documents.map((d) => (
+              {!indexedDocs.length && <option value="">No indexed documents available</option>}
+              {indexedDocs.map((d) => (
                 <option key={d.id} value={d.id}>
                   {d.name}
                 </option>
@@ -550,23 +1093,23 @@ return (
               Knowledge Base
             </p>
             <span className="chip border-sky-400/20 bg-sky-500/10 text-sky-300">
-              {documents.length} records · metadata only
+              {indexedDocs.length} indexed
             </span>
           </div>
           <div className="mt-2.5">
             <div id="assistant-document-upload">
               <UploadZone
-                accept=".pdf,.docx,.txt,.csv,.xlsx"
-                label="Upload document"
-                hint="PDF · DOCX · TXT · CSV · XLSX"
-                onFile={handleDocUpload}
+                accept=".pdf,.txt"
+                label={uploadingDocument ? 'Indexing document…' : 'Upload and index'}
+                hint="PDF · UTF-8 TXT · max 20 MB"
+                onFile={(file) => void handleDocUpload(file)}
                 compact
                 icon={<Database className="h-[18px] w-[18px]" />}
               />
             </div>
           </div>
           <div className="thin-scroll mt-3 max-h-56 space-y-1.5 overflow-y-auto">
-            {documents
+            {[...documents]
               .sort((a, b) => new Date(b.uploadDate).getTime() - new Date(a.uploadDate).getTime())
               .slice(0, 7)
               .map((d) => (
@@ -578,11 +1121,11 @@ return (
                     <p className="truncate text-[11px] font-medium text-ink">{d.name}</p>
                     <p className="text-[9.5px] text-ink-faint">
                       {d.type} · {d.size} ·{' '}
-                      {d.status === 'Metadata Only'
-                        ? 'Metadata only · content not indexed'
-                        : d.status === 'Processing'
-                          ? 'Processing unavailable'
-                          : 'Failed'}
+                      {d.indexedDocumentId
+                        ? `${d.pages ?? 0} pages · ${d.chunkCount ?? 0} searchable sections`
+                        : d.isDemo
+                          ? 'Demo metadata · not indexed'
+                          : 'Not indexed'}
                     </p>
                   </div>
                   <button
@@ -598,10 +1141,8 @@ return (
                   <button
                     type="button"
                     title="Delete document"
-                    onClick={() => {
-                      deleteDocument(d.id)
-                      notify('warning', 'Document deleted', `${d.name} removed from the knowledge base.`)
-                    }}
+                    onClick={() => void removeDocument(d)}
+                    disabled={uploadingDocument}
                     className="rounded-md p-1 text-ink-faint hover:bg-red-500/15 hover:text-red-300"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
@@ -612,11 +1153,82 @@ return (
           <div className="mt-2.5 flex items-start gap-2 rounded-xl border border-sky-400/15 bg-sky-500/5 px-2.5 py-2">
             <BrainCircuit className="mt-1 h-4 w-4 shrink-0 text-sky-300" />
             <p className="text-[10.5px] leading-relaxed text-ink-faint">
-              Document metadata is stored locally. File contents are not stored, parsed, indexed or searchable; this assistant cannot answer from uploaded documents.
+              PDF and TXT contents are chunked and embedded locally in the project&apos;s vector index. Questions, selected document passages, and optional images or audio are sent to the configured cloud AI services.
             </p>
           </div>
         </div>
       </Panel>
     </div>
+      {liveVoiceOpen && (
+        <div
+          className="fixed inset-0 z-[80] flex items-center justify-center bg-[#050b15]/85 p-4 backdrop-blur-md"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) closeLiveVoice()
+          }}
+        >
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="live-voice-title"
+            className="relative flex w-full max-w-md flex-col items-center overflow-hidden rounded-3xl border border-sky-400/20 bg-gradient-to-b from-navy-800 to-navy-950 px-6 py-7 text-center shadow-2xl shadow-sky-950/40"
+          >
+            <button
+              type="button"
+              onClick={closeLiveVoice}
+              className="absolute right-4 top-4 rounded-lg p-2 text-ink-faint transition-colors hover:bg-navy-700 hover:text-ink"
+              aria-label="Close live voice chat"
+            >
+              <X className="h-4 w-4" />
+            </button>
+            <span className="chip border-sky-400/25 bg-sky-500/10 text-sky-300">
+              <PhoneCall className="h-3 w-3" />
+              LIVE VOICE CHAT
+            </span>
+            <h2 id="live-voice-title" className="mt-4 text-base font-bold text-ink">Talk to the AI Assistant</h2>
+            <p className="mt-1 text-[11px] text-ink-faint">{ctxMeta[ctx].label} · {ctxMeta[ctx].desc}</p>
+            <div className="relative my-7 flex h-36 w-36 items-center justify-center">
+              {(liveVoiceStatus === 'listening' || liveVoiceStatus === 'speaking') && (
+                <span className="absolute inset-1 animate-ping rounded-full bg-sky-400/10" />
+              )}
+              <span
+                className={cx(
+                  'relative flex h-28 w-28 items-center justify-center rounded-full border shadow-[0_0_60px_rgba(56,189,248,0.16)] transition-all',
+                  liveVoiceStatus === 'error'
+                    ? 'border-red-400/30 bg-red-500/10 text-red-300'
+                    : liveVoiceStatus === 'thinking' || liveVoiceStatus === 'transcribing'
+                      ? 'border-amber-400/30 bg-amber-500/10 text-amber-300'
+                      : 'border-sky-400/30 bg-gradient-to-br from-sky-500/20 to-blue-700/20 text-sky-200',
+                )}
+              >
+                {liveVoiceStatus === 'requesting' || liveVoiceStatus === 'transcribing' || liveVoiceStatus === 'thinking'
+                  ? <LoaderCircle className="h-9 w-9 animate-spin" />
+                  : liveVoiceStatus === 'speaking'
+                    ? <Volume2 className="h-9 w-9" />
+                    : <Mic className="h-9 w-9" />}
+              </span>
+            </div>
+            <p className="text-[13px] font-semibold text-ink" aria-live="polite">
+              {liveVoiceStatus === 'requesting' && 'Requesting microphone access…'}
+              {liveVoiceStatus === 'listening' && 'Listening — speak naturally'}
+              {liveVoiceStatus === 'transcribing' && 'Recognizing your speech…'}
+              {liveVoiceStatus === 'thinking' && 'Preparing an answer…'}
+              {liveVoiceStatus === 'speaking' && 'Speaking…'}
+              {liveVoiceStatus === 'error' && 'Microphone could not be started'}
+            </p>
+            <p className="mt-2 min-h-12 max-w-sm whitespace-pre-line text-[11px] leading-relaxed text-ink-dim">
+              {liveVoiceCaption || 'Your microphone stays active during the call. It pauses while the assistant responds.'}
+            </p>
+            <button
+              type="button"
+              onClick={closeLiveVoice}
+              className="mt-5 inline-flex items-center gap-2 rounded-xl border border-red-400/25 bg-red-500/10 px-4 py-2.5 text-[11px] font-semibold text-red-200 transition-colors hover:bg-red-500/20"
+            >
+              <PhoneOff className="h-4 w-4" />
+              End voice chat
+            </button>
+          </section>
+        </div>
+      )}
+    </>
   )
 }

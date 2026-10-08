@@ -190,6 +190,8 @@ export interface KnowledgeDoc {
   status: DocStatus
   pages: number | null
   source: string
+  indexedDocumentId?: string
+  chunkCount?: number
   isDemo?: boolean
 }
 

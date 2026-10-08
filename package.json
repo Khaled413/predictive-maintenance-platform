@@ -8,6 +8,7 @@
     "dev:app": "vite",
     "dev:ml": "python -m uvicorn main:app --app-dir ml --host 127.0.0.1 --port 8001",
     "setup:ml": "python -m pip install -r ml/requirements.txt",
+    "setup:assistant": "python -m pip install -r ml/assistant/requirements.txt",
     "setup:quality": "python -m pip install -r ml/quality/requirements.txt",
     "build": "tsc && vite build",
     "preview": "vite preview",
