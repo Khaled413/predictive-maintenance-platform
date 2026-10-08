@@ -73,6 +73,24 @@ finishes; it does not reset work orders or other local data. Demo output is a
 model calculation on simulated inputs, not a live equipment measurement or
 field-calibrated reliability estimate.
 
+## Visual quality inspection
+
+The `/quality` page calls the optional PatchCore inference endpoint and displays
+the model's normal/anomalous result, anomaly score, and heatmap. It no longer
+generates a simulated inspection verdict. PatchCore detects visual anomalies;
+it does not identify defect names or certify product quality.
+
+The checkpoint is not included in this repository. See
+[the quality model setup guide](ml/quality/README.md) for optional dependency
+installation, checkpoint location, and training prerequisites. Until a
+compatible checkpoint and `anomalib` are installed, `GET /api/quality/health`
+reports the model unavailable and image inspection returns HTTP 503.
+
+Install the optional Python dependency with `npm run setup:quality` in the
+environment used by the ML service. This is separate from the default
+`setup:ml` install; the existing demo and failure-prediction API do not require
+anomalib.
+
 Machine cards and details show a compact bar for each of the five numeric
 failure-model inputs. The failure-probability bar is the saved model's output
 and marks the configured warning and critical risk thresholds. Each machine

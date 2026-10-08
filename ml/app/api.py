@@ -7,17 +7,31 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
-from PIL import Image
-import numpy as np
+from fastapi.concurrency import run_in_threadpool
+from PIL import Image, UnidentifiedImageError
 
 from .config import get_settings
 from .feature_engineering import maintenance_features
 from .health_decision import DecisionThresholds as HealthDecisionThresholds, decide_health
 from .inference import ModelBundle, infer, load_models
-from .schemas import HealthResponse, InspectionResponse, PredictionRequest, PredictionResponse
+from .quality_inference import (
+    QualityModelUnavailable,
+    checkpoint_path,
+    get_quality_inspector,
+    model_readiness,
+)
+from .schemas import (
+    HealthResponse,
+    InspectionResponse,
+    PredictionRequest,
+    PredictionResponse,
+    QualityHealthResponse,
+)
 
 logger = logging.getLogger(__name__)
 DEFAULT_MODELS_DIR = Path(__file__).resolve().parents[1] / "models"
+MAX_INSPECTION_IMAGE_BYTES = 10 * 1024 * 1024
+MAX_INSPECTION_IMAGE_PIXELS = 20_000_000
 
 def create_app(models_dir: str | Path | None = None) -> FastAPI:
     configured_models_dir = Path(models_dir or os.getenv("MODEL_DIR", DEFAULT_MODELS_DIR))
@@ -148,33 +162,48 @@ def create_app(models_dir: str | Path | None = None) -> FastAPI:
             "timestamp": timestamp,
         }
 
+    @application.get("/api/quality/health", response_model=QualityHealthResponse)
+    def quality_health() -> dict[str, Any]:
+        ready, message = model_readiness()
+        path = checkpoint_path()
+        return {
+            "status": "ready" if ready else "unavailable",
+            "model_available": ready,
+            "checkpoint": path.name,
+            "message": message,
+        }
+
     @application.post("/api/inspect", response_model=InspectionResponse)
     async def inspect(image: UploadFile = File(...)) -> dict[str, Any]:
-        """
-        Placeholder visual quality inspection.
-
-        This is NOT a trained vision model. It computes a deterministic
-        score from image pixel variance so the dashboard's Quality page
-        can be wired to a real network call today. Swap this function's
-        body for real model inference later; the response contract
-        (label, score, ...) stays the same, so the frontend needs no
-        changes when that happens.
-        """
+        contents = await image.read(MAX_INSPECTION_IMAGE_BYTES + 1)
+        if len(contents) > MAX_INSPECTION_IMAGE_BYTES:
+            raise HTTPException(status_code=413, detail="Image exceeds the 10 MB upload limit.")
         try:
-            contents = await image.read()
-            img = Image.open(io.BytesIO(contents)).convert("L")
-            arr = np.asarray(img, dtype=np.float32)
-            score = float(np.clip(arr.std() / 128.0, 0.0, 1.0))
+            with Image.open(io.BytesIO(contents)) as decoded:
+                image_format = decoded.format
+                width, height = decoded.size
+                if image_format not in {"JPEG", "PNG", "WEBP"}:
+                    raise HTTPException(
+                        status_code=415,
+                        detail="Unsupported image format. Upload a JPEG, PNG, or WEBP image.",
+                    )
+                if width * height > MAX_INSPECTION_IMAGE_PIXELS:
+                    raise HTTPException(status_code=413, detail="Image dimensions are too large.")
+                decoded.verify()
+        except HTTPException:
+            raise
+        except (UnidentifiedImageError, OSError, Image.DecompressionBombError) as exc:
+            raise HTTPException(status_code=400, detail="Uploaded file is not a valid image.") from exc
+
+        try:
+            inspector = get_quality_inspector()
+            result = await run_in_threadpool(inspector.inspect, contents, image_format)
+        except QualityModelUnavailable as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
         except Exception as exc:
-            raise HTTPException(status_code=400, detail=f"Could not process image: {exc}") from exc
-        label = "ANOMALOUS" if score > 0.5 else "NORMAL"
-        return {
-            "label": label,
-            "score": score,
-            "prediction_source": "Placeholder Heuristic",
-            "model_status": "placeholder",
-            "timestamp": datetime.now(timezone.utc),
-        }
+            logger.exception("PatchCore quality inspection failed")
+            raise HTTPException(status_code=500, detail="PatchCore inspection failed.") from exc
+        return {**result, "timestamp": datetime.now(timezone.utc)}
 
     return application
 

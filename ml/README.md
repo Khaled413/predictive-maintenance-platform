@@ -73,6 +73,17 @@ physical sensor readings, which are not used as anomaly-model inputs. A model
 reported as `ready` means its artifact loaded, not that it is accurate or
 suitable for operational/safety decisions.
 
+## Visual quality inspection
+
+The optional PatchCore implementation is isolated under `quality/` and
+`app/quality_inference.py`. `GET /api/quality/health` reports whether both the
+optional anomalib dependency and checkpoint are available.
+`POST /api/inspect` accepts JPEG, PNG, and WEBP images up to 10 MB and returns
+the PatchCore normal/anomalous label, raw anomaly score, and heatmap overlay.
+It does not classify defect names. If the checkpoint or optional dependency is
+missing, the endpoint returns HTTP 503; it does not return a heuristic or
+simulated verdict. See [the quality setup guide](quality/README.md).
+
 Run the backend locally from this directory with
 `python -m pip install -r requirements.txt` and
 `python -m uvicorn main:app --host 0.0.0.0 --port 8001`. Research and notebook

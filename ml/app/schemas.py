@@ -170,8 +170,20 @@ class HealthResponse(BaseModel):
 
 
 class InspectionResponse(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+
     label: Literal["NORMAL", "ANOMALOUS"]
-    score: float = Field(ge=0, le=1)
-    prediction_source: Literal["Placeholder Heuristic"]
-    model_status: Literal["placeholder"]
+    score: FiniteFloat = Field(ge=0)
+    heatmap: str
+    prediction_source: Literal["PatchCore"]
+    model_status: Literal["ready"]
     timestamp: datetime
+
+
+class QualityHealthResponse(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+
+    status: Literal["ready", "unavailable"]
+    model_available: bool
+    checkpoint: str
+    message: str | None

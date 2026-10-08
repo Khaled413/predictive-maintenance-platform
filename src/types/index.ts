@@ -170,7 +170,9 @@ export interface Inspection {
   timestamp: string
   result: 'PASS' | 'FAIL'
   defectType: string
-  confidence: number
+  confidence?: number
+  anomalyScore?: number
+  predictionSource?: 'PatchCore'
   location: string
   image: string // gradient key or object/data URL
   box?: { top: number; left: number; w: number; h: number }

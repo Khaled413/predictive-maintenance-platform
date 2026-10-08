@@ -1,0 +1,6 @@
+# PatchCore CPU runtime. anomalib 2.6.0 has no "core" extra.
+-c ../requirements.txt
+anomalib[cpu]==2.6.0
+opencv-python-headless
+pillow
+matplotlib

@@ -68,11 +68,17 @@ ml/data/raw/
 ml/data/processed/
 ml/reports/
 ml/models/*.joblib
+ml/quality/models/
+ml/quality/weights/
+ml/quality/data/
+ml/quality/results/
+.venv-quality/
 
 # Jupyter
 .ipynb_checkpoints
 *.ipynb
 ml/notebooks/.ipynb_checkpoints
+!ml/quality/notebooks/food_box_augmented_training.ipynb
 
 # IDE temp files
 .sublime-project
