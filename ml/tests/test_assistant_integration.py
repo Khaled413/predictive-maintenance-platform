@@ -1,5 +1,6 @@
 import asyncio
 import io
+import os
 import sys
 import unittest
 from pathlib import Path
@@ -13,6 +14,7 @@ from qdrant_client.models import Distance, PointStruct, VectorParams
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from app import api
 from app.api import _assistant_index_document, _validate_assistant_image, create_app
 from app.schemas import AssistantChatRequest, AssistantSpeechRequest
 
@@ -94,6 +96,19 @@ class AssistantApiTests(unittest.TestCase):
         )
         self.application = application
 
+    def test_vercel_upload_limits_fit_under_function_payload_cap(self):
+        with patch.dict(os.environ, {"VERCEL": "1"}, clear=False):
+            self.assertEqual(
+                api._request_upload_limit(20 * 1024 * 1024),
+                4 * 1024 * 1024,
+            )
+
+        with patch.dict(os.environ, {"VERCEL": ""}, clear=False):
+            self.assertEqual(
+                api._request_upload_limit(20 * 1024 * 1024),
+                20 * 1024 * 1024,
+            )
+
     def test_chat_uses_project_context_and_returns_rag_sources(self):
         class FakeEngine:
             GROQ_API_KEY = "configured-for-test"
@@ -168,6 +183,45 @@ class AssistantApiTests(unittest.TestCase):
 
 
 class AssistantRetrievalTests(unittest.TestCase):
+    def test_remote_qdrant_uses_tls_endpoint_and_api_key(self):
+        with patch.dict(
+            os.environ,
+            {
+                "QDRANT_URL": "https://example.qdrant.io",
+                "QDRANT_API_KEY": "test-api-key",
+            },
+            clear=True,
+        ), patch.object(rag_engine, "QdrantClient") as client_class:
+            rag_engine.create_qdrant_client()
+
+        client_class.assert_called_once_with(
+            url="https://example.qdrant.io",
+            api_key="test-api-key",
+        )
+
+    def test_remote_qdrant_rejects_insecure_endpoint(self):
+        with patch.dict(
+            os.environ,
+            {"QDRANT_URL": "http://example.qdrant.io", "QDRANT_API_KEY": "test-api-key"},
+            clear=True,
+        ):
+            with self.assertRaisesRegex(RuntimeError, "HTTPS"):
+                rag_engine.create_qdrant_client()
+
+    def test_vercel_requires_remote_qdrant_instead_of_ephemeral_local_storage(self):
+        with patch.dict(os.environ, {"VERCEL": "1"}, clear=True):
+            with self.assertRaisesRegex(RuntimeError, "persistent assistant storage"):
+                rag_engine.create_qdrant_client()
+
+    def test_local_development_retains_persistent_file_storage(self):
+        local_path = Path.cwd() / "test-qdrant-path"
+        with patch.dict(os.environ, {}, clear=True), patch.object(
+            rag_engine, "QDRANT_PATH", local_path
+        ), patch.object(rag_engine, "QdrantClient") as client_class:
+            rag_engine.create_qdrant_client()
+
+        client_class.assert_called_once_with(path=str(local_path.resolve()))
+
     def test_document_filter_is_applied_to_semantic_search(self):
         with patch.object(rag_engine, "create_embedding", return_value=[0.1, 0.2]), patch.object(
             rag_engine, "qdrant"

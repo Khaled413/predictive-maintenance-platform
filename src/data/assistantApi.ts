@@ -36,6 +36,9 @@ export interface AssistantHealth {
   provider_configured: boolean
   embedding_model_loaded: boolean
   indexed_documents: number | null
+  max_document_bytes: number
+  max_image_bytes: number
+  max_audio_bytes: number
   ocr_available: boolean
   speech_output_available: boolean
   message: string | null
@@ -96,6 +99,12 @@ export async function getAssistantHealth(): Promise<AssistantHealth> {
     (result.status !== 'ready' && result.status !== 'unavailable') ||
     typeof result.provider_configured !== 'boolean' ||
     typeof result.embedding_model_loaded !== 'boolean' ||
+    !Number.isInteger(result.max_document_bytes) ||
+    result.max_document_bytes <= 0 ||
+    !Number.isInteger(result.max_image_bytes) ||
+    result.max_image_bytes <= 0 ||
+    !Number.isInteger(result.max_audio_bytes) ||
+    result.max_audio_bytes <= 0 ||
     typeof result.ocr_available !== 'boolean' ||
     typeof result.speech_output_available !== 'boolean' ||
     !(result.indexed_documents === null || typeof result.indexed_documents === 'number') ||

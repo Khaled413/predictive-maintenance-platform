@@ -87,20 +87,24 @@ simulated verdict. See [the quality setup guide](quality/README.md).
 ## AI Assistant and RAG
 
 The React assistant is backed by the same FastAPI process as maintenance
-inference. It uses a local multilingual embedding model and local persistent
-Qdrant storage for PDF/TXT retrieval, and can include current non-demo machine
-predictions and work orders as explicit context. Optional cloud features use
-Groq for chat, vision, and audio transcription, and a hosted Gradio Space for
-speech output. See [the assistant setup guide](assistant/README.md) for
-dependencies, local `.env` configuration, data boundaries, and model download
-requirements.
+inference. It uses a local multilingual embedding model and persistent Qdrant
+storage for PDF/TXT retrieval, and can include current non-demo machine
+predictions and work orders as explicit context. Local development uses a
+file-backed Qdrant index; Vercel requires Qdrant Cloud through `QDRANT_URL` and
+`QDRANT_API_KEY`, because serverless local files are not durable. Optional
+cloud features use Groq for chat, vision, and audio transcription, and a hosted
+Gradio Space for speech output. See [the assistant setup
+guide](assistant/README.md) for dependencies, configuration, data boundaries,
+and model download requirements.
 
 Run the backend locally from this directory with
 `python -m pip install -r requirements.txt` and
 `python -m uvicorn main:app --host 0.0.0.0 --port 8001`. Research and notebook
 dependencies are kept separately in `requirements-research.txt`. The app's
 Vite proxy uses port 8001 by default; set `ML_API_DEV_ORIGIN` to override it.
-In Vercel, the root service rewrite routes `/api/*` directly to this backend.
+In Vercel, the root service rewrite routes `/api/*` directly to this backend,
+and its service installs both `requirements.txt` and
+`assistant/requirements.txt`.
 Both `/health` and `/api/health` expose the service health check.
 The health response reports readiness for the failure-probability,
 failure-type, and anomaly models independently. A failure-type prediction is

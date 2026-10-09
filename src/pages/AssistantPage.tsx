@@ -58,6 +58,12 @@ const SUGGESTED_PROMPTS = [
 ]
 
 const DOC_TYPES = ['PDF', 'TXT']
+const VERCEL_REQUEST_BODY_LIMIT_BYTES = 4 * 1024 * 1024
+
+function formatUploadLimit(bytes: number) {
+  const megabytes = bytes / (1024 * 1024)
+  return Number.isInteger(megabytes) ? `${megabytes} MB` : `${megabytes.toFixed(1)} MB`
+}
 
 function buildOperationalContext(
   context: AskContext,
@@ -258,6 +264,14 @@ export default function AssistantPage() {
       return
     }
     const currentImage = imageFile
+    if (currentImage && currentImage.size > (assistantHealth?.max_image_bytes ?? VERCEL_REQUEST_BODY_LIMIT_BYTES)) {
+      notify(
+        'warning',
+        'Image exceeds the upload limit',
+        `Choose an image smaller than ${formatUploadLimit(assistantHealth?.max_image_bytes ?? VERCEL_REQUEST_BODY_LIMIT_BYTES)}.`,
+      )
+      return
+    }
     const previousMessages = messages
     const userMsg: ChatMessage = {
       id: `u-${Date.now()}`,
@@ -348,6 +362,15 @@ export default function AssistantPage() {
       notify('warning', 'Unsupported document format', 'Upload a PDF or UTF-8 TXT file.')
       return
     }
+    const maxDocumentBytes = assistantHealth?.max_document_bytes ?? VERCEL_REQUEST_BODY_LIMIT_BYTES
+    if (file.size > maxDocumentBytes) {
+      notify(
+        'warning',
+        'Document exceeds the upload limit',
+        `Choose a document smaller than ${formatUploadLimit(maxDocumentBytes)}.`,
+      )
+      return
+    }
     const sizeMb = file.size / (1024 * 1024)
     const size = sizeMb < 1 ? `${Math.max(1, Math.round(sizeMb * 1000))} KB` : `${(sizeMb).toFixed(1)} MB`
     setUploadingDocument(true)
@@ -414,6 +437,15 @@ export default function AssistantPage() {
         recorderRef.current = null
         const audio = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' })
         if (!audio.size) return
+        const maxAudioBytes = assistantHealth?.max_audio_bytes ?? VERCEL_REQUEST_BODY_LIMIT_BYTES
+        if (audio.size > maxAudioBytes) {
+          notify(
+            'warning',
+            'Recording exceeds the upload limit',
+            `Keep recordings under ${formatUploadLimit(maxAudioBytes)}.`,
+          )
+          return
+        }
         setTranscribing(true)
         void transcribeAssistantAudio(audio)
           .then((text) => setInput((current) => current ? `${current} ${text}` : text))
@@ -615,6 +647,16 @@ export default function AssistantPage() {
 
   const processLiveVoiceTurn = async (audio: Blob, session: number) => {
     if (!liveVoiceActiveRef.current || session !== liveVoiceSessionRef.current) return
+    const maxAudioBytes = assistantHealth?.max_audio_bytes ?? VERCEL_REQUEST_BODY_LIMIT_BYTES
+    if (audio.size > maxAudioBytes) {
+      notify(
+        'warning',
+        'Voice turn exceeds the upload limit',
+        `Keep each spoken turn under ${formatUploadLimit(maxAudioBytes)}.`,
+      )
+      liveVoiceRetryTimerRef.current = window.setTimeout(() => void startLiveVoiceTurn(session), 150)
+      return
+    }
     setLiveVoiceStatus('transcribing')
     try {
       const question = await transcribeAssistantAudio(audio)
@@ -1101,7 +1143,7 @@ return (
               <UploadZone
                 accept=".pdf,.txt"
                 label={uploadingDocument ? 'Indexing document…' : 'Upload and index'}
-                hint="PDF · UTF-8 TXT · max 20 MB"
+                hint={`PDF · UTF-8 TXT · max ${formatUploadLimit(assistantHealth?.max_document_bytes ?? VERCEL_REQUEST_BODY_LIMIT_BYTES)}`}
                 onFile={(file) => void handleDocUpload(file)}
                 compact
                 icon={<Database className="h-[18px] w-[18px]" />}

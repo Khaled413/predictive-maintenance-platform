@@ -26,8 +26,12 @@ type QualityResult = QualityInspectionResponse & {
   imageUrl: string
 }
 
-const MAX_IMAGE_BYTES = 10 * 1024 * 1024
 const ACCEPTED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
+
+function formatUploadLimit(bytes: number) {
+  const megabytes = bytes / (1024 * 1024)
+  return Number.isInteger(megabytes) ? `${megabytes} MB` : `${megabytes.toFixed(1)} MB`
+}
 
 function isPatchCoreRecord(inspection: Inspection) {
   return (
@@ -95,14 +99,16 @@ export default function QualityPage() {
   const anomalyRate = patchCoreInspections.length
     ? Math.round((anomalyCount / patchCoreInspections.length) * 100)
     : 0
+  const maxImageBytes = modelStatus?.max_image_bytes ?? 4 * 1024 * 1024
+  const imageSizeLimit = formatUploadLimit(maxImageBytes)
 
   const handleFile = async (file: File) => {
     if (!ACCEPTED_IMAGE_TYPES.has(file.type)) {
       setRequestError('Choose a JPEG, PNG, or WEBP image.')
       return
     }
-    if (file.size > MAX_IMAGE_BYTES) {
-      setRequestError('Image exceeds the 10 MB upload limit.')
+    if (file.size > maxImageBytes) {
+      setRequestError(`Image exceeds the ${imageSizeLimit} upload limit.`)
       return
     }
     setRequestError(null)
@@ -225,7 +231,7 @@ export default function QualityPage() {
             <UploadZone
               accept=".jpg,.jpeg,.png,.webp"
               label="Upload Product Image"
-              hint="JPEG, PNG, or WEBP · Maximum 10 MB"
+              hint={`JPEG, PNG, or WEBP · Maximum ${imageSizeLimit}`}
               onFile={(file) => void handleFile(file)}
               icon={<ScanLine className="h-6 w-6" />}
             />

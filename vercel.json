@@ -1,13 +1,12 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "npm run build",
-  "outputDirectory": "dist",
-  "installCommand": "npm install && npm run setup:ml",
   "services": {
     "app": {
       "root": ".",
       "framework": "vite",
+      "installCommand": "npm ci",
       "buildCommand": "npm run build",
+      "outputDirectory": "dist",
       "rewrites": [
         {
           "source": "/((?!api/|_vercel).*)",
@@ -17,9 +16,14 @@
     },
     "ml": {
       "root": "ml",
-      "runtime": "python@3.11",
+      "runtime": "python@3.12",
       "entrypoint": "main:app",
-      "buildCommand": "pip install -r requirements.txt"
+      "installCommand": "pip install --index-url https://download.pytorch.org/whl/cpu torch==2.8.0 torchvision==0.23.0 && pip install -r requirements.txt -r assistant/requirements.txt",
+      "functions": {
+        "main.py": {
+          "maxDuration": 300
+        }
+      }
     }
   },
   "rewrites": [

@@ -1,6 +1,7 @@
 export interface QualityModelStatus {
   status: 'ready' | 'unavailable'
   model_available: boolean
+  max_image_bytes: number
   checkpoint: string
   message: string | null
 }
@@ -20,6 +21,9 @@ function isQualityModelStatus(value: unknown): value is QualityModelStatus {
   return (
     (result.status === 'ready' || result.status === 'unavailable') &&
     typeof result.model_available === 'boolean' &&
+    typeof result.max_image_bytes === 'number' &&
+    Number.isInteger(result.max_image_bytes) &&
+    result.max_image_bytes > 0 &&
     typeof result.checkpoint === 'string' &&
     (result.message === null || typeof result.message === 'string')
   )

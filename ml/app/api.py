@@ -44,12 +44,23 @@ from .schemas import (
 
 logger = logging.getLogger(__name__)
 DEFAULT_MODELS_DIR = Path(__file__).resolve().parents[1] / "models"
-MAX_INSPECTION_IMAGE_BYTES = 10 * 1024 * 1024
+VERCEL_REQUEST_BODY_LIMIT_BYTES = 4 * 1024 * 1024
+
+
+def _request_upload_limit(local_limit: int) -> int:
+    return (
+        VERCEL_REQUEST_BODY_LIMIT_BYTES
+        if os.getenv("VERCEL") == "1"
+        else local_limit
+    )
+
+
+MAX_INSPECTION_IMAGE_BYTES = _request_upload_limit(10 * 1024 * 1024)
 MAX_INSPECTION_IMAGE_PIXELS = 20_000_000
-MAX_ASSISTANT_DOCUMENT_BYTES = 20 * 1024 * 1024
+MAX_ASSISTANT_DOCUMENT_BYTES = _request_upload_limit(20 * 1024 * 1024)
 MAX_ASSISTANT_DOCUMENT_PAGES = 300
-MAX_ASSISTANT_IMAGE_BYTES = 10 * 1024 * 1024
-MAX_ASSISTANT_AUDIO_BYTES = 20 * 1024 * 1024
+MAX_ASSISTANT_IMAGE_BYTES = _request_upload_limit(10 * 1024 * 1024)
+MAX_ASSISTANT_AUDIO_BYTES = _request_upload_limit(20 * 1024 * 1024)
 
 
 def _assistant_engine():
@@ -71,7 +82,8 @@ def _ensure_assistant_index(application: FastAPI):
 
 def _validate_assistant_image(contents: bytes, content_type: str | None) -> str:
     if len(contents) > MAX_ASSISTANT_IMAGE_BYTES:
-        raise HTTPException(status_code=413, detail="Image exceeds the 10 MB upload limit.")
+        limit_mb = MAX_ASSISTANT_IMAGE_BYTES // (1024 * 1024)
+        raise HTTPException(status_code=413, detail=f"Image exceeds the {limit_mb} MB upload limit.")
     if content_type not in {"image/jpeg", "image/png", "image/webp"}:
         raise HTTPException(status_code=415, detail="Upload a JPEG, PNG, or WEBP image.")
     try:
@@ -328,6 +340,9 @@ def create_app(models_dir: str | Path | None = None) -> FastAPI:
                 "provider_configured": False,
                 "embedding_model_loaded": False,
                 "indexed_documents": None,
+                "max_document_bytes": MAX_ASSISTANT_DOCUMENT_BYTES,
+                "max_image_bytes": MAX_ASSISTANT_IMAGE_BYTES,
+                "max_audio_bytes": MAX_ASSISTANT_AUDIO_BYTES,
                 "ocr_available": False,
                 "speech_output_available": False,
                 "message": "Install the AI Assistant dependencies with npm run setup:assistant.",
@@ -340,6 +355,9 @@ def create_app(models_dir: str | Path | None = None) -> FastAPI:
                 "provider_configured": provider_configured,
                 "embedding_model_loaded": engine._embed_model is not None,
                 "indexed_documents": len(engine.list_indexed_documents()),
+                "max_document_bytes": MAX_ASSISTANT_DOCUMENT_BYTES,
+                "max_image_bytes": MAX_ASSISTANT_IMAGE_BYTES,
+                "max_audio_bytes": MAX_ASSISTANT_AUDIO_BYTES,
                 "ocr_available": (
                     importlib.util.find_spec("fitz") is not None
                     and importlib.util.find_spec("easyocr") is not None
@@ -354,6 +372,9 @@ def create_app(models_dir: str | Path | None = None) -> FastAPI:
                 "provider_configured": False,
                 "embedding_model_loaded": False,
                 "indexed_documents": None,
+                "max_document_bytes": MAX_ASSISTANT_DOCUMENT_BYTES,
+                "max_image_bytes": MAX_ASSISTANT_IMAGE_BYTES,
+                "max_audio_bytes": MAX_ASSISTANT_AUDIO_BYTES,
                 "ocr_available": False,
                 "speech_output_available": False,
                 "message": "The AI Assistant could not initialize; check backend logs and local dependencies.",
@@ -389,7 +410,8 @@ def create_app(models_dir: str | Path | None = None) -> FastAPI:
             raise HTTPException(status_code=415, detail="Only PDF and UTF-8 TXT documents are supported.")
         contents = await file.read(MAX_ASSISTANT_DOCUMENT_BYTES + 1)
         if len(contents) > MAX_ASSISTANT_DOCUMENT_BYTES:
-            raise HTTPException(status_code=413, detail="Documents are limited to 20 MB.")
+            limit_mb = MAX_ASSISTANT_DOCUMENT_BYTES // (1024 * 1024)
+            raise HTTPException(status_code=413, detail=f"Documents are limited to {limit_mb} MB.")
         if not contents:
             raise HTTPException(status_code=422, detail="The uploaded document is empty.")
 
@@ -555,7 +577,8 @@ def create_app(models_dir: str | Path | None = None) -> FastAPI:
             raise HTTPException(status_code=415, detail="Upload an audio recording.")
         contents = await file.read(MAX_ASSISTANT_AUDIO_BYTES + 1)
         if len(contents) > MAX_ASSISTANT_AUDIO_BYTES:
-            raise HTTPException(status_code=413, detail="Audio recordings are limited to 20 MB.")
+            limit_mb = MAX_ASSISTANT_AUDIO_BYTES // (1024 * 1024)
+            raise HTTPException(status_code=413, detail=f"Audio recordings are limited to {limit_mb} MB.")
         if not contents:
             raise HTTPException(status_code=422, detail="The audio recording is empty.")
         try:
@@ -609,6 +632,7 @@ def create_app(models_dir: str | Path | None = None) -> FastAPI:
         return {
             "status": "ready" if ready else "unavailable",
             "model_available": ready,
+            "max_image_bytes": MAX_INSPECTION_IMAGE_BYTES,
             "checkpoint": path.name,
             "message": message,
         }
@@ -617,7 +641,8 @@ def create_app(models_dir: str | Path | None = None) -> FastAPI:
     async def inspect(image: UploadFile = File(...)) -> dict[str, Any]:
         contents = await image.read(MAX_INSPECTION_IMAGE_BYTES + 1)
         if len(contents) > MAX_INSPECTION_IMAGE_BYTES:
-            raise HTTPException(status_code=413, detail="Image exceeds the 10 MB upload limit.")
+            limit_mb = MAX_INSPECTION_IMAGE_BYTES // (1024 * 1024)
+            raise HTTPException(status_code=413, detail=f"Image exceeds the {limit_mb} MB upload limit.")
         try:
             with Image.open(io.BytesIO(contents)) as decoded:
                 image_format = decoded.format

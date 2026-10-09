@@ -3,7 +3,7 @@
 The existing React assistant screen is backed by the project FastAPI service;
 the standalone HTML page from the source project is not used. The assistant
 combines structured, non-demo machine predictions and work orders from the
-current browser session with document retrieval from a local Qdrant index.
+current browser session with document retrieval from a persistent Qdrant index.
 
 ## Install and configure
 
@@ -32,11 +32,14 @@ is `GET /api/assistant/health`.
 
 ## Data, retrieval, and supported files
 
-- PDF and UTF-8 TXT files are parsed, chunked, and embedded on the local
-  machine. Scanned PDF pages use optional Arabic/English EasyOCR.
-- Vectors and indexed text are stored locally under
-  `ml/assistant/data/qdrant/`; they are excluded from Git. Deleting an indexed
-  document deletes its vectors and extracted text from this local index.
+- PDF and UTF-8 TXT files are parsed, chunked, and embedded by the backend.
+  Scanned PDF pages use optional Arabic/English EasyOCR.
+- Local development stores vectors and indexed text under
+  `ml/assistant/data/qdrant/`; this directory is excluded from Git. On Vercel,
+  configure `QDRANT_URL` and `QDRANT_API_KEY` for persistent Qdrant Cloud
+  storage. The assistant refuses to silently use an ephemeral local index on
+  Vercel. Deleting an indexed document removes its vectors from the active
+  Qdrant collection.
 - The assistant retrieves relevant passages with multilingual E5 embeddings
   and Qdrant, then asks the configured Groq chat model to answer. Responses
   include retrieved document names and page numbers when available.
@@ -55,10 +58,12 @@ is `GET /api/assistant/health`.
   application state; they are not added to the vector database.
 
 The app reports unavailable dependencies or a missing API key explicitly; it
-does not silently fall back to the former simulated assistant. The local
-embedding model must be downloaded before document search can work. The model
-answer is decision support: verify maintenance procedures against the machine
-manual and site safety rules.
+does not silently fall back to the former simulated assistant. The embedding
+model must be downloaded before document search can work. On Vercel it is
+cached only in `/tmp` for a function instance's lifetime, so cold instances
+may download the approximately 2 GB model again. The model answer is decision
+support: verify maintenance procedures against the machine manual and site
+safety rules.
 
 ## Configuration
 
@@ -66,10 +71,24 @@ manual and site safety rules.
 - `CHAT_MODEL`, `VISION_MODEL`, `STT_MODEL`: provider model names.
 - `EMBEDDING_MODEL`: local Sentence Transformers model; default
   `intfloat/multilingual-e5-large`.
-- `QDRANT_PATH`: local vector-store path; defaults to
-  `ml/assistant/data/qdrant`.
+- `QDRANT_URL` and `QDRANT_API_KEY`: required together on Vercel for persistent
+  Qdrant Cloud storage. The URL must use HTTPS. If both are omitted locally,
+  `QDRANT_PATH` selects the local file-backed index (default:
+  `ml/assistant/data/qdrant`).
 - `HF_TOKEN`: optional token for hosted speech output quotas.
 - `OCR_LANGUAGES`: EasyOCR languages; default `ar,en`.
+
+For Vercel, add `GROQ_API_KEY`, `QDRANT_URL`, and `QDRANT_API_KEY` to the
+project's Production and Preview environment variables; local `.env` files are
+not uploaded automatically. The backend service installs these assistant
+dependencies in addition to the ML dependencies, with CPU-only PyTorch wheels.
+Set `VERCEL_SUPPORT_LARGE_FUNCTIONS=1` in Vercel if the resulting Python bundle
+exceeds its standard 500 MB limit; this feature must be available to the
+project. The embedding model used about 1.7 GB of memory locally, so verify
+deployment memory limits (Vercel Hobby functions are limited to 2 GB; Pro and
+Enterprise can use up to 4 GB). Vercel limits function request bodies to
+4.5 MB, so documents, images, and audio are capped at 4 MB on Vercel and retain
+their larger local limits.
 
 The source project's `.env`, bundled virtual environment, and standalone
 `static/index.html` are intentionally not copied into this project.

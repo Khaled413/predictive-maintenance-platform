@@ -21,7 +21,7 @@ a Python inference service for predictive maintenance.
 - Inspect prediction health, recommendations, input sources, and model status
   in the dashboard.
 - Run locally with Vite and the ML service, or deploy the frontend and ML
-  service together on Vercel.
+  service together on Vercel with a persistent Qdrant Cloud index.
 
 ## Application pages
 
@@ -212,23 +212,45 @@ requirements, response fields, and configuration options are documented in
 
 ## Deploy to Vercel
 
-The repository-root [vercel.json](vercel.json) defines two services:
+The repository-root [vercel.json](vercel.json) defines two Vercel Services:
 
 - `app`: the Vite frontend.
-- `ml`: the FastAPI service rooted in `ml/`.
+- `ml`: the FastAPI service rooted in `ml/`, including the optional assistant
+  runtime dependencies.
 
 Requests to `/api/*` are routed to the ML service; other paths are routed to
 the frontend, including client-side routes. No manually copied ML service URL
-is required by the browser.
+is required by the browser. The backend requires the tracked model artifacts,
+`GROQ_API_KEY`, and Qdrant Cloud's `QDRANT_URL` and `QDRANT_API_KEY`. The
+assistant refuses to use ephemeral local Qdrant storage on Vercel.
 
 Connect the repository to Vercel with the repository root (`./`) as the project
 root, then deploy the `main` branch. After deployment:
 
-1. Check `https://<your-deployment-domain>/api/health` and confirm
-   `"models_loaded": true`.
-2. Load the application and check the Vercel runtime logs if predictions fail.
-3. Confirm the deployment uses the committed model artifacts and the pinned
-   ML dependency versions.
+1. Add `GROQ_API_KEY`, `QDRANT_URL`, and `QDRANT_API_KEY` to the Vercel
+   project's Production and Preview environment variables. Do not put secrets
+   in Git or `vercel.json`.
+2. Add `VERCEL_SUPPORT_LARGE_FUNCTIONS=1` to the Vercel environment if the
+   Python bundle exceeds the standard 500 MB limit. Large Functions are
+   required for the assistant's PyTorch dependency bundle and must be
+   available to the project.
+3. The 2 GB multilingual embedding model uses substantial memory. The local
+   load used about 1.7 GB; use a plan/runtime with up to 4 GB function memory
+   and verify it stays within the deployed limit.
+4. Vercel functions cap request/response bodies at 4.5 MB. Uploads are
+   automatically limited to 4 MB on Vercel (documents, assistant images/audio,
+   and quality-inspection images); local development retains its larger limits.
+5. Check `https://<your-deployment-domain>/api/health` and confirm
+   `"models_loaded": true`, then check `/api/assistant/health`.
+6. Upload a small test document and confirm it remains listed after a new
+   function instance handles `/api/assistant/documents`.
+7. Check the Vercel runtime logs if inference or assistant requests fail.
+
+The multilingual embedding model is downloaded to `/tmp` when first used by a
+function instance. Serverless temporary storage is not durable, so a cold
+instance may download it again. The PatchCore endpoint remains unavailable
+until the optional quality dependencies and compatible checkpoint are securely
+provisioned for its service; no checkpoint is included in the repository.
 
 ## Development checks
 

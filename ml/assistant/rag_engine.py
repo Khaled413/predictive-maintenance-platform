@@ -31,6 +31,9 @@ from qdrant_client.models import (
 
 load_dotenv()
 
+if os.getenv("VERCEL") == "1":
+    os.environ.setdefault("HF_HOME", "/tmp/huggingface")
+
 
 # ============================================================
 # GROQ
@@ -192,6 +195,8 @@ QDRANT_PATH = Path(
         str(Path(__file__).resolve().parent / "data" / "qdrant"),
     )
 ).resolve()
+QDRANT_URL = os.getenv("QDRANT_URL", "").strip()
+QDRANT_API_KEY = os.getenv("QDRANT_API_KEY", "").strip()
 
 COLLECTION_NAME = os.getenv(
     "QDRANT_COLLECTION",
@@ -223,9 +228,27 @@ CHATS_COLLECTION = os.getenv(
     "cupii_chats"
 )
 
-qdrant = QdrantClient(
-    path=str(QDRANT_PATH),
-)
+def create_qdrant_client() -> QdrantClient:
+    qdrant_url = os.getenv("QDRANT_URL", "").strip()
+    qdrant_api_key = os.getenv("QDRANT_API_KEY", "").strip()
+
+    if bool(qdrant_url) != bool(qdrant_api_key):
+        raise RuntimeError("Configure both QDRANT_URL and QDRANT_API_KEY.")
+
+    if qdrant_url:
+        if not qdrant_url.startswith("https://"):
+            raise RuntimeError("QDRANT_URL must use HTTPS when QDRANT_API_KEY is configured.")
+        return QdrantClient(url=qdrant_url, api_key=qdrant_api_key)
+
+    if os.getenv("VERCEL") == "1":
+        raise RuntimeError(
+            "Configure QDRANT_URL and QDRANT_API_KEY for persistent assistant storage on Vercel."
+        )
+
+    return QdrantClient(path=str(QDRANT_PATH))
+
+
+qdrant = create_qdrant_client()
 
 
 def _close_qdrant() -> None:

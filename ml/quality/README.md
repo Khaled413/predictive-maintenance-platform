@@ -76,14 +76,15 @@ operational use, evaluate and calibrate PatchCore's decision threshold on
 representative production images.
 
 The API status endpoint is `GET /api/quality/health`. Image requests accept
-JPEG, PNG, or WEBP files up to 10 MB. The endpoint returns HTTP 503 when the
+JPEG, PNG, or WEBP files up to 10 MB locally and 4 MB on Vercel to stay below
+Vercel Functions' 4.5 MB request-body limit. The endpoint returns HTTP 503 when the
 checkpoint or optional dependency is missing; it never falls back to a
 synthetic result. Uploaded images are processed temporarily and are not retained
 in the prediction results directory.
 
-The standard Vercel service installs only `ml/requirements.txt`. To enable
-PatchCore in production, install the optional quality requirements into that
-service and securely provision the checkpoint at the default path (or set
+The Vercel ML service installs `ml/requirements.txt` and the assistant
+requirements. To enable PatchCore in production, also install the optional
+quality requirements and securely provision the checkpoint at the default path (or set
 `QUALITY_MODEL_CHECKPOINT`). Until both are provisioned, quality inspection
 reports unavailable; this does not affect failure prediction.
 

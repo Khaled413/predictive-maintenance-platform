@@ -185,6 +185,7 @@ class QualityHealthResponse(BaseModel):
 
     status: Literal["ready", "unavailable"]
     model_available: bool
+    max_image_bytes: int = Field(ge=1)
     checkpoint: str
     message: str | None
 
@@ -255,6 +256,9 @@ class AssistantHealthResponse(BaseModel):
     provider_configured: bool
     embedding_model_loaded: bool
     indexed_documents: int | None
+    max_document_bytes: int = Field(ge=1)
+    max_image_bytes: int = Field(ge=1)
+    max_audio_bytes: int = Field(ge=1)
     ocr_available: bool
     speech_output_available: bool
     message: str | None
