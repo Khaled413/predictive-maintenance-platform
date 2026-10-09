@@ -218,6 +218,8 @@ The repository-root [vercel.json](vercel.json) defines two Vercel Services:
 - `ml`: the FastAPI service rooted in `ml/`, including the optional assistant
   runtime dependencies.
 
+Vercel detects the Python runtime from the FastAPI service entrypoint; its
+runtime identifier should not be used to specify a Python language version.
 Requests to `/api/*` are routed to the ML service; other paths are routed to
 the frontend, including client-side routes. No manually copied ML service URL
 is required by the browser. The backend requires the tracked model artifacts,
