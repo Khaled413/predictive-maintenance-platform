@@ -30,7 +30,7 @@ export default function Toasts() {
             key={t.id}
             className={cx(
               'pointer-events-auto animate-fadeUp rounded-xl border bg-navy-800/95 p-3.5 shadow-panel backdrop-blur-xl',
-              STYLES[t.type],
+              STYLES[t.type]
             )}
           >
             <div className="flex items-start gap-2.5">
@@ -38,7 +38,9 @@ export default function Toasts() {
               <div className="min-w-0 flex-1">
                 <p className="text-[12.5px] font-semibold text-ink">{t.title}</p>
                 {t.message && (
-                  <p className="mt-0.5 text-[11.5px] leading-snug text-ink-dim">{t.message}</p>
+                  <p className="mt-0.5 text-[11.5px] leading-snug text-ink-dim">
+                    {t.message}
+                  </p>
                 )}
               </div>
               <button

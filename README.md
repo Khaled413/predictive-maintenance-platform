@@ -1,12 +1,11 @@
 # Predictive Maintenance Platform
 
 ## Industrial AI Platform — Machine Health & Maintenance Dashboard
-<img width="1536" height="1024" alt="image" src="https://github.com/user-attachments/assets/ce1375ef-3cef-417f-b5dd-d0e13b002723" />
 
+<img width="1536" height="1024" alt="image" src="https://github.com/user-attachments/assets/ce1375ef-3cef-417f-b5dd-d0e13b002723" />
 
 An industrial machine-health dashboard that combines a React application with
 a Python inference service for predictive maintenance.
-
 
 > **About the image:** This is concept artwork for the project, not a screenshot
 > of the current application or a guarantee that every depicted integration is
@@ -25,17 +24,17 @@ a Python inference service for predictive maintenance.
 
 ## Application pages
 
-| Route | Description |
-| --- | --- |
-| `/` | Fleet overview, KPIs, filters, and machine cards |
-| `/machines` | Searchable machine list and add-machine flow |
-| `/machines/:id` | Machine profile, trends, prediction details, and history |
-| `/maintenance` | Browser-local work orders with scheduled, in-progress, completion, and cancellation workflows |
-| `/alerts` | Machine alerts, severity filters, and recommended actions |
-| `/reports` | Analytics from eligible prediction and work-order records; CSV export |
-| `/quality` | Explicitly simulated image-inspection demo |
-| `/assistant` | RAG assistant for indexed documents, current model outputs, and work orders |
-| `/settings` | Display thresholds, preferences, and local data management |
+| Route           | Description                                                                                   |
+| --------------- | --------------------------------------------------------------------------------------------- |
+| `/`             | Fleet overview, KPIs, filters, and machine cards                                              |
+| `/machines`     | Searchable machine list and add-machine flow                                                  |
+| `/machines/:id` | Machine profile, trends, prediction details, and history                                      |
+| `/maintenance`  | Browser-local work orders with scheduled, in-progress, completion, and cancellation workflows |
+| `/alerts`       | Machine alerts, severity filters, and recommended actions                                     |
+| `/reports`      | Analytics from eligible prediction and work-order records; CSV export                         |
+| `/quality`      | Explicitly simulated image-inspection demo                                                    |
+| `/assistant`    | RAG assistant for indexed documents, current model outputs, and work orders                   |
+| `/settings`     | Display thresholds, preferences, and local data management                                    |
 
 ## How predictions work
 
@@ -130,22 +129,22 @@ is on schedule, warning is due soon, and critical calls for immediate service.
 
 ### Feature status
 
-| Capability | Status |
-| --- | --- |
-| Failure probability and failure-type inference | Trained model service |
-| Sensor anomaly score | Trained anomaly model; demo sensor inputs are simulated |
-| Trained ML health score and model recommendation | Derived from model outputs and configured thresholds |
-| Randomized demo failure-model inputs | Generated within training-data ranges, then sent unchanged to the trained model service |
-| Dashboard's other named sensor examples | Illustrative demo data; not model inputs |
-| Maintenance work orders | Browser-local workflow; not connected to a CMMS |
-| Actual downtime and actual cost KPIs | Calculated only from completed orders with explicitly recorded actual values |
-| MTBF and failure rate | Unavailable until machine operating-hour exposure is recorded |
-| Reports export | CSV is generated; PDF and Excel export are unavailable |
-| Arabic and English UI | Central translation dictionary with RTL layout |
-| Global search and dashboard actions | Search local machine, alert, and work-order records; actions navigate to existing flows |
-| Assistant responses | Groq answers grounded in local document retrieval and current non-demo project predictions/work orders |
-| Document upload | PDF/TXT parsing and local vector indexing; optional Arabic/English OCR for scanned PDFs |
-| Image quality inspection | Deterministic demo output; not connected to a trained vision model |
+| Capability                                       | Status                                                                                                 |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------ |
+| Failure probability and failure-type inference   | Trained model service                                                                                  |
+| Sensor anomaly score                             | Trained anomaly model; demo sensor inputs are simulated                                                |
+| Trained ML health score and model recommendation | Derived from model outputs and configured thresholds                                                   |
+| Randomized demo failure-model inputs             | Generated within training-data ranges, then sent unchanged to the trained model service                |
+| Dashboard's other named sensor examples          | Illustrative demo data; not model inputs                                                               |
+| Maintenance work orders                          | Browser-local workflow; not connected to a CMMS                                                        |
+| Actual downtime and actual cost KPIs             | Calculated only from completed orders with explicitly recorded actual values                           |
+| MTBF and failure rate                            | Unavailable until machine operating-hour exposure is recorded                                          |
+| Reports export                                   | CSV is generated; PDF and Excel export are unavailable                                                 |
+| Arabic and English UI                            | Central translation dictionary with RTL layout                                                         |
+| Global search and dashboard actions              | Search local machine, alert, and work-order records; actions navigate to existing flows                |
+| Assistant responses                              | Groq answers grounded in local document retrieval and current non-demo project predictions/work orders |
+| Document upload                                  | PDF/TXT parsing and local vector indexing; optional Arabic/English OCR for scanned PDFs                |
+| Image quality inspection                         | Deterministic demo output; not connected to a trained vision model                                     |
 
 Model recommendations are decision-support outputs, not safety instructions.
 The demo models and simulated inputs are not calibrated or certified for
@@ -203,7 +202,7 @@ With the ML service running, open `http://127.0.0.1:8001/health` or
 `http://127.0.0.1:8001/api/health`. A ready service returns:
 
 ```json
-{"status":"ok","models_loaded":true}
+{ "status": "ok", "models_loaded": true }
 ```
 
 The prediction endpoint is `POST /api/predict`. Its request schema, input-source

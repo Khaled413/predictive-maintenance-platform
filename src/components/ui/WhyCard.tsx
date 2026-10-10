@@ -24,10 +24,22 @@ export default function WhyCard({
 
   const factorTone =
     accent === 'danger'
-      ? { pill: 'border-red-400/25 text-red-300', arrow: 'text-red-400', dot: 'bg-red-400' }
+      ? {
+          pill: 'border-red-400/25 text-red-300',
+          arrow: 'text-red-400',
+          dot: 'bg-red-400',
+        }
       : accent === 'warning'
-        ? { pill: 'border-amber-400/25 text-amber-300', arrow: 'text-amber-400', dot: 'bg-amber-400' }
-        : { pill: 'border-emerald-400/25 text-emerald-300', arrow: 'text-emerald-400', dot: 'bg-emerald-400' }
+        ? {
+            pill: 'border-amber-400/25 text-amber-300',
+            arrow: 'text-amber-400',
+            dot: 'bg-amber-400',
+          }
+        : {
+            pill: 'border-emerald-400/25 text-emerald-300',
+            arrow: 'text-emerald-400',
+            dot: 'bg-emerald-400',
+          }
 
   return (
     <div className="overflow-hidden rounded-2xl border border-line bg-navy-850">
@@ -40,11 +52,16 @@ export default function WhyCard({
           <Brain className="h-4 w-4 text-sky-300" />
         </span>
         <span className="flex-1">
-          <span className="block text-[12.5px] font-semibold text-ink">Explainable AI</span>
+          <span className="block text-[12.5px] font-semibold text-ink">
+            Explainable AI
+          </span>
           <span className="mt-0.5 block text-[11px] text-ink-faint">{title}</span>
         </span>
         <ChevronDown
-          className={cx('h-4 w-4 text-ink-faint transition-transform duration-200', open && 'rotate-180')}
+          className={cx(
+            'h-4 w-4 text-ink-faint transition-transform duration-200',
+            open && 'rotate-180'
+          )}
         />
       </button>
 
@@ -57,7 +74,9 @@ export default function WhyCard({
                 className="rounded-xl border border-line bg-navy-900/60 px-3 py-2.5"
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-[11.5px] font-medium text-ink-dim">{f.label}</span>
+                  <span className="text-[11.5px] font-medium text-ink-dim">
+                    {f.label}
+                  </span>
                   <span
                     className={cx(
                       'font-mono text-[11.5px] font-bold',
@@ -65,7 +84,7 @@ export default function WhyCard({
                         ? 'text-red-300'
                         : f.tone === 'down'
                           ? 'text-emerald-300'
-                          : 'text-ink-dim',
+                          : 'text-ink-dim'
                     )}
                   >
                     {f.delta}

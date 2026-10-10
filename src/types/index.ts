@@ -8,7 +8,8 @@ export type MachineTypeCode = 'H' | 'L' | 'M'
 export type SimulationState = 'NORMAL' | 'DEGRADING' | 'CRITICAL'
 export type Severity = 'critical' | 'warning' | 'info' | 'success'
 export type SensorLevel = 'green' | 'amber' | 'red'
-export type MaintenanceStatus = 'Recommended' | 'Scheduled' | 'In Progress' | 'Completed' | 'Cancelled'
+export type MaintenanceStatus =
+  'Recommended' | 'Scheduled' | 'In Progress' | 'Completed' | 'Cancelled'
 export type MaintenancePriority = 'High' | 'Medium' | 'Low'
 
 export interface SensorReading {
@@ -41,7 +42,10 @@ export interface PredictionInputs {
   machine_input_source: 'simulated' | 'provided'
   sensor_input_source: 'simulated' | 'provided'
   simulation_state: SimulationState
-  sensor_window?: { timestamp?: string; [channel: string]: number | string | null | undefined }[]
+  sensor_window?: {
+    timestamp?: string
+    [channel: string]: number | string | null | undefined
+  }[]
 }
 
 export interface PredictionResponse {

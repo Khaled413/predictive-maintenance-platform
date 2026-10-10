@@ -57,9 +57,16 @@ export function ChartTooltip({ active, payload, label, formatter }: ChartTooltip
       <p className="mb-1 font-semibold text-ink">{label}</p>
       {payload.map((p) => (
         <p key={p.name ?? p.dataKey} className="flex items-center gap-2">
-          <span className="h-2 w-2 rounded-full" style={{ background: p.color ?? p.stroke }} />
-          <span style={{ color: 'var(--chart-tooltip-muted)' }}>{p.name ?? p.dataKey}:</span>
-          <span style={{ color: 'var(--chart-tooltip-text)' }}>{formatter ? formatter(p.value ?? 0) : p.value}</span>
+          <span
+            className="h-2 w-2 rounded-full"
+            style={{ background: p.color ?? p.stroke }}
+          />
+          <span style={{ color: 'var(--chart-tooltip-muted)' }}>
+            {p.name ?? p.dataKey}:
+          </span>
+          <span style={{ color: 'var(--chart-tooltip-text)' }}>
+            {formatter ? formatter(p.value ?? 0) : p.value}
+          </span>
         </p>
       ))}
     </div>

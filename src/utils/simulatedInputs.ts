@@ -20,9 +20,10 @@ export type ConditionCategory = 'GOOD' | 'MEDIUM' | 'ACCEPTABLE' | 'BAD'
 export function hasReusableSimulatedInputs(
   inputs: PredictionInputs | undefined,
   machineId: string,
-  type: MachineTypeCode,
+  type: MachineTypeCode
 ): inputs is PredictionInputs {
-  return inputs?.machine_id === machineId &&
+  return (
+    inputs?.machine_id === machineId &&
     inputs.type === type &&
     inputs.machine_input_source === 'simulated' &&
     inputs.sensor_input_source === 'simulated' &&
@@ -34,6 +35,7 @@ export function hasReusableSimulatedInputs(
       inputs.torque,
       inputs.tool_wear,
     ].every(Number.isFinite)
+  )
 }
 
 type ScenarioProfile = {
@@ -46,7 +48,10 @@ type ScenarioProfile = {
 
 const CONDITION_CATEGORIES: ConditionCategory[] = ['GOOD', 'MEDIUM', 'ACCEPTABLE', 'BAD']
 
-const CONDITION_PROFILES: Record<MachineTypeCode, Record<ConditionCategory, ScenarioProfile>> = {
+const CONDITION_PROFILES: Record<
+  MachineTypeCode,
+  Record<ConditionCategory, ScenarioProfile>
+> = {
   H: {
     GOOD: { air: 298, delta: 8, speed: 1700, torque: 40, wear: 80 },
     MEDIUM: { air: 301.5, delta: 8.2, speed: 1600, torque: 56, wear: 190 },
@@ -124,7 +129,9 @@ export function balancedConditionCategories(count: number): ConditionCategory[] 
   const remainder = machineCount % CONDITION_CATEGORIES.length
   const bonusCategories = new Set(shuffled(CONDITION_CATEGORIES).slice(0, remainder))
   const categories = CONDITION_CATEGORIES.flatMap((category) =>
-    Array<ConditionCategory>(base + (bonusCategories.has(category) ? 1 : 0)).fill(category),
+    Array<ConditionCategory>(base + (bonusCategories.has(category) ? 1 : 0)).fill(
+      category
+    )
   )
   return shuffled(categories)
 }
@@ -141,7 +148,7 @@ export function machineTypeCode(machineType: string): MachineTypeCode {
 export function simulateMachineInputs(
   machineId: string,
   machineType: string,
-  condition?: ConditionCategory,
+  condition?: ConditionCategory
 ): PredictionInputs {
   const type = machineTypeCode(machineType)
   const category = condition ?? randomConditionCategory()
@@ -149,19 +156,23 @@ export function simulateMachineInputs(
   const jitter = JITTER[category]
   const offset = randomBetween(0, OFFSET_SPAN[category])
   const air_temperature = Number(
-    (profile.air + offset * 0.35 + randomBetween(-jitter.air, jitter.air)).toFixed(2),
+    (profile.air + offset * 0.35 + randomBetween(-jitter.air, jitter.air)).toFixed(2)
   )
   const temperatureDelta =
     profile.delta + offset * 0.2 + randomBetween(-jitter.delta, jitter.delta)
   const process_temperature = Number((air_temperature + temperatureDelta).toFixed(2))
   const rotational_speed = Math.round(
-    profile.speed + offset * 20 + randomBetween(-jitter.speed, jitter.speed),
+    profile.speed + offset * 20 + randomBetween(-jitter.speed, jitter.speed)
   )
   const torque = Number(
-    (profile.torque + offset * 1.2 + randomBetween(-jitter.torque, jitter.torque)).toFixed(2),
+    (
+      profile.torque +
+      offset * 1.2 +
+      randomBetween(-jitter.torque, jitter.torque)
+    ).toFixed(2)
   )
   const tool_wear = Math.round(
-    profile.wear + offset * 8 + randomBetween(-jitter.wear, jitter.wear),
+    profile.wear + offset * 8 + randomBetween(-jitter.wear, jitter.wear)
   )
 
   return {

@@ -53,7 +53,7 @@ export default function UploadZone({
         compact ? 'px-4 py-5' : 'px-6 py-10',
         drag
           ? 'border-sky-400/70 bg-sky-500/10'
-          : 'border-line bg-navy-900/40 hover:border-sky-400/40 hover:bg-navy-800/50',
+          : 'border-line bg-navy-900/40 hover:border-sky-400/40 hover:bg-navy-800/50'
       )}
     >
       <input
@@ -70,18 +70,32 @@ export default function UploadZone({
         className={cx(
           'flex items-center justify-center rounded-xl ring-1 transition-transform group-hover:scale-105',
           compact ? 'h-9 w-9' : 'h-12 w-12',
-          drag ? 'bg-sky-500/20 ring-sky-400/40 text-sky-300' : 'bg-navy-700/60 ring-line text-sky-400',
+          drag
+            ? 'bg-sky-500/20 ring-sky-400/40 text-sky-300'
+            : 'bg-navy-700/60 ring-line text-sky-400'
         )}
       >
-        {icon ?? <UploadCloud className={compact ? 'h-4.5 w-4.5 h-[18px] w-[18px]' : 'h-6 w-6'} />}
+        {icon ?? (
+          <UploadCloud
+            className={compact ? 'h-4.5 w-4.5 h-[18px] w-[18px]' : 'h-6 w-6'}
+          />
+        )}
       </div>
-      <p className={cx('font-semibold text-ink', compact ? 'mt-2 text-[12px]' : 'mt-3 text-[13px]')}>
+      <p
+        className={cx(
+          'font-semibold text-ink',
+          compact ? 'mt-2 text-[12px]' : 'mt-3 text-[13px]'
+        )}
+      >
         {label}
       </p>
       {hint && <p className="mt-1 text-[11px] text-ink-faint">{hint}</p>}
       <span className="mt-2 inline-flex items-center gap-1.5 text-[10.5px] font-semibold uppercase tracking-wider text-sky-400/80">
         <FileUp className="h-3 w-3" />
-        Browse files · <span className="font-mono normal-case tracking-normal">{accept.replace(/,/g, ' / ')}</span>
+        Browse files ·{' '}
+        <span className="font-mono normal-case tracking-normal">
+          {accept.replace(/,/g, ' / ')}
+        </span>
       </span>
     </div>
   )

@@ -1,8 +1,4 @@
-import type {
-  MachineStatus,
-  SensorLevel,
-  Severity,
-} from '../types'
+import type { MachineStatus, SensorLevel, Severity } from '../types'
 
 export function cx(...parts: Array<string | false | null | undefined>): string {
   return parts.filter(Boolean).join(' ')
@@ -72,7 +68,10 @@ export function riskTone(risk: number): 'ok' | 'warn' | 'danger' {
   return 'danger'
 }
 
-export const statusBadge: Record<MachineStatus, { dot: string; text: string; pill: string }> = {
+export const statusBadge: Record<
+  MachineStatus,
+  { dot: string; text: string; pill: string }
+> = {
   Operational: {
     dot: 'bg-emerald-400',
     text: 'text-emerald-300',
@@ -95,7 +94,10 @@ export const statusBadge: Record<MachineStatus, { dot: string; text: string; pil
   },
 }
 
-export const severityClasses: Record<Severity, { text: string; pill: string; ring: string }> = {
+export const severityClasses: Record<
+  Severity,
+  { text: string; pill: string; ring: string }
+> = {
   critical: {
     text: 'text-red-300',
     pill: 'bg-red-500/10 border-red-500/30',

@@ -1,12 +1,6 @@
 import React, { useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import {
-  ArrowLeft,
-  CalendarPlus,
-  History,
-  MapPin,
-  Wrench,
-} from 'lucide-react'
+import { ArrowLeft, CalendarPlus, History, MapPin, Wrench } from 'lucide-react'
 import {
   Area,
   AreaChart,
@@ -69,7 +63,8 @@ export default function MachineDetailsPage() {
 
   const machine = machines.find((m) => m.id === id)
 
-  const prediction = machine?.predictionStatus === 'available' ? machine.prediction : undefined
+  const prediction =
+    machine?.predictionStatus === 'available' ? machine.prediction : undefined
   const isDemoPrediction = prediction
     ? prediction.machine_input_source === 'simulated' &&
       prediction.sensor_input_source === 'simulated'
@@ -86,20 +81,24 @@ export default function MachineDetailsPage() {
       maintenance
         .filter((r) => r.machineId === id)
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
-    [maintenance, id],
+    [maintenance, id]
   )
   const machineAlerts = useMemo(
-    () => alerts
-      .filter((alert) => alert.machineId === id)
-      .sort((a, b) => Date.parse(b.timestamp) - Date.parse(a.timestamp)),
-    [alerts, id],
+    () =>
+      alerts
+        .filter((alert) => alert.machineId === id)
+        .sort((a, b) => Date.parse(b.timestamp) - Date.parse(a.timestamp)),
+    [alerts, id]
   )
 
   const chartData = useMemo(() => {
     if (!machine) return []
     return machine.history.map((p) => ({
       ...p,
-      short: new Date(p.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      short: new Date(p.date).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+      }),
     }))
   }, [machine])
 
@@ -119,7 +118,8 @@ export default function MachineDetailsPage() {
           best = p
         }
       }
-      if (bestDiff < 3.5 * 86_400_000) points.push({ x: best.date, type: ev.type, note: ev.note })
+      if (bestDiff < 3.5 * 86_400_000)
+        points.push({ x: best.date, type: ev.type, note: ev.note })
     }
     return points
   }, [machine])
@@ -138,7 +138,11 @@ export default function MachineDetailsPage() {
         title="Machine not found"
         message="The machine you are looking for does not exist or was removed."
         action={
-          <button type="button" className="btn-primary" onClick={() => navigate('/machines')}>
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={() => navigate('/machines')}
+          >
             <ArrowLeft className="h-4 w-4" /> Back to Machines
           </button>
         }
@@ -180,10 +184,14 @@ export default function MachineDetailsPage() {
       nextMaintenance: new Date(plan.date).toISOString(),
     })
     refreshTimestamp()
-    notify('success', 'Maintenance scheduled', `${machine.id} · ${plan.type || recommendation || 'Inspection'} on ${formatDate(new Date(plan.date).toISOString())}.`)
+    notify(
+      'success',
+      'Maintenance scheduled',
+      `${machine.id} · ${plan.type || recommendation || 'Inspection'} on ${formatDate(new Date(plan.date).toISOString())}.`
+    )
     setScheduleOpen(false)
   }
-return (
+  return (
     <div className="space-y-5">
       {/* Header */}
       <div className="flex flex-wrap items-center gap-3">
@@ -211,7 +219,7 @@ return (
               <span className="text-[10px] text-ink-faint">
                 {machine.predictionStatus === 'loading'
                   ? 'Prediction loading'
-                  : machine.predictionError ?? 'ML prediction service unavailable'}
+                  : (machine.predictionError ?? 'ML prediction service unavailable')}
               </span>
             )}
             <MaintenanceStatusBadge status={machine.maintenanceStatus} />
@@ -221,7 +229,9 @@ return (
           </p>
           <p className="mt-1 text-[10px] text-ink-faint">
             {isDemoPrediction
-              ? t('Health and status are trained-model outputs from simulated inputs; not live telemetry.')
+              ? t(
+                  'Health and status are trained-model outputs from simulated inputs; not live telemetry.'
+                )
               : t('Machine health and status use provided model inputs.')}
           </p>
         </div>
@@ -253,7 +263,7 @@ return (
             <span className="max-w-20 text-center text-[10px] text-ink-faint">
               {machine.predictionStatus === 'loading'
                 ? 'Loading…'
-                : machine.predictionError ?? 'ML service unavailable'}
+                : (machine.predictionError ?? 'ML service unavailable')}
             </span>
           )}
           <div className="min-w-0">
@@ -267,12 +277,12 @@ return (
               {status === null
                 ? machine.predictionStatus === 'loading'
                   ? 'Loading model output'
-                  : machine.predictionError ?? 'ML prediction service unavailable'
+                  : (machine.predictionError ?? 'ML prediction service unavailable')
                 : status === 'Critical'
-                ? 'Critical condition'
-                : status === 'Warning'
-                  ? 'Degraded condition'
-                  : 'Healthy condition'}
+                  ? 'Critical condition'
+                  : status === 'Warning'
+                    ? 'Degraded condition'
+                    : 'Healthy condition'}
             </p>
             {healthScore !== null && (
               <p className="mt-1 text-[10px] font-medium text-ink">
@@ -288,14 +298,20 @@ return (
           <p
             className={cx(
               'mt-2 font-mono text-[22px] font-bold',
-              failureRisk === null ? 'text-ink-faint' : failureRisk >= thresholds.riskCritical
-                ? 'text-red-300'
-                : failureRisk >= thresholds.riskWarning
-                  ? 'text-amber-300'
-                  : 'text-emerald-300',
+              failureRisk === null
+                ? 'text-ink-faint'
+                : failureRisk >= thresholds.riskCritical
+                  ? 'text-red-300'
+                  : failureRisk >= thresholds.riskWarning
+                    ? 'text-amber-300'
+                    : 'text-emerald-300'
             )}
           >
-            {failureRisk === null ? (machine.predictionStatus === 'loading' ? 'Loading…' : 'Unavailable') : `${failureRisk.toFixed(1)}%`}
+            {failureRisk === null
+              ? machine.predictionStatus === 'loading'
+                ? 'Loading…'
+                : 'Unavailable'
+              : `${failureRisk.toFixed(1)}%`}
           </p>
           <div className="mt-2.5">
             {failureRisk !== null && (
@@ -339,12 +355,13 @@ return (
           </p>
           {machine.maintenanceStatus === 'Overdue' && (
             <p className="mt-2 rounded-lg border border-red-400/25 bg-red-500/5 px-2.5 py-2 text-[10.5px] font-semibold text-red-300">
-              Maintenance is overdue. This schedule state is separate from the model status and recommendation.
+              Maintenance is overdue. This schedule state is separate from the model
+              status and recommendation.
             </p>
           )}
         </Panel>
       </div>
-{/* Trend charts */}
+      {/* Trend charts */}
       <div className="grid gap-4 lg:grid-cols-2">
         <ChartCard
           title="Health Score Over Time"
@@ -352,7 +369,10 @@ return (
           right={
             <div className="flex flex-wrap items-center gap-1.5">
               {Object.entries(EVENT_COLORS).map(([label, color]) => (
-                <span key={label} className="flex items-center gap-1.5 text-[9.5px] text-ink-faint">
+                <span
+                  key={label}
+                  className="flex items-center gap-1.5 text-[9.5px] text-ink-faint"
+                >
                   <span className="h-2 w-2 rounded-full" style={{ background: color }} />
                   {label}
                 </span>
@@ -361,14 +381,21 @@ return (
           }
         >
           <ResponsiveContainer width="100%" height={230}>
-            <AreaChart data={chartData} margin={{ top: 8, right: 12, bottom: 4, left: -18 }}>
+            <AreaChart
+              data={chartData}
+              margin={{ top: 8, right: 12, bottom: 4, left: -18 }}
+            >
               <defs>
                 <linearGradient id="healthGrad" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="#60A5FA" stopOpacity={0.35} />
                   <stop offset="100%" stopColor="#60A5FA" stopOpacity={0.02} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 5" stroke="rgba(148,163,184,0.07)" vertical={false} />
+              <CartesianGrid
+                strokeDasharray="3 5"
+                stroke="rgba(148,163,184,0.07)"
+                vertical={false}
+              />
               <XAxis
                 dataKey="short"
                 tickLine={false}
@@ -376,7 +403,13 @@ return (
                 interval="preserveStartEnd"
                 padding={{ left: 6, right: 6 }}
               />
-              <YAxis domain={[0, 100]} tickCount={6} tickLine={false} axisLine={false} width={36} />
+              <YAxis
+                domain={[0, 100]}
+                tickCount={6}
+                tickLine={false}
+                axisLine={false}
+                width={36}
+              />
               <Tooltip content={<ChartTooltip formatter={(v: number) => `${v}%`} />} />
               <Area
                 type="monotone"
@@ -400,10 +433,20 @@ return (
           </ResponsiveContainer>
         </ChartCard>
 
-        <ChartCard title="Failure Probability Over Time" subtitle="Recorded model outputs; simulated results are demonstrations">
+        <ChartCard
+          title="Failure Probability Over Time"
+          subtitle="Recorded model outputs; simulated results are demonstrations"
+        >
           <ResponsiveContainer width="100%" height={230}>
-            <LineChart data={chartData} margin={{ top: 8, right: 12, bottom: 4, left: -18 }}>
-              <CartesianGrid strokeDasharray="3 5" stroke="rgba(148,163,184,0.07)" vertical={false} />
+            <LineChart
+              data={chartData}
+              margin={{ top: 8, right: 12, bottom: 4, left: -18 }}
+            >
+              <CartesianGrid
+                strokeDasharray="3 5"
+                stroke="rgba(148,163,184,0.07)"
+                vertical={false}
+              />
               <XAxis
                 dataKey="short"
                 tickLine={false}
@@ -411,7 +454,13 @@ return (
                 interval="preserveStartEnd"
                 padding={{ left: 6, right: 6 }}
               />
-              <YAxis domain={[0, 100]} tickCount={6} tickLine={false} axisLine={false} width={36} />
+              <YAxis
+                domain={[0, 100]}
+                tickCount={6}
+                tickLine={false}
+                axisLine={false}
+                width={36}
+              />
               <Tooltip content={<ChartTooltip formatter={(v: number) => `${v}%`} />} />
               <Line
                 type="monotone"
@@ -432,7 +481,7 @@ return (
             : `${machine.predictionError ?? 'ML prediction service unavailable.'} No model trend history is available.`}
         </p>
       )}
-{/* Sensor history */}
+      {/* Sensor history */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {machine.sensorHistory.slice(0, 4).map((series) => (
           <ChartCard
@@ -442,14 +491,35 @@ return (
           >
             <ResponsiveContainer width="100%" height={150}>
               <LineChart
-                data={series.data.map((p) => ({ ...p, short: new Date(p.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) }))}
+                data={series.data.map((p) => ({
+                  ...p,
+                  short: new Date(p.date).toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                  }),
+                }))}
                 margin={{ top: 6, right: 8, bottom: 4, left: -22 }}
               >
-                <CartesianGrid strokeDasharray="3 5" stroke="rgba(148,163,184,0.06)" vertical={false} />
+                <CartesianGrid
+                  strokeDasharray="3 5"
+                  stroke="rgba(148,163,184,0.06)"
+                  vertical={false}
+                />
                 <XAxis dataKey="short" tickLine={false} axisLine={false} hide />
                 <YAxis tickLine={false} axisLine={false} width={40} />
-                <Tooltip content={<ChartTooltip formatter={(v: number) => `${v} ${series.unit}`} />} />
-                <Line type="monotone" dataKey="value" stroke="#60A5FA" strokeWidth={2} dot={false} animationDuration={700} />
+                <Tooltip
+                  content={
+                    <ChartTooltip formatter={(v: number) => `${v} ${series.unit}`} />
+                  }
+                />
+                <Line
+                  type="monotone"
+                  dataKey="value"
+                  stroke="#60A5FA"
+                  strokeWidth={2}
+                  dot={false}
+                  animationDuration={700}
+                />
               </LineChart>
             </ResponsiveContainer>
           </ChartCard>
@@ -460,17 +530,24 @@ return (
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="space-y-4 lg:col-span-2">
           <Panel className="overflow-hidden">
-            <PanelHeader title="ML Prediction" subtitle="Model inputs and display-only sensor readings are separate" />
+            <PanelHeader
+              title="ML Prediction"
+              subtitle="Model inputs and display-only sensor readings are separate"
+            />
             {prediction ? (
               <div className="grid gap-3 px-4 py-4 sm:grid-cols-2">
                 <div className="rounded-xl border border-line bg-navy-900/50 p-3">
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-ink-faint">Failure Type</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-ink-faint">
+                    Failure Type
+                  </p>
                   <p className="mt-1 text-[12px] font-semibold text-ink">
                     {prediction.failure_type ?? 'No failure type classified by the model'}
                   </p>
                 </div>
                 <div className="rounded-xl border border-line bg-navy-900/50 p-3">
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-ink-faint">Anomaly Score</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-ink-faint">
+                    Anomaly Score
+                  </p>
                   <p className="mt-1 text-[12px] font-semibold text-ink">
                     {prediction.anomaly_score === null
                       ? t('Not evaluated for simulated sensor readings')
@@ -489,11 +566,17 @@ return (
                   </p>
                 </div>
                 <div className="rounded-xl border border-line bg-navy-900/50 p-3 sm:col-span-2">
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-ink-faint">Model Recommendation</p>
-                  <p className="mt-1 text-[12px] font-semibold text-ink">{prediction.recommendation}</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-ink-faint">
+                    Model Recommendation
+                  </p>
+                  <p className="mt-1 text-[12px] font-semibold text-ink">
+                    {prediction.recommendation}
+                  </p>
                   {machine.maintenanceStatus === 'Overdue' && (
                     <p className="mt-2 text-[10.5px] font-semibold text-red-300">
-                      Maintenance is overdue and must be scheduled or completed separately; this model recommendation does not change the maintenance schedule.
+                      Maintenance is overdue and must be scheduled or completed
+                      separately; this model recommendation does not change the
+                      maintenance schedule.
                     </p>
                   )}
                 </div>
@@ -508,15 +591,24 @@ return (
                     {t('Machine type')}: {prediction.inputs.type}
                   </p>
                   <p className="mt-2 text-[10px] leading-relaxed text-ink-faint">
-                    <span>Anomaly model input:</span> {prediction.data_source} · {prediction.anomaly_input_reading_count} readings · {prediction.sensor_inputs_simulated ? 'This score is demo-only, not live equipment telemetry.' : 'Provided sensor input.'} The displayed sensor readings below are excluded.
+                    <span>Anomaly model input:</span> {prediction.data_source} ·{' '}
+                    {prediction.anomaly_input_reading_count} readings ·{' '}
+                    {prediction.sensor_inputs_simulated
+                      ? 'This score is demo-only, not live equipment telemetry.'
+                      : 'Provided sensor input.'}{' '}
+                    The displayed sensor readings below are excluded.
                   </p>
                   <details className="mt-1 text-[9px] text-ink-faint">
                     <summary className="cursor-pointer">
-                      Show exact anomaly-model inputs · {prediction.anomaly_features_used.length}
+                      Show exact anomaly-model inputs ·{' '}
+                      {prediction.anomaly_features_used.length}
                     </summary>
                     <dl className="mt-2 grid gap-x-3 gap-y-1 sm:grid-cols-2">
                       {prediction.anomaly_features_used.map((feature) => (
-                        <div key={feature} className="flex justify-between gap-2 border-b border-line/50 py-1">
+                        <div
+                          key={feature}
+                          className="flex justify-between gap-2 border-b border-line/50 py-1"
+                        >
                           <dt className="break-all font-mono">
                             <code data-no-translate>{feature}</code>
                           </dt>
@@ -545,13 +637,17 @@ return (
           </summary>
           <div className="border-t border-line px-4 py-3">
             <p className="mb-3 text-[10px] text-ink-faint">
-              {t('Demo values only; not live readings, model inputs, or the source of machine status.')}
+              {t(
+                'Demo values only; not live readings, model inputs, or the source of machine status.'
+              )}
             </p>
             <div className="grid gap-4 sm:grid-cols-2">
               {machine.sensors.map((sensor) => (
                 <div key={sensor.name} className="flex justify-between gap-3 text-[10px]">
                   <span className="text-ink-faint">{sensor.name}</span>
-                  <span className="font-mono text-ink-dim">{sensor.value} {sensor.unit}</span>
+                  <span className="font-mono text-ink-dim">
+                    {sensor.value} {sensor.unit}
+                  </span>
                 </div>
               ))}
             </div>
@@ -559,7 +655,7 @@ return (
         </details>
       </div>
       <ModelStatusCard status={modelSystemStatus} />
-{/* Histories */}
+      {/* Histories */}
       <div className="grid gap-4 lg:grid-cols-2">
         <Panel className="overflow-hidden">
           <PanelHeader
@@ -580,23 +676,37 @@ return (
               </thead>
               <tbody>
                 {machineMaintenance.slice(0, 7).map((r) => (
-                  <tr key={r.id} className="border-b border-line/60 transition-colors hover:bg-navy-800/40">
+                  <tr
+                    key={r.id}
+                    className="border-b border-line/60 transition-colors hover:bg-navy-800/40"
+                  >
                     <td className="px-3 py-2.5 font-mono text-[11px] text-ink-dim">
                       {formatDate(r.date)}
                     </td>
                     <td className="px-3 py-2.5 text-[11.5px] text-ink">{r.type}</td>
-                    <td className="px-3 py-2.5 text-[11.5px] text-ink-dim">{r.technician}</td>
-                    <td className="px-3 py-2.5 font-mono text-[11px] text-ink-dim">{r.downtime}</td>
+                    <td className="px-3 py-2.5 text-[11.5px] text-ink-dim">
+                      {r.technician}
+                    </td>
+                    <td className="px-3 py-2.5 font-mono text-[11px] text-ink-dim">
+                      {r.downtime}
+                    </td>
                     <td className="px-3 py-2.5 font-mono text-[11px] text-ink-dim">
                       {r.status === 'Completed'
-                        ? r.actualCost === null || r.actualCost === undefined ? 'Actual: —' : `Actual: $${formatInt(r.actualCost)}`
-                        : r.cost === null ? '—' : `Estimate: $${formatInt(r.cost)}`}
+                        ? r.actualCost === null || r.actualCost === undefined
+                          ? 'Actual: —'
+                          : `Actual: $${formatInt(r.actualCost)}`
+                        : r.cost === null
+                          ? '—'
+                          : `Estimate: $${formatInt(r.cost)}`}
                     </td>
                   </tr>
                 ))}
                 {machineMaintenance.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="px-3 py-6 text-center text-[12px] text-ink-faint">
+                    <td
+                      colSpan={5}
+                      className="px-3 py-6 text-center text-[12px] text-ink-faint"
+                    >
                       No maintenance history recorded yet.
                     </td>
                   </tr>
@@ -613,21 +723,35 @@ return (
             {machineAlerts.length ? (
               <div className="divide-y divide-line/60">
                 {machineAlerts.map((alert) => {
-                  const workOrder = maintenance.find((record) => record.originAlertId === alert.id)
+                  const workOrder = maintenance.find(
+                    (record) => record.originAlertId === alert.id
+                  )
                   return (
-                    <div key={alert.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
+                    <div
+                      key={alert.id}
+                      className="flex flex-wrap items-center gap-3 px-4 py-3"
+                    >
                       <div className="min-w-0 flex-1">
                         <p className="text-[11.5px] font-semibold text-ink">
-                          {alert.type} · {alert.severity} {alert.isDemo ? '· DEMO INPUTS' : ''}
+                          {alert.type} · {alert.severity}{' '}
+                          {alert.isDemo ? '· DEMO INPUTS' : ''}
                         </p>
-                        <p className="mt-0.5 text-[10.5px] text-ink-dim">{alert.message}</p>
-                        <p className="mt-1 text-[9.5px] text-ink-faint">{formatDate(alert.timestamp)} · {alert.status}</p>
+                        <p className="mt-0.5 text-[10.5px] text-ink-dim">
+                          {alert.message}
+                        </p>
+                        <p className="mt-1 text-[9.5px] text-ink-faint">
+                          {formatDate(alert.timestamp)} · {alert.status}
+                        </p>
                       </div>
                       {workOrder ? (
                         <button
                           type="button"
                           className="btn-ghost btn-sm"
-                          onClick={() => navigate(`/maintenance?search=${encodeURIComponent(workOrder.id)}`)}
+                          onClick={() =>
+                            navigate(
+                              `/maintenance?search=${encodeURIComponent(workOrder.id)}`
+                            )
+                          }
                         >
                           {workOrder.id} · {workOrder.status}
                         </button>
@@ -638,12 +762,22 @@ return (
                           onClick={() => {
                             const record = createMaintenanceFromAlert(alert.id)
                             if (!record) {
-                              notify('warning', 'Work order not created', 'The alert machine is no longer available in the fleet.')
+                              notify(
+                                'warning',
+                                'Work order not created',
+                                'The alert machine is no longer available in the fleet.'
+                              )
                               return
                             }
-                            notify('success', 'Work order created', `${record.id} · ${record.machineId}`)
+                            notify(
+                              'success',
+                              'Work order created',
+                              `${record.id} · ${record.machineId}`
+                            )
                             refreshTimestamp()
-                            navigate(`/maintenance?search=${encodeURIComponent(record.id)}`)
+                            navigate(
+                              `/maintenance?search=${encodeURIComponent(record.id)}`
+                            )
                           }}
                         >
                           <CalendarPlus className="h-3.5 w-3.5" />
@@ -655,11 +789,13 @@ return (
                 })}
               </div>
             ) : (
-              <p className="px-4 py-5 text-[11px] text-ink-faint">No alerts are recorded for this machine.</p>
+              <p className="px-4 py-5 text-[11px] text-ink-faint">
+                No alerts are recorded for this machine.
+              </p>
             )}
           </Panel>
         </Panel>
-<Panel className="overflow-hidden">
+        <Panel className="overflow-hidden">
           <PanelHeader
             title="Failure & Event History"
             subtitle="Demo event markers are illustrative and are excluded from model-history charts"
@@ -677,22 +813,33 @@ return (
                 {machine.events
                   .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
                   .map((ev) => (
-                    <tr key={`${ev.type}-${ev.date}`} className="border-b border-line/60 transition-colors hover:bg-navy-800/40">
+                    <tr
+                      key={`${ev.type}-${ev.date}`}
+                      className="border-b border-line/60 transition-colors hover:bg-navy-800/40"
+                    >
                       <td className="px-3 py-2.5 font-mono text-[11px] text-ink-dim">
                         {formatDate(ev.date)}
                       </td>
                       <td className="px-3 py-2.5">
                         <span className="inline-flex items-center gap-1.5 text-[10.5px] font-semibold">
-                          <span className="h-2 w-2 rounded-full" style={{ background: EVENT_COLORS[ev.type] }} />
+                          <span
+                            className="h-2 w-2 rounded-full"
+                            style={{ background: EVENT_COLORS[ev.type] }}
+                          />
                           <span style={{ color: EVENT_COLORS[ev.type] }}>{ev.type}</span>
                         </span>
                       </td>
-                      <td className="px-3 py-2.5 text-[11.5px] text-ink-dim">{ev.note}</td>
+                      <td className="px-3 py-2.5 text-[11.5px] text-ink-dim">
+                        {ev.note}
+                      </td>
                     </tr>
                   ))}
                 {machine.events.length === 0 && (
                   <tr>
-                    <td colSpan={3} className="px-3 py-6 text-center text-[12px] text-ink-faint">
+                    <td
+                      colSpan={3}
+                      className="px-3 py-6 text-center text-[12px] text-ink-faint"
+                    >
                       No significant events in the monitoring window.
                     </td>
                   </tr>
@@ -702,7 +849,7 @@ return (
           </div>
         </Panel>
       </div>
-{/* Schedule maintenance modal */}
+      {/* Schedule maintenance modal */}
       <Modal
         open={scheduleOpen}
         onClose={() => setScheduleOpen(false)}
@@ -711,7 +858,11 @@ return (
         size="md"
         footer={
           <>
-            <button type="button" className="btn-ghost btn-sm" onClick={() => setScheduleOpen(false)}>
+            <button
+              type="button"
+              className="btn-ghost btn-sm"
+              onClick={() => setScheduleOpen(false)}
+            >
               Cancel
             </button>
             <button type="button" className="btn-primary btn-sm" onClick={submitSchedule}>
@@ -730,11 +881,27 @@ return (
             />
           </Field>
           <Field label="Date">
-            <TextInput type="date" value={plan.date} onChange={(e) => setPlan({ ...plan, date: e.target.value })} />
+            <TextInput
+              type="date"
+              value={plan.date}
+              onChange={(e) => setPlan({ ...plan, date: e.target.value })}
+            />
           </Field>
           <Field label="Technician" className="sm:col-span-2">
-            <SelectInput value={plan.technician} onChange={(e) => setPlan({ ...plan, technician: e.target.value })}>
-              {['Ahmed H.', 'Sara M.', 'Khaled R.', 'Dina K.', 'Yousef A.', 'Omar S.', 'Mona T.', 'Hassan F.'].map((t) => (
+            <SelectInput
+              value={plan.technician}
+              onChange={(e) => setPlan({ ...plan, technician: e.target.value })}
+            >
+              {[
+                'Ahmed H.',
+                'Sara M.',
+                'Khaled R.',
+                'Dina K.',
+                'Yousef A.',
+                'Omar S.',
+                'Mona T.',
+                'Hassan F.',
+              ].map((t) => (
                 <option key={t} value={t}>
                   {t}
                 </option>

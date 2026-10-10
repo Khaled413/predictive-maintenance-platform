@@ -9,7 +9,8 @@ const viteExecutable = path.join(root, 'node_modules', 'vite', 'bin', 'vite.js')
 const configuredOrigin = process.env.ML_API_DEV_ORIGIN || 'http://127.0.0.1:8001'
 const backendOrigin = new URL(configuredOrigin)
 const localHosts = new Set(['127.0.0.1', 'localhost', '[::1]'])
-const pythonExecutable = process.env.PYTHON || (process.platform === 'win32' ? 'python' : 'python3')
+const pythonExecutable =
+  process.env.PYTHON || (process.platform === 'win32' ? 'python' : 'python3')
 const startupTimeoutMs = Number(process.env.ML_API_STARTUP_TIMEOUT_MS || 120_000)
 
 if (!['http:', 'https:'].includes(backendOrigin.protocol)) {
@@ -21,7 +22,7 @@ if (!Number.isFinite(startupTimeoutMs) || startupTimeoutMs <= 0) {
 
 const backendIsLocal = localHosts.has(backendOrigin.hostname)
 const backendPort = Number(
-  backendOrigin.port || (backendOrigin.protocol === 'https:' ? '443' : '80'),
+  backendOrigin.port || (backendOrigin.protocol === 'https:' ? '443' : '80')
 )
 let backend
 let vite
@@ -43,9 +44,15 @@ async function readBackendHealth() {
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), 2_000)
   try {
-    const response = await fetch(new URL('health', configuredOrigin.endsWith('/') ? configuredOrigin : `${configuredOrigin}/`), {
-      signal: controller.signal,
-    })
+    const response = await fetch(
+      new URL(
+        'health',
+        configuredOrigin.endsWith('/') ? configuredOrigin : `${configuredOrigin}/`
+      ),
+      {
+        signal: controller.signal,
+      }
+    )
     if (!response.ok) return false
     const result = await response.json()
     return result.status === 'ok' && result.models_loaded === true
@@ -62,11 +69,13 @@ async function waitForBackend() {
 
   while (!stopping && Date.now() - startedAt < startupTimeoutMs) {
     if (backend?.spawnError) {
-      throw new Error(`Could not start Python (${pythonExecutable}): ${backend.spawnError.message}`)
+      throw new Error(
+        `Could not start Python (${pythonExecutable}): ${backend.spawnError.message}`
+      )
     }
     if (backend && (backend.exitCode !== null || backend.signalCode !== null)) {
       throw new Error(
-        `The ML service exited before becoming ready. Install its dependencies with "npm run setup:ml" and check that model files exist in ml/models.`,
+        `The ML service exited before becoming ready. Install its dependencies with "npm run setup:ml" and check that model files exist in ml/models.`
       )
     }
     if (await readBackendHealth()) return
@@ -80,7 +89,7 @@ async function waitForBackend() {
 
   if (stopping) throw new Error('Development startup was interrupted.')
   throw new Error(
-    `The ML service did not become ready within ${Math.round(startupTimeoutMs / 1000)} seconds. Check ml/models and run "npm run setup:ml".`,
+    `The ML service did not become ready within ${Math.round(startupTimeoutMs / 1000)} seconds. Check ml/models and run "npm run setup:ml".`
   )
 }
 
@@ -89,7 +98,9 @@ try {
     if (await readBackendHealth()) {
       console.log(`Using the already-running ML service at ${configuredOrigin}`)
     } else {
-      console.log(`Starting the ML service on ${backendOrigin.hostname}:${backendPort}...`)
+      console.log(
+        `Starting the ML service on ${backendOrigin.hostname}:${backendPort}...`
+      )
       backend = spawn(
         pythonExecutable,
         [
@@ -105,7 +116,7 @@ try {
           cwd: backendDirectory,
           env: process.env,
           stdio: 'inherit',
-        },
+        }
       )
       backend.on('error', (error) => {
         backend.spawnError = error

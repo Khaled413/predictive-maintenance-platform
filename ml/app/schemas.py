@@ -301,3 +301,47 @@ class AssistantSpeechRequest(BaseModel):
 
 class AssistantSpeechChunksResponse(BaseModel):
     chunks: list[str]
+
+
+class ApiKeyInfo(BaseModel):
+    id: str
+    masked_key: str
+    is_active: bool = False
+
+
+class ModelOption(BaseModel):
+    id: str
+    name: str
+    desc: str
+    tag: str | None = None
+
+
+class AssistantConfigResponse(BaseModel):
+    configured: bool
+    masked_key: str | None = None
+    model: str = "openai/gpt-oss-120b"
+    chat_model: str = "openai/gpt-oss-120b"
+    stt_model: str = "whisper-large-v3"
+    vision_model: str = "qwen/qwen3.8-27b"
+    auto_rotate: bool = True
+    active_key_index: int = 0
+    api_keys: list[ApiKeyInfo] = []
+    available_chat_models: list[ModelOption] = []
+    available_stt_models: list[ModelOption] = []
+    message: str | None = None
+
+
+class AssistantApiKeyRequest(BaseModel):
+    api_key: str = Field(default="", max_length=256)
+    action: str = Field(default="update", max_length=32)
+    active_key_index: int | None = None
+    chat_model: str | None = None
+    stt_model: str | None = None
+    auto_rotate: bool | None = None
+
+
+
+class AssistantTranscribeResponse(BaseModel):
+    text: str
+    recognized: bool = True
+

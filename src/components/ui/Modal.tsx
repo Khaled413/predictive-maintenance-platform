@@ -14,7 +14,15 @@ interface ModalProps {
 
 const SIZES = { md: 'max-w-lg', lg: 'max-w-2xl', xl: 'max-w-4xl' }
 
-export default function Modal({ open, onClose, title, subtitle, children, footer, size = 'lg' }: ModalProps) {
+export default function Modal({
+  open,
+  onClose,
+  title,
+  subtitle,
+  children,
+  footer,
+  size = 'lg',
+}: ModalProps) {
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => {
@@ -40,7 +48,7 @@ export default function Modal({ open, onClose, title, subtitle, children, footer
       <div
         className={cx(
           'relative flex max-h-[92vh] w-full flex-col overflow-hidden rounded-2xl border border-line bg-navy-850 shadow-panel animate-fadeUp',
-          SIZES[size],
+          SIZES[size]
         )}
         role="dialog"
         aria-modal="true"

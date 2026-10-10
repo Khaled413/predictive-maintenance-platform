@@ -1,14 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import {
-  CalendarPlus,
-  CheckCheck,
-  Hammer,
-  Pencil,
-  Play,
-  Search,
-  Ban,
-} from 'lucide-react'
+import { CalendarPlus, CheckCheck, Hammer, Pencil, Play, Search, Ban } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { PriorityBadge, MaintenanceRecordStatusBadge } from '../components/ui/Badges'
 import { SelectInput, TextInput, Field } from '../components/ui/Field'
@@ -40,7 +32,16 @@ const EMPTY_FORM = {
 }
 
 export default function MaintenancePage() {
-  const { maintenance, machines, addMaintenance, updateMaintenance, transitionMaintenance, updateMachine, notify, refreshTimestamp } = useApp()
+  const {
+    maintenance,
+    machines,
+    addMaintenance,
+    updateMaintenance,
+    transitionMaintenance,
+    updateMachine,
+    notify,
+    refreshTimestamp,
+  } = useApp()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
 
@@ -51,7 +52,13 @@ export default function MaintenancePage() {
   const [editId, setEditId] = useState<string | null>(null)
   const [form, setForm] = useState(EMPTY_FORM)
   const [completionTarget, setCompletionTarget] = useState<MaintenanceRecord | null>(null)
-  const [completion, setCompletion] = useState({ downtime: '', cost: '', failureCause: '', technician: '', notes: '' })
+  const [completion, setCompletion] = useState({
+    downtime: '',
+    cost: '',
+    failureCause: '',
+    technician: '',
+    notes: '',
+  })
 
   const openCreate = useCallback(() => {
     setEditId(null)
@@ -98,28 +105,46 @@ export default function MaintenancePage() {
     if (search) {
       const q = search.toLowerCase()
       list = list.filter((r) =>
-        `${r.machineId} ${r.machineName} ${r.type} ${r.reason} ${r.technician}`.toLowerCase().includes(q),
+        `${r.machineId} ${r.machineName} ${r.type} ${r.reason} ${r.technician}`
+          .toLowerCase()
+          .includes(q)
       )
     }
     return list
   }, [maintenance, tab, priorityFilter, search])
 
-  const counts = useMemo(() => ({
-    Upcoming: maintenance.filter((r) => r.status === 'Recommended' || r.status === 'Scheduled').length,
-    Scheduled: maintenance.filter((r) => r.status === 'Scheduled').length,
-    'In Progress': maintenance.filter((r) => r.status === 'In Progress').length,
-    Completed: maintenance.filter((r) => r.status === 'Completed').length,
-    Cancelled: maintenance.filter((r) => r.status === 'Cancelled').length,
-  }), [maintenance])
+  const counts = useMemo(
+    () => ({
+      Upcoming: maintenance.filter(
+        (r) => r.status === 'Recommended' || r.status === 'Scheduled'
+      ).length,
+      Scheduled: maintenance.filter((r) => r.status === 'Scheduled').length,
+      'In Progress': maintenance.filter((r) => r.status === 'In Progress').length,
+      Completed: maintenance.filter((r) => r.status === 'Completed').length,
+      Cancelled: maintenance.filter((r) => r.status === 'Cancelled').length,
+    }),
+    [maintenance]
+  )
 
   const submitForm = () => {
     if (!form.machineId || !form.type.trim()) {
-      notify('warning', 'Required information missing', 'Select a machine and enter a maintenance type.')
+      notify(
+        'warning',
+        'Required information missing',
+        'Select a machine and enter a maintenance type.'
+      )
       return
     }
     const estimatedCost = form.cost.trim() === '' ? null : Number(form.cost)
-    if (estimatedCost !== null && (!Number.isFinite(estimatedCost) || estimatedCost < 0)) {
-      notify('warning', 'Invalid estimated cost', 'Enter a non-negative value or leave the field blank.')
+    if (
+      estimatedCost !== null &&
+      (!Number.isFinite(estimatedCost) || estimatedCost < 0)
+    ) {
+      notify(
+        'warning',
+        'Invalid estimated cost',
+        'Enter a non-negative value or leave the field blank.'
+      )
       return
     }
     const rec: MaintenanceRecord = {
@@ -132,7 +157,9 @@ export default function MaintenancePage() {
       priority: form.priority,
       date: new Date(form.date).toISOString(),
       technician: form.technician,
-      status: editId ? maintenance.find((r) => r.id === editId)?.status ?? 'Scheduled' : 'Scheduled',
+      status: editId
+        ? (maintenance.find((r) => r.id === editId)?.status ?? 'Scheduled')
+        : 'Scheduled',
       downtime: form.downtime.trim() || '—',
       cost: estimatedCost,
       notes: form.notes,
@@ -143,7 +170,11 @@ export default function MaintenancePage() {
       notify('info', 'Maintenance updated', `${rec.machineId} · ${rec.type}`)
     } else {
       addMaintenance(rec)
-      notify('success', 'Maintenance scheduled', `${rec.machineId} · ${rec.type} on ${formatDate(rec.date)}.`)
+      notify(
+        'success',
+        'Maintenance scheduled',
+        `${rec.machineId} · ${rec.type} on ${formatDate(rec.date)}.`
+      )
     }
     setFormOpen(false)
   }
@@ -162,7 +193,11 @@ export default function MaintenancePage() {
     }
     const changed = transitionMaintenance(r.id, next)
     if (!changed) {
-      notify('warning', 'Status change not allowed', `${r.id} cannot move from ${r.status} to ${next}.`)
+      notify(
+        'warning',
+        'Status change not allowed',
+        `${r.id} cannot move from ${r.status} to ${next}.`
+      )
       return
     }
     if (next === 'Cancelled') {
@@ -177,9 +212,17 @@ export default function MaintenancePage() {
     if (!completionTarget) return
     const downtimeHours = Number(completion.downtime)
     const actualCost = completion.cost.trim() === '' ? null : Number(completion.cost)
-    if (completion.downtime.trim() === '' || !Number.isFinite(downtimeHours) || downtimeHours < 0 ||
-        (actualCost !== null && (!Number.isFinite(actualCost) || actualCost < 0))) {
-      notify('warning', 'Check completion values', 'Enter non-negative actual downtime and actual cost.')
+    if (
+      completion.downtime.trim() === '' ||
+      !Number.isFinite(downtimeHours) ||
+      downtimeHours < 0 ||
+      (actualCost !== null && (!Number.isFinite(actualCost) || actualCost < 0))
+    ) {
+      notify(
+        'warning',
+        'Check completion values',
+        'Enter non-negative actual downtime and actual cost.'
+      )
       return
     }
     const changed = transitionMaintenance(completionTarget.id, 'Completed', {
@@ -190,7 +233,11 @@ export default function MaintenancePage() {
       completionNotes: completion.notes.trim() || undefined,
     })
     if (!changed) {
-      notify('warning', 'Status change not allowed', `${completionTarget.id} cannot be completed from ${completionTarget.status}.`)
+      notify(
+        'warning',
+        'Status change not allowed',
+        `${completionTarget.id} cannot be completed from ${completionTarget.status}.`
+      )
       setCompletionTarget(null)
       return
     }
@@ -203,16 +250,21 @@ export default function MaintenancePage() {
         lastMaintenance: new Date().toISOString(),
       })
     }
-    notify('success', 'Maintenance completed', `${completionTarget.machineId} · ${completionTarget.type} completion details recorded.`)
+    notify(
+      'success',
+      'Maintenance completed',
+      `${completionTarget.machineId} · ${completionTarget.type} completion details recorded.`
+    )
     refreshTimestamp()
     setCompletionTarget(null)
   }
-return (
+  return (
     <div className="space-y-5">
-    <div className="rounded-xl border border-sky-400/15 bg-sky-500/5 px-4 py-3 text-[10.5px] leading-relaxed text-ink-faint">
-      Work orders are stored in this browser only; demo example records are labeled and excluded from actual downtime and cost KPIs. This is not a connected CMMS.
-    </div>
-    {/* Tabs */}
+      <div className="rounded-xl border border-sky-400/15 bg-sky-500/5 px-4 py-3 text-[10.5px] leading-relaxed text-ink-faint">
+        Work orders are stored in this browser only; demo example records are labeled and
+        excluded from actual downtime and cost KPIs. This is not a connected CMMS.
+      </div>
+      {/* Tabs */}
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex rounded-xl border border-line bg-navy-900/50 p-1">
           {TABS.map((t) => (
@@ -224,17 +276,19 @@ return (
                 'flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-semibold transition-all',
                 tab === t.key
                   ? 'bg-sky-500/15 text-sky-300'
-                  : 'text-ink-dim hover:bg-navy-800 hover:text-ink',
+                  : 'text-ink-dim hover:bg-navy-800 hover:text-ink'
               )}
             >
               {t.label}
               <span
                 className={cx(
                   'rounded-md bg-navy-700/80 px-1.5 font-mono text-[9.5px]',
-                  tab === t.key ? 'text-sky-300' : 'text-ink-faint',
+                  tab === t.key ? 'text-sky-300' : 'text-ink-faint'
                 )}
               >
-                {t.key === 'Upcoming' ? counts.Upcoming : (counts[t.key as keyof typeof counts] ?? 0)}
+                {t.key === 'Upcoming'
+                  ? counts.Upcoming
+                  : (counts[t.key as keyof typeof counts] ?? 0)}
               </span>
             </button>
           ))}
@@ -273,7 +327,7 @@ return (
           {filtered.length} records
         </span>
       </div>
-{filtered.length === 0 ? (
+      {filtered.length === 0 ? (
         <EmptyState
           title={`No ${tab.toLowerCase()} maintenance records`}
           message="Schedule maintenance work to keep your machines healthy and production running."
@@ -297,11 +351,22 @@ return (
               </thead>
               <tbody>
                 {filtered.map((r) => (
-                  <tr key={r.id} className="border-b border-line/60 transition-colors hover:bg-navy-800/40">
+                  <tr
+                    key={r.id}
+                    className="border-b border-line/60 transition-colors hover:bg-navy-800/40"
+                  >
                     <td className="px-3 py-3">
-                      <button type="button" onClick={() => navigate(`/machines/${r.machineId}`)} className="text-left">
-                        <p className="font-mono text-[12px] font-bold text-ink hover:text-sky-300">{r.machineId}</p>
-                        <p className="truncate text-[10.5px] text-ink-faint">{r.machineName}</p>
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/machines/${r.machineId}`)}
+                        className="text-left"
+                      >
+                        <p className="font-mono text-[12px] font-bold text-ink hover:text-sky-300">
+                          {r.machineId}
+                        </p>
+                        <p className="truncate text-[10.5px] text-ink-faint">
+                          {r.machineName}
+                        </p>
                       </button>
                     </td>
                     <td className="px-3 py-3">
@@ -311,16 +376,22 @@ return (
                     <td className="px-3 py-3">
                       <PriorityBadge priority={r.priority} />
                     </td>
-                    <td className="px-3 py-3 font-mono text-[11px] text-ink-dim">{formatDate(r.date)}</td>
-                    <td className="px-3 py-3 text-[11.5px] text-ink-dim">{r.technician}</td>
-                    <td className="px-3 py-3 font-mono text-[11px] text-ink-dim">{r.downtime}</td>
+                    <td className="px-3 py-3 font-mono text-[11px] text-ink-dim">
+                      {formatDate(r.date)}
+                    </td>
+                    <td className="px-3 py-3 text-[11.5px] text-ink-dim">
+                      {r.technician}
+                    </td>
+                    <td className="px-3 py-3 font-mono text-[11px] text-ink-dim">
+                      {r.downtime}
+                    </td>
                     <td className="px-3 py-3 font-mono text-[11px] text-ink-dim">
                       {r.cost === null ? '—' : `$${formatInt(r.cost)}`}
                     </td>
                     <td className="px-3 py-3">
                       <MaintenanceRecordStatusBadge status={r.status} />
                     </td>
-<td className="px-3 py-3">
+                    <td className="px-3 py-3">
                       <div className="flex items-center justify-end gap-1.5">
                         {r.status === 'Recommended' && (
                           <button
@@ -355,12 +426,15 @@ return (
                             Complete
                           </button>
                         )}
-                        {['Recommended', 'Scheduled', 'In Progress'].includes(r.status) && (
+                        {['Recommended', 'Scheduled', 'In Progress'].includes(
+                          r.status
+                        ) && (
                           <button
                             type="button"
                             title="Cancel work order"
                             onClick={() => {
-                              if (window.confirm(`Cancel work order ${r.id}?`)) advance(r, 'Cancelled')
+                              if (window.confirm(`Cancel work order ${r.id}?`))
+                                advance(r, 'Cancelled')
                             }}
                             className="btn-ghost btn-sm"
                           >
@@ -385,7 +459,7 @@ return (
           </div>
         </div>
       )}
-{/* Schedule / edit modal */}
+      {/* Schedule / edit modal */}
       <Modal
         open={formOpen}
         onClose={() => setFormOpen(false)}
@@ -394,7 +468,11 @@ return (
         size="lg"
         footer={
           <>
-            <button type="button" className="btn-ghost btn-sm" onClick={() => setFormOpen(false)}>
+            <button
+              type="button"
+              className="btn-ghost btn-sm"
+              onClick={() => setFormOpen(false)}
+            >
               Cancel
             </button>
             <button type="button" className="btn-primary btn-sm" onClick={submitForm}>
@@ -406,7 +484,10 @@ return (
       >
         <div className="grid gap-3.5 sm:grid-cols-2">
           <Field label="Machine">
-            <SelectInput value={form.machineId} onChange={(e) => setForm({ ...form, machineId: e.target.value })}>
+            <SelectInput
+              value={form.machineId}
+              onChange={(e) => setForm({ ...form, machineId: e.target.value })}
+            >
               {machines.map((m) => (
                 <option key={m.id} value={m.id}>
                   {m.id} — {m.name}
@@ -424,7 +505,12 @@ return (
           <Field label="Work Classification">
             <SelectInput
               value={form.maintenanceKind}
-              onChange={(e) => setForm({ ...form, maintenanceKind: e.target.value as 'preventive' | 'corrective' | '' })}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  maintenanceKind: e.target.value as 'preventive' | 'corrective' | '',
+                })
+              }
             >
               <option value="">Not classified</option>
               <option value="preventive">Preventive</option>
@@ -432,7 +518,12 @@ return (
             </SelectInput>
           </Field>
           <Field label="Priority">
-            <SelectInput value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value as MaintenancePriority })}>
+            <SelectInput
+              value={form.priority}
+              onChange={(e) =>
+                setForm({ ...form, priority: e.target.value as MaintenancePriority })
+              }
+            >
               {['Low', 'Medium', 'High'].map((p) => (
                 <option key={p} value={p}>
                   {p}
@@ -441,11 +532,27 @@ return (
             </SelectInput>
           </Field>
           <Field label="Date">
-            <TextInput type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
+            <TextInput
+              type="date"
+              value={form.date}
+              onChange={(e) => setForm({ ...form, date: e.target.value })}
+            />
           </Field>
           <Field label="Technician">
-            <SelectInput value={form.technician} onChange={(e) => setForm({ ...form, technician: e.target.value })}>
-              {['Ahmed H.', 'Sara M.', 'Khaled R.', 'Dina K.', 'Yousef A.', 'Omar S.', 'Mona T.', 'Hassan F.'].map((t) => (
+            <SelectInput
+              value={form.technician}
+              onChange={(e) => setForm({ ...form, technician: e.target.value })}
+            >
+              {[
+                'Ahmed H.',
+                'Sara M.',
+                'Khaled R.',
+                'Dina K.',
+                'Yousef A.',
+                'Omar S.',
+                'Mona T.',
+                'Hassan F.',
+              ].map((t) => (
                 <option key={t} value={t}>
                   {t}
                 </option>
@@ -453,10 +560,20 @@ return (
             </SelectInput>
           </Field>
           <Field label="Estimated Downtime">
-            <TextInput value={form.downtime} onChange={(e) => setForm({ ...form, downtime: e.target.value })} placeholder="e.g. 4h" />
+            <TextInput
+              value={form.downtime}
+              onChange={(e) => setForm({ ...form, downtime: e.target.value })}
+              placeholder="e.g. 4h"
+            />
           </Field>
           <Field label="Estimated Cost (USD)">
-            <TextInput type="number" min="0" value={form.cost} onChange={(e) => setForm({ ...form, cost: e.target.value })} placeholder="Optional estimate" />
+            <TextInput
+              type="number"
+              min="0"
+              value={form.cost}
+              onChange={(e) => setForm({ ...form, cost: e.target.value })}
+              placeholder="Optional estimate"
+            />
           </Field>
           <Field label="Notes" className="sm:col-span-2">
             <textarea
@@ -476,10 +593,18 @@ return (
         size="md"
         footer={
           <>
-            <button type="button" className="btn-ghost btn-sm" onClick={() => setCompletionTarget(null)}>
+            <button
+              type="button"
+              className="btn-ghost btn-sm"
+              onClick={() => setCompletionTarget(null)}
+            >
               Cancel
             </button>
-            <button type="button" className="btn-primary btn-sm" onClick={completeWorkOrder}>
+            <button
+              type="button"
+              className="btn-primary btn-sm"
+              onClick={completeWorkOrder}
+            >
               <CheckCheck className="h-3.5 w-3.5" />
               Save Completion
             </button>
@@ -511,14 +636,18 @@ return (
           <Field label="Technician">
             <TextInput
               value={completion.technician}
-              onChange={(e) => setCompletion({ ...completion, technician: e.target.value })}
+              onChange={(e) =>
+                setCompletion({ ...completion, technician: e.target.value })
+              }
               placeholder="Technician name"
             />
           </Field>
           <Field label="Failure Cause">
             <TextInput
               value={completion.failureCause}
-              onChange={(e) => setCompletion({ ...completion, failureCause: e.target.value })}
+              onChange={(e) =>
+                setCompletion({ ...completion, failureCause: e.target.value })
+              }
               placeholder="Optional"
             />
           </Field>

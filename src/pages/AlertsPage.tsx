@@ -30,9 +30,15 @@ const FILTERS: (Severity | 'all')[] = ['all', 'critical', 'warning', 'info']
  */
 const isQualityAlert = (type: string) => /quality|defect/i.test(type)
 
-
 export default function AlertsPage() {
-  const { alerts, maintenance, createMaintenanceFromAlert, setAlertStatus, notify, refreshTimestamp } = useApp()
+  const {
+    alerts,
+    maintenance,
+    createMaintenanceFromAlert,
+    setAlertStatus,
+    notify,
+    refreshTimestamp,
+  } = useApp()
   const navigate = useNavigate()
 
   const [filter, setFilter] = useState<Severity | 'all'>('all')
@@ -53,7 +59,7 @@ export default function AlertsPage() {
     .filter((a) => filter === 'all' || a.severity === filter)
     .filter((a) => !resolvedHidden || a.status !== 'resolved')
     .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-return (
+  return (
     <div className="space-y-5">
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-2.5">
@@ -65,14 +71,16 @@ return (
               onClick={() => setFilter(f)}
               className={cx(
                 'flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-semibold transition-all',
-                filter === f ? 'bg-sky-500/15 text-sky-300' : 'text-ink-dim hover:bg-navy-800 hover:text-ink',
+                filter === f
+                  ? 'bg-sky-500/15 text-sky-300'
+                  : 'text-ink-dim hover:bg-navy-800 hover:text-ink'
               )}
             >
               {f === 'all' ? 'All' : f.charAt(0).toUpperCase() + f.slice(1)}
               <span
                 className={cx(
                   'rounded-md bg-navy-700/80 px-1.5 font-mono text-[9.5px]',
-                  filter === f ? 'text-sky-300' : 'text-ink-faint',
+                  filter === f ? 'text-sky-300' : 'text-ink-faint'
                 )}
               >
                 {counts[f]}
@@ -90,7 +98,7 @@ return (
           Hide resolved alerts
         </label>
       </div>
-{list.length === 0 ? (
+      {list.length === 0 ? (
         <EmptyState
           title="No alerts in this view"
           message="All clear — no alerts match the selected filters."
@@ -106,18 +114,29 @@ return (
                 key={a.id}
                 className={cx(
                   'panel relative overflow-hidden p-4',
-                  a.severity === 'critical' && a.status !== 'resolved' ? 'border-red-400/40' : '',
+                  a.severity === 'critical' && a.status !== 'resolved'
+                    ? 'border-red-400/40'
+                    : ''
                 )}
               >
                 <div className="flex items-start gap-3.5">
-                  <div className={cx('flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ring-1', s.pill)}>
+                  <div
+                    className={cx(
+                      'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ring-1',
+                      s.pill
+                    )}
+                  >
                     <Icon className="h-5 w-5" />
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-[12.5px] font-bold text-ink">{a.type}</span>
                       <SeverityBadge severity={a.severity} />
-                      {a.isDemo && <span className="chip border-amber-400/20 text-amber-300">DEMO INPUTS</span>}
+                      {a.isDemo && (
+                        <span className="chip border-amber-400/20 text-amber-300">
+                          DEMO INPUTS
+                        </span>
+                      )}
                       <span className="chip">
                         {a.status === 'active'
                           ? '● Active'
@@ -129,11 +148,15 @@ return (
                         {timeAgo(a.timestamp)}
                       </span>
                     </div>
-                    <p className="mt-1.5 text-[12.5px] leading-relaxed text-ink-dim">{a.message}</p>
+                    <p className="mt-1.5 text-[12.5px] leading-relaxed text-ink-dim">
+                      {a.message}
+                    </p>
                     <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px]">
                       <button
                         type="button"
-                        onClick={() => navigate(quality ? '/quality' : `/machines/${a.machineId}`)}
+                        onClick={() =>
+                          navigate(quality ? '/quality' : `/machines/${a.machineId}`)
+                        }
                         className="inline-flex items-center gap-1.5 font-semibold text-sky-300 hover:underline"
                       >
                         {quality ? (
@@ -157,7 +180,9 @@ return (
                     <div className="mt-2.5 flex items-start gap-2 rounded-xl border border-sky-400/20 bg-sky-500/5 px-3 py-2">
                       <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-sky-300" />
                       <p className="text-[11.5px] leading-relaxed text-ink-dim">
-                        <span className="font-semibold text-sky-300/90">Recommended action: </span>
+                        <span className="font-semibold text-sky-300/90">
+                          Recommended action:{' '}
+                        </span>
                         {a.recommendedAction}
                       </p>
                     </div>
@@ -169,16 +194,22 @@ return (
                         className="btn-ghost btn-sm"
                         onClick={() => {
                           setAlertStatus(a.id, 'acknowledged')
-                          notify('info', 'Alert acknowledged', `${a.id} acknowledged by Eng. Sarah.`)
+                          notify(
+                            'info',
+                            'Alert acknowledged',
+                            `${a.id} acknowledged by Eng. Khaled.`
+                          )
                         }}
                       >
                         <Eye className="h-3.5 w-3.5" />
                         Acknowledge
                       </button>
                     )}
-                    {a.status !== 'resolved' && (
+                    {a.status !== 'resolved' &&
                       (() => {
-                        const existingOrder = maintenance.find((record) => record.originAlertId === a.id)
+                        const existingOrder = maintenance.find(
+                          (record) => record.originAlertId === a.id
+                        )
                         return (
                           <button
                             type="button"
@@ -186,32 +217,44 @@ return (
                             onClick={() => {
                               const record = createMaintenanceFromAlert(a.id)
                               if (!record) {
-                                notify('warning', 'Work order not created', 'The alert machine is no longer available in the fleet.')
+                                notify(
+                                  'warning',
+                                  'Work order not created',
+                                  'The alert machine is no longer available in the fleet.'
+                                )
                                 return
                               }
-                              if (!existingOrder && a.status === 'active') setAlertStatus(a.id, 'acknowledged')
+                              if (!existingOrder && a.status === 'active')
+                                setAlertStatus(a.id, 'acknowledged')
                               notify(
                                 'success',
-                                existingOrder ? 'Work order already exists' : 'Work order created',
-                                `${record.id} · ${record.machineId}`,
+                                existingOrder
+                                  ? 'Work order already exists'
+                                  : 'Work order created',
+                                `${record.id} · ${record.machineId}`
                               )
                               refreshTimestamp()
-                              navigate(`/maintenance?search=${encodeURIComponent(record.id)}`)
+                              navigate(
+                                `/maintenance?search=${encodeURIComponent(record.id)}`
+                              )
                             }}
                           >
                             <CalendarPlus className="h-3.5 w-3.5" />
                             {existingOrder ? 'Open Work Order' : 'Create Work Order'}
                           </button>
                         )
-                      })()
-                    )}
+                      })()}
                     {a.status !== 'resolved' && (
                       <button
                         type="button"
                         className="btn-danger btn-sm"
                         onClick={() => {
                           setAlertStatus(a.id, 'resolved')
-                          notify('success', 'Alert resolved', `${a.id} marked as resolved.`)
+                          notify(
+                            'success',
+                            'Alert resolved',
+                            `${a.id} marked as resolved.`
+                          )
                           refreshTimestamp()
                         }}
                       >

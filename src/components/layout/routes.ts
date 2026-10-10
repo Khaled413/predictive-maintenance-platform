@@ -47,7 +47,8 @@ export const PAGE_META: Record<string, { title: string; subtitle: string }> = {
   },
   '/assistant': {
     title: 'Industrial AI Assistant',
-    subtitle: 'Ask questions about machines, maintenance, production data, and uploaded documents.',
+    subtitle:
+      'Ask questions about machines, maintenance, production data, and uploaded documents.',
   },
   '/alerts': {
     title: 'Alerts Center',

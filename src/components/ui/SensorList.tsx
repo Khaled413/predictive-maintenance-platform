@@ -2,9 +2,28 @@ import { Minus, TrendingDown, TrendingUp } from 'lucide-react'
 import type { SensorReading } from '../../types'
 import { sensorLevelClasses, cx } from '../../utils/helpers'
 
-function Trend({ trend, illustrative }: { trend: SensorReading['trend']; illustrative: boolean }) {
-  if (trend === 'up') return <TrendingUp className={cx('h-3.5 w-3.5', illustrative ? 'text-ink-faint' : 'text-red-400')} />
-  if (trend === 'down') return <TrendingDown className={cx('h-3.5 w-3.5', illustrative ? 'text-ink-faint' : 'text-emerald-400')} />
+function Trend({
+  trend,
+  illustrative,
+}: {
+  trend: SensorReading['trend']
+  illustrative: boolean
+}) {
+  if (trend === 'up')
+    return (
+      <TrendingUp
+        className={cx('h-3.5 w-3.5', illustrative ? 'text-ink-faint' : 'text-red-400')}
+      />
+    )
+  if (trend === 'down')
+    return (
+      <TrendingDown
+        className={cx(
+          'h-3.5 w-3.5',
+          illustrative ? 'text-ink-faint' : 'text-emerald-400'
+        )}
+      />
+    )
   return <Minus className="h-3.5 w-3.5 text-ink-faint" />
 }
 
@@ -23,7 +42,10 @@ export default function SensorList({
         const c = illustrative
           ? { bar: 'bg-slate-500', text: 'text-ink-dim', dot: 'bg-slate-400' }
           : sensorLevelClasses[s.level]
-        const span = Math.min(100, Math.max(4, ((s.value - s.min) / (s.max - s.min)) * 100))
+        const span = Math.min(
+          100,
+          Math.max(4, ((s.value - s.min) / (s.max - s.min)) * 100)
+        )
         return (
           <div key={s.name} className="flex items-center gap-2.5">
             {compact ? (
@@ -39,7 +61,12 @@ export default function SensorList({
                 style={{ width: `${span}%` }}
               />
             </div>
-            <span className={cx('w-[66px] shrink-0 text-right font-mono text-[10.5px] font-medium', c.text)}>
+            <span
+              className={cx(
+                'w-[66px] shrink-0 text-right font-mono text-[10.5px] font-medium',
+                c.text
+              )}
+            >
               {s.value}
               <span className="ml-0.5 text-[9px] text-ink-faint">{s.unit}</span>
             </span>

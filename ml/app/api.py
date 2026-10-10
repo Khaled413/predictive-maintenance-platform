@@ -28,13 +28,16 @@ from .quality_inference import (
     model_readiness,
 )
 from .schemas import (
+    AssistantApiKeyRequest,
     AssistantChatRequest,
     AssistantChatResponse,
+    AssistantConfigResponse,
     AssistantDocumentListResponse,
     AssistantDocumentResponse,
     AssistantHealthResponse,
     AssistantSpeechRequest,
     AssistantSpeechChunksResponse,
+    AssistantTranscribeResponse,
     HealthResponse,
     InspectionResponse,
     PredictionRequest,
@@ -381,6 +384,229 @@ def create_app(models_dir: str | Path | None = None) -> FastAPI:
             }
 
     @application.get(
+        "/api/assistant/config",
+        response_model=AssistantConfigResponse,
+    )
+    def assistant_config() -> dict[str, Any]:
+        try:
+            engine = _assistant_engine()
+            keys = engine.get_groq_api_keys() if hasattr(engine, "get_groq_api_keys") else []
+            if not keys and getattr(engine, "GROQ_API_KEY", None):
+                keys = [engine.GROQ_API_KEY]
+            configured = len(keys) > 0
+            active_idx = engine.get_active_key_index() if hasattr(engine, "get_active_key_index") else 0
+            if keys:
+                active_idx = active_idx % len(keys)
+
+            api_keys_info = []
+            for i, k in enumerate(keys):
+                masked = (
+                    engine.mask_api_key(k)
+                    if hasattr(engine, "mask_api_key")
+                    else (f"{k[:4]}••••••••{k[-4:]}" if len(k) > 8 else "••••••••")
+                )
+                api_keys_info.append(
+                    {
+                        "id": f"key-{i + 1}",
+                        "masked_key": masked,
+                        "is_active": i == active_idx,
+                    }
+                )
+
+            chat_model = getattr(engine, "CHAT_MODEL", "openai/gpt-oss-120b")
+            stt_model = getattr(engine, "STT_MODEL", "whisper-large-v3")
+            vision_model = getattr(engine, "VISION_MODEL", "qwen/qwen3.8-27b")
+            auto_rotate = engine.is_auto_rotate() if hasattr(engine, "is_auto_rotate") else True
+            available_chat_models = getattr(engine, "AVAILABLE_CHAT_MODELS", [])
+            available_stt_models = getattr(engine, "AVAILABLE_STT_MODELS", [])
+
+            active_masked = api_keys_info[active_idx]["masked_key"] if api_keys_info else None
+            return {
+                "configured": configured,
+                "masked_key": active_masked,
+                "model": chat_model,
+                "chat_model": chat_model,
+                "stt_model": stt_model,
+                "vision_model": vision_model,
+                "auto_rotate": auto_rotate,
+                "active_key_index": active_idx,
+                "api_keys": api_keys_info,
+                "available_chat_models": available_chat_models,
+                "available_stt_models": available_stt_models,
+                "message": (
+                    f"{len(keys)} active Groq API key(s) in pool."
+                    if configured
+                    else "Configure GROQ_API_KEY to activate AI features."
+                ),
+            }
+        except (ImportError, OSError, RuntimeError):
+            return {
+                "configured": False,
+                "masked_key": None,
+                "model": "openai/gpt-oss-120b",
+                "chat_model": "openai/gpt-oss-120b",
+                "stt_model": "whisper-large-v3",
+                "vision_model": "qwen/qwen3.8-27b",
+                "auto_rotate": True,
+                "active_key_index": 0,
+                "api_keys": [],
+                "available_chat_models": [],
+                "available_stt_models": [],
+                "message": "The AI Assistant engine is not loaded.",
+            }
+
+    @application.post(
+        "/api/assistant/config",
+        response_model=AssistantConfigResponse,
+    )
+    async def update_assistant_config(
+        payload: AssistantApiKeyRequest,
+    ) -> dict[str, Any]:
+        try:
+            engine = _assistant_engine()
+        except (ImportError, OSError, RuntimeError) as exc:
+            raise HTTPException(
+                status_code=503,
+                detail="The AI Assistant engine is unavailable.",
+            ) from exc
+
+        action = payload.action or "update"
+        env_path = Path(__file__).resolve().parents[2] / ".env"
+
+        # 1. Update models if provided
+        if payload.chat_model or payload.stt_model:
+            if hasattr(engine, "set_active_models"):
+                engine.set_active_models(payload.chat_model, payload.stt_model)
+                try:
+                    from dotenv import set_key
+
+                    if payload.chat_model:
+                        set_key(str(env_path), "CHAT_MODEL", payload.chat_model)
+                    if payload.stt_model:
+                        set_key(str(env_path), "STT_MODEL", payload.stt_model)
+                except Exception as exc:
+                    logger.warning("Could not persist models to .env: %s", exc)
+
+        # 2. Update auto-rotate policy if provided
+        if payload.auto_rotate is not None and hasattr(engine, "set_auto_rotate"):
+            engine.set_auto_rotate(payload.auto_rotate)
+            try:
+                from dotenv import set_key
+
+                set_key(
+                    str(env_path),
+                    "AUTO_ROTATE_KEYS",
+                    "true" if payload.auto_rotate else "false",
+                )
+            except Exception as exc:
+                logger.warning("Could not persist AUTO_ROTATE_KEYS to .env: %s", exc)
+
+        # 3. Handle key operations
+        if action == "add":
+            raw_key = payload.api_key.strip()
+            if not raw_key:
+                raise HTTPException(status_code=400, detail="API key cannot be empty.")
+            try:
+                await run_in_threadpool(engine.validate_groq_api_key, raw_key)
+            except Exception as exc:
+                logger.warning("Groq API key validation failed: %s", exc)
+                error_msg = str(exc)
+                if "401" in error_msg or "invalid_api_key" in error_msg.lower():
+                    detail = "Invalid Groq API key: Authentication failed (401)."
+                else:
+                    detail = f"Groq API connection test failed: {error_msg}"
+                raise HTTPException(status_code=400, detail=detail) from exc
+
+            if hasattr(engine, "add_groq_api_key"):
+                engine.add_groq_api_key(raw_key)
+            else:
+                engine.set_groq_api_key(raw_key)
+
+            try:
+                from dotenv import set_key
+
+                keys = (
+                    engine.get_groq_api_keys()
+                    if hasattr(engine, "get_groq_api_keys")
+                    else [raw_key]
+                )
+                set_key(str(env_path), "GROQ_API_KEYS", ",".join(keys))
+                set_key(str(env_path), "GROQ_API_KEY", keys[0] if keys else raw_key)
+            except Exception as exc:
+                logger.warning("Could not persist GROQ_API_KEYS to .env: %s", exc)
+
+        elif action == "remove":
+            key_to_remove = payload.api_key.strip()
+            if hasattr(engine, "remove_groq_api_key"):
+                engine.remove_groq_api_key(key_to_remove)
+            else:
+                engine.set_groq_api_key(None)
+
+            try:
+                from dotenv import set_key
+
+                keys = (
+                    engine.get_groq_api_keys()
+                    if hasattr(engine, "get_groq_api_keys")
+                    else []
+                )
+                set_key(str(env_path), "GROQ_API_KEYS", ",".join(keys))
+                set_key(str(env_path), "GROQ_API_KEY", keys[0] if keys else "")
+            except Exception as exc:
+                logger.warning("Could not update .env: %s", exc)
+
+        elif action == "select":
+            if payload.active_key_index is not None and hasattr(
+                engine, "set_active_key_index"
+            ):
+                engine.set_active_key_index(payload.active_key_index)
+
+        elif action == "clear":
+            if hasattr(engine, "set_groq_api_key"):
+                engine.set_groq_api_key(None)
+            try:
+                from dotenv import set_key
+
+                set_key(str(env_path), "GROQ_API_KEYS", "")
+                set_key(str(env_path), "GROQ_API_KEY", "")
+            except Exception as exc:
+                logger.warning("Could not clear keys in .env: %s", exc)
+
+        elif action == "update" and payload.api_key.strip():
+            raw_key = payload.api_key.strip()
+            try:
+                await run_in_threadpool(engine.validate_groq_api_key, raw_key)
+            except Exception as exc:
+                logger.warning("Groq API key validation failed: %s", exc)
+                error_msg = str(exc)
+                if "401" in error_msg or "invalid_api_key" in error_msg.lower():
+                    detail = "Invalid Groq API key: Authentication failed (401)."
+                else:
+                    detail = f"Groq API connection test failed: {error_msg}"
+                raise HTTPException(status_code=400, detail=detail) from exc
+
+            if hasattr(engine, "add_groq_api_key"):
+                engine.add_groq_api_key(raw_key)
+            else:
+                engine.set_groq_api_key(raw_key)
+
+            try:
+                from dotenv import set_key
+
+                keys = (
+                    engine.get_groq_api_keys()
+                    if hasattr(engine, "get_groq_api_keys")
+                    else [raw_key]
+                )
+                set_key(str(env_path), "GROQ_API_KEYS", ",".join(keys))
+                set_key(str(env_path), "GROQ_API_KEY", keys[0] if keys else raw_key)
+            except Exception as exc:
+                logger.warning("Could not persist GROQ_API_KEYS to .env: %s", exc)
+
+        # Return updated config
+        return assistant_config()
+
+    @application.get(
         "/api/assistant/documents",
         response_model=AssistantDocumentListResponse,
     )
@@ -575,8 +801,11 @@ def create_app(models_dir: str | Path | None = None) -> FastAPI:
             logger.exception("AI Assistant image request failed")
             raise HTTPException(status_code=502, detail="AI Assistant could not analyze this image.") from exc
 
-    @application.post("/api/assistant/transcribe")
-    async def assistant_transcribe(file: UploadFile = File(...)) -> dict[str, str]:
+    @application.post(
+        "/api/assistant/transcribe",
+        response_model=AssistantTranscribeResponse,
+    )
+    async def assistant_transcribe(file: UploadFile = File(...)) -> dict[str, Any]:
         content_type = file.content_type or ""
         if not content_type.startswith("audio/"):
             raise HTTPException(status_code=415, detail="Upload an audio recording.")
@@ -596,6 +825,9 @@ def create_app(models_dir: str | Path | None = None) -> FastAPI:
         except (ImportError, OSError, RuntimeError) as exc:
             logger.exception("Assistant audio transcription failed")
             raise HTTPException(status_code=502, detail="Audio transcription failed.") from exc
+        except Exception as exc:
+            logger.exception("Assistant audio transcription failed unexpectedly")
+            raise HTTPException(status_code=502, detail=f"Audio transcription failed: {exc}") from exc
         no_speech_text = getattr(engine, "NO_SPEECH_TEXT", None)
         if not text.strip() or text == no_speech_text:
             return {"text": "", "recognized": False}

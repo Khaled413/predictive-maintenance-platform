@@ -36,10 +36,13 @@ export default function MachinesPage() {
   }, [searchParams, setSearchParams])
 
   const derived = machines
-  const types = useMemo(() => ['All', ...Array.from(new Set(machines.map((m) => m.type)))], [machines])
+  const types = useMemo(
+    () => ['All', ...Array.from(new Set(machines.map((m) => m.type)))],
+    [machines]
+  )
   const maintStatuses = useMemo(
     () => ['All', ...Array.from(new Set(machines.map((m) => m.maintenanceStatus)))],
-    [machines],
+    [machines]
   )
 
   const filtered = derived.filter((m) => {
@@ -48,7 +51,8 @@ export default function MachinesPage() {
     if (maintFilter !== 'All' && m.maintenanceStatus !== maintFilter) return false
     if (search) {
       const q = search.toLowerCase()
-      const hay = `${m.id} ${m.name} ${m.type} ${m.location} ${m.manufacturer} ${m.model}`.toLowerCase()
+      const hay =
+        `${m.id} ${m.name} ${m.type} ${m.location} ${m.manufacturer} ${m.model}`.toLowerCase()
       if (!hay.includes(q)) return false
     }
     return true
@@ -58,10 +62,14 @@ export default function MachinesPage() {
     if (!deleteTarget) return
     deleteMachine(deleteTarget.id)
     refreshTimestamp()
-    notify('warning', `${deleteTarget.id} removed`, `${deleteTarget.name} was deleted from the fleet.`)
+    notify(
+      'warning',
+      `${deleteTarget.id} removed`,
+      `${deleteTarget.name} was deleted from the fleet.`
+    )
     setDeleteTarget(null)
   }
-const summary = useMemo(() => {
+  const summary = useMemo(() => {
     const counts = { Operational: 0, Warning: 0, Critical: 0 }
     derived.forEach((m) => {
       const status = m.status
@@ -106,21 +114,33 @@ const summary = useMemo(() => {
           />
         </div>
         <div className="flex flex-wrap items-center gap-2.5">
-          <SelectInput value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="w-auto min-w-32">
+          <SelectInput
+            value={typeFilter}
+            onChange={(e) => setTypeFilter(e.target.value)}
+            className="w-auto min-w-32"
+          >
             {types.map((t) => (
               <option key={t} value={t}>
                 {t === 'All' ? 'Type: All' : t}
               </option>
             ))}
           </SelectInput>
-          <SelectInput value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="w-auto min-w-32">
+          <SelectInput
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="w-auto min-w-32"
+          >
             {['All', 'Operational', 'Warning', 'Critical'].map((s) => (
               <option key={s} value={s}>
                 {s === 'All' ? 'Status: All' : s}
               </option>
             ))}
           </SelectInput>
-          <SelectInput value={maintFilter} onChange={(e) => setMaintFilter(e.target.value)} className="w-auto min-w-36">
+          <SelectInput
+            value={maintFilter}
+            onChange={(e) => setMaintFilter(e.target.value)}
+            className="w-auto min-w-36"
+          >
             {maintStatuses.map((s) => (
               <option key={s} value={s}>
                 {s === 'All' ? 'Maintenance: All' : s}
@@ -129,12 +149,16 @@ const summary = useMemo(() => {
           </SelectInput>
         </div>
       </div>
-{filtered.length === 0 ? (
+      {filtered.length === 0 ? (
         <EmptyState
           title="No machines found"
           message="Adjust the filters or add a new machine to the fleet."
           action={
-            <button type="button" className="btn-primary btn-sm" onClick={() => setAddOpen(true)}>
+            <button
+              type="button"
+              className="btn-primary btn-sm"
+              onClick={() => setAddOpen(true)}
+            >
               <Plus className="h-3.5 w-3.5" />
               Add Machine
             </button>
@@ -159,140 +183,161 @@ const summary = useMemo(() => {
                 {filtered.map((m) => {
                   const displayedStatus = m.status
                   const displayedHealth = m.healthScore
-                  const displayedHealthTone = displayedHealth === null ? null : healthTone(displayedHealth)
-                  const displayedRiskTone = m.failureRisk === null
-                    ? null
-                    : m.failureRisk >= thresholds.riskCritical ? 'danger'
-                      : m.failureRisk >= thresholds.riskWarning ? 'warn' : 'ok'
+                  const displayedHealthTone =
+                    displayedHealth === null ? null : healthTone(displayedHealth)
+                  const displayedRiskTone =
+                    m.failureRisk === null
+                      ? null
+                      : m.failureRisk >= thresholds.riskCritical
+                        ? 'danger'
+                        : m.failureRisk >= thresholds.riskWarning
+                          ? 'warn'
+                          : 'ok'
                   return (
-                  <tr
-                    key={m.id}
-                    className="group cursor-pointer border-b border-line/60 transition-colors hover:bg-navy-800/40"
-                    onClick={() => navigate(`/machines/${m.id}`)}
-                  >
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        <MachineVisual type={m.type} size={40} />
-                        <div className="min-w-0">
-                          <p className="flex items-center gap-2 font-mono text-[12.5px] font-bold text-ink">
-                            {m.id}
-                            {m.custom && (
-                              <span className="rounded bg-sky-500/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-sky-300">
-                                New
-                              </span>
-                            )}
-                          </p>
-                          <p className="truncate text-[11px] text-ink-dim">{m.name}</p>
-                          <p className="truncate text-[10px] text-ink-faint">
-                            {m.type} · {m.location}
-                          </p>
+                    <tr
+                      key={m.id}
+                      className="group cursor-pointer border-b border-line/60 transition-colors hover:bg-navy-800/40"
+                      onClick={() => navigate(`/machines/${m.id}`)}
+                    >
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          <MachineVisual type={m.type} size={40} />
+                          <div className="min-w-0">
+                            <p className="flex items-center gap-2 font-mono text-[12.5px] font-bold text-ink">
+                              {m.id}
+                              {m.custom && (
+                                <span className="rounded bg-sky-500/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-sky-300">
+                                  New
+                                </span>
+                              )}
+                            </p>
+                            <p className="truncate text-[11px] text-ink-dim">{m.name}</p>
+                            <p className="truncate text-[10px] text-ink-faint">
+                              {m.type} · {m.location}
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-3 py-3">
-                      {displayedStatus ? (
-                        <MachineStatusBadge status={displayedStatus} />
-                      ) : (
-                        <span className="text-[10px] text-ink-faint">
-                          {m.predictionStatus === 'loading'
-                            ? 'Loading prediction…'
-                            : m.predictionError ?? 'ML prediction service unavailable'}
-                        </span>
-                      )}
-                    </td>
-<td className="px-3 py-3">
-                      <div className="flex items-center gap-2">
-                        <span
-                          className={cx(
-                            'font-mono text-[12px] font-bold',
-                            displayedHealth === null ? 'text-ink-faint' : displayedHealthTone === 'ok'
-                              ? 'text-emerald-300'
-                              : displayedHealthTone === 'warn'
-                                ? 'text-amber-300'
-                                : 'text-red-300',
-                          )}
-                        >
-                          {displayedHealth === null ? '—' : `${displayedHealth}%`}
-                        </span>
-                        <div className="h-1 w-14 overflow-hidden rounded-full bg-navy-700/70">
-                          <div
+                      </td>
+                      <td className="px-3 py-3">
+                        {displayedStatus ? (
+                          <MachineStatusBadge status={displayedStatus} />
+                        ) : (
+                          <span className="text-[10px] text-ink-faint">
+                            {m.predictionStatus === 'loading'
+                              ? 'Loading prediction…'
+                              : (m.predictionError ??
+                                'ML prediction service unavailable')}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-3 py-3">
+                        <div className="flex items-center gap-2">
+                          <span
                             className={cx(
-                              'h-full rounded-full',
-                              displayedHealth !== null && displayedHealthTone === 'ok'
-                                ? 'bg-emerald-400'
-                                : displayedHealth !== null && displayedHealthTone === 'warn'
-                                  ? 'bg-amber-400'
-                                  : 'bg-red-400',
-                            )}
-                            style={{ width: `${displayedHealth ?? 0}%` }}
-                          />
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-3 py-3">
-                      <div className="w-28">
-                        <div className="mb-1 flex items-center justify-between">
-                          {m.failureRisk !== null ? <span
-                            className={cx(
-                              'font-mono text-[11px] font-semibold',
-                              displayedRiskTone === 'danger' ? 'text-red-300'
-                                : displayedRiskTone === 'warn' ? 'text-amber-300' : 'text-emerald-300',
+                              'font-mono text-[12px] font-bold',
+                              displayedHealth === null
+                                ? 'text-ink-faint'
+                                : displayedHealthTone === 'ok'
+                                  ? 'text-emerald-300'
+                                  : displayedHealthTone === 'warn'
+                                    ? 'text-amber-300'
+                                    : 'text-red-300'
                             )}
                           >
-                            {m.failureRisk.toFixed(1)}%
-                          </span> : <span className="text-[10px] text-ink-faint">
-                            {m.predictionStatus === 'loading'
-                              ? 'Loading…'
-                              : m.predictionError ?? 'Unavailable'}
-                          </span>}
-                        </div>
-                        {m.failureRisk !== null && (
-                          <div className="h-1.5 overflow-hidden rounded-full bg-navy-700/70">
+                            {displayedHealth === null ? '—' : `${displayedHealth}%`}
+                          </span>
+                          <div className="h-1 w-14 overflow-hidden rounded-full bg-navy-700/70">
                             <div
-                              className={cx('h-full rounded-full',
-                                displayedRiskTone === 'danger' ? 'bg-red-400'
-                                  : displayedRiskTone === 'warn' ? 'bg-amber-400' : 'bg-emerald-400')}
-                              style={{ width: `${m.failureRisk}%` }}
+                              className={cx(
+                                'h-full rounded-full',
+                                displayedHealth !== null && displayedHealthTone === 'ok'
+                                  ? 'bg-emerald-400'
+                                  : displayedHealth !== null &&
+                                      displayedHealthTone === 'warn'
+                                    ? 'bg-amber-400'
+                                    : 'bg-red-400'
+                              )}
+                              style={{ width: `${displayedHealth ?? 0}%` }}
                             />
                           </div>
+                        </div>
+                      </td>
+                      <td className="px-3 py-3">
+                        <div className="w-28">
+                          <div className="mb-1 flex items-center justify-between">
+                            {m.failureRisk !== null ? (
+                              <span
+                                className={cx(
+                                  'font-mono text-[11px] font-semibold',
+                                  displayedRiskTone === 'danger'
+                                    ? 'text-red-300'
+                                    : displayedRiskTone === 'warn'
+                                      ? 'text-amber-300'
+                                      : 'text-emerald-300'
+                                )}
+                              >
+                                {m.failureRisk.toFixed(1)}%
+                              </span>
+                            ) : (
+                              <span className="text-[10px] text-ink-faint">
+                                {m.predictionStatus === 'loading'
+                                  ? 'Loading…'
+                                  : (m.predictionError ?? 'Unavailable')}
+                              </span>
+                            )}
+                          </div>
+                          {m.failureRisk !== null && (
+                            <div className="h-1.5 overflow-hidden rounded-full bg-navy-700/70">
+                              <div
+                                className={cx(
+                                  'h-full rounded-full',
+                                  displayedRiskTone === 'danger'
+                                    ? 'bg-red-400'
+                                    : displayedRiskTone === 'warn'
+                                      ? 'bg-amber-400'
+                                      : 'bg-emerald-400'
+                                )}
+                                style={{ width: `${m.failureRisk}%` }}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-3 py-3 font-mono text-[11px] text-ink-dim">
+                        {formatDate(m.lastMaintenance)}
+                      </td>
+                      <td className="px-3 py-3 font-mono text-[11px] text-ink-dim">
+                        {formatDate(m.nextMaintenance)}
+                        {m.maintenanceStatus === 'Overdue' && (
+                          <span className="mt-1 block font-sans text-[10px] font-semibold text-red-300">
+                            Maintenance overdue
+                          </span>
                         )}
-                      </div>
-                    </td>
-                    <td className="px-3 py-3 font-mono text-[11px] text-ink-dim">
-                      {formatDate(m.lastMaintenance)}
-                    </td>
-                    <td className="px-3 py-3 font-mono text-[11px] text-ink-dim">
-                      {formatDate(m.nextMaintenance)}
-                      {m.maintenanceStatus === 'Overdue' && (
-                        <span className="mt-1 block font-sans text-[10px] font-semibold text-red-300">
-                          Maintenance overdue
-                        </span>
-                      )}
-                    </td>
-<td className="px-3 py-3">
-                      <div
-                        className="flex items-center justify-end gap-1 opacity-60 transition-opacity group-hover:opacity-100"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <button
-                          type="button"
-                          title="View machine"
-                          onClick={() => navigate(`/machines/${m.id}`)}
-                          className="rounded-lg p-1.5 text-ink-dim transition-colors hover:bg-navy-700 hover:text-sky-300"
+                      </td>
+                      <td className="px-3 py-3">
+                        <div
+                          className="flex items-center justify-end gap-1 opacity-60 transition-opacity group-hover:opacity-100"
+                          onClick={(e) => e.stopPropagation()}
                         >
-                          <Eye className="h-4 w-4" />
-                        </button>
-                        <button
-                          type="button"
-                          title="Remove machine"
-                          onClick={() => setDeleteTarget(m)}
-                          className="rounded-lg p-1.5 text-ink-dim transition-colors hover:bg-red-500/15 hover:text-red-300"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
+                          <button
+                            type="button"
+                            title="View machine"
+                            onClick={() => navigate(`/machines/${m.id}`)}
+                            className="rounded-lg p-1.5 text-ink-dim transition-colors hover:bg-navy-700 hover:text-sky-300"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </button>
+                          <button
+                            type="button"
+                            title="Remove machine"
+                            onClick={() => setDeleteTarget(m)}
+                            className="rounded-lg p-1.5 text-ink-dim transition-colors hover:bg-red-500/15 hover:text-red-300"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
                   )
                 })}
               </tbody>

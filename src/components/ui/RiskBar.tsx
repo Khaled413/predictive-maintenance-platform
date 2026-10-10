@@ -27,7 +27,9 @@ export default function RiskBar({
           <span className="text-[10px] font-semibold uppercase tracking-wider text-ink-faint">
             {t('Model Failure Probability')}
           </span>
-          <span className={cx('font-mono text-[11.5px] font-semibold', text)}>{safeValue.toFixed(1)}%</span>
+          <span className={cx('font-mono text-[11.5px] font-semibold', text)}>
+            {safeValue.toFixed(1)}%
+          </span>
         </div>
       )}
       <div
@@ -43,13 +45,27 @@ export default function RiskBar({
           className="absolute inset-y-0 bg-amber-400/30"
           style={{ left: `${warning}%`, width: `${Math.max(0, critical - warning)}%` }}
         />
-        <div className="absolute inset-y-0 right-0 bg-red-500/30" style={{ left: `${critical}%` }} />
         <div
-          className={cx('absolute inset-y-0 left-0 rounded-full transition-all duration-700', bar)}
+          className="absolute inset-y-0 right-0 bg-red-500/30"
+          style={{ left: `${critical}%` }}
+        />
+        <div
+          className={cx(
+            'absolute inset-y-0 left-0 rounded-full transition-all duration-700',
+            bar
+          )}
           style={{ width: `${safeValue}%` }}
         />
-        <span aria-hidden="true" className="absolute inset-y-0 z-10 w-0.5 bg-white/70" style={{ left: `${warning}%` }} />
-        <span aria-hidden="true" className="absolute inset-y-0 z-10 w-0.5 bg-white" style={{ left: `${critical}%` }} />
+        <span
+          aria-hidden="true"
+          className="absolute inset-y-0 z-10 w-0.5 bg-white/70"
+          style={{ left: `${warning}%` }}
+        />
+        <span
+          aria-hidden="true"
+          className="absolute inset-y-0 z-10 w-0.5 bg-white"
+          style={{ left: `${critical}%` }}
+        />
       </div>
       <div className="mt-1 flex justify-between text-[8px] font-mono text-ink-faint">
         <span>0%</span>

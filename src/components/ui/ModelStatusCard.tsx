@@ -20,7 +20,10 @@ export default function ModelStatusCard({ status }: { status: ModelSystemStatus 
           ['Failure Type Model', status.failure_type_model],
           ['Anomaly Model', status.anomaly_model],
         ].map(([label, value]) => (
-          <div key={label} className="flex items-center gap-2 rounded-xl border border-line bg-navy-900/40 px-3 py-2">
+          <div
+            key={label}
+            className="flex items-center gap-2 rounded-xl border border-line bg-navy-900/40 px-3 py-2"
+          >
             {value === 'ready' ? (
               <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-300" />
             ) : (
@@ -28,7 +31,9 @@ export default function ModelStatusCard({ status }: { status: ModelSystemStatus 
             )}
             <div className="min-w-0">
               <p className="truncate text-[10px] text-ink-faint">{t(label)}</p>
-              <p className="text-[11px] font-semibold text-ink">{t(value === 'ready' ? 'Ready' : 'Unavailable')}</p>
+              <p className="text-[11px] font-semibold text-ink">
+                {t(value === 'ready' ? 'Ready' : 'Unavailable')}
+              </p>
             </div>
           </div>
         ))}
@@ -41,7 +46,9 @@ export default function ModelStatusCard({ status }: { status: ModelSystemStatus 
         <div className="rounded-xl border border-line bg-navy-900/40 px-3 py-2">
           <p className="text-[10px] text-ink-faint">{t('Last Prediction')}</p>
           <p className="mt-0.5 text-[11px] font-semibold text-ink">
-            {status.last_prediction_at ? timeAgo(status.last_prediction_at) : t('Not available')}
+            {status.last_prediction_at
+              ? timeAgo(status.last_prediction_at)
+              : t('Not available')}
           </p>
         </div>
       </div>

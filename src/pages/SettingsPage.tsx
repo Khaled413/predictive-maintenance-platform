@@ -4,9 +4,15 @@ import {
   Bot,
   Check,
   Database,
+  Eye,
+  EyeOff,
   Factory,
   Gauge,
   HardDriveDownload,
+  Key,
+  Loader2,
+  Plus,
+  RefreshCw,
   RotateCcw,
   Save,
   ShieldAlert,
@@ -22,19 +28,66 @@ import { Field, SelectInput, TextInput, Toggle } from '../components/ui/Field'
 import { cx } from '../utils/helpers'
 import type { MachineStatus, Thresholds } from '../types'
 import { usePreferences } from '../context/PreferencesContext'
+import {
+  getAssistantConfig,
+  updateAssistantConfig,
+  type AssistantConfigPayload,
+  type AssistantConfigResponse,
+} from '../data/assistantApi'
+
 
 type SectionKey = 'general' | 'thresholds' | 'notifications' | 'data' | 'ai'
 
-const SECTIONS: { key: SectionKey; label: string; desc: string; icon: React.ReactNode }[] = [
-  { key: 'general', label: 'General', desc: 'Factory profile & units', icon: <Factory className="h-4 w-4" /> },
-  { key: 'thresholds', label: 'Thresholds', desc: 'Health & risk limits', icon: <Gauge className="h-4 w-4" /> },
-  { key: 'notifications', label: 'Notifications', desc: 'Alert routing', icon: <BellRing className="h-4 w-4" /> },
-  { key: 'data', label: 'Data Management', desc: 'Retention & reset', icon: <Database className="h-4 w-4" /> },
-  { key: 'ai', label: 'AI Configuration', desc: 'Model & assistant', icon: <Bot className="h-4 w-4" /> },
+const SECTIONS: {
+  key: SectionKey
+  label: string
+  desc: string
+  icon: React.ReactNode
+}[] = [
+  {
+    key: 'general',
+    label: 'General',
+    desc: 'Factory profile & units',
+    icon: <Factory className="h-4 w-4" />,
+  },
+  {
+    key: 'thresholds',
+    label: 'Thresholds',
+    desc: 'Health & risk limits',
+    icon: <Gauge className="h-4 w-4" />,
+  },
+  {
+    key: 'notifications',
+    label: 'Notifications',
+    desc: 'Alert routing',
+    icon: <BellRing className="h-4 w-4" />,
+  },
+  {
+    key: 'data',
+    label: 'Data Management',
+    desc: 'Retention & reset',
+    icon: <Database className="h-4 w-4" />,
+  },
+  {
+    key: 'ai',
+    label: 'AI Configuration',
+    desc: 'Model & assistant',
+    icon: <Bot className="h-4 w-4" />,
+  },
 ]
 
-const TIMEZONES = ['Asia/Riyadh (GMT+3)', 'Asia/Dubai (GMT+4)', 'Europe/Berlin (GMT+2)', 'UTC']
-const PLANT_OPTIONS = ['Plant A — Riyadh', 'Plant B — Dammam', 'Plant C — Jeddah', 'Distribution Center 1']
+const TIMEZONES = [
+  'Asia/Riyadh (GMT+3)',
+  'Asia/Dubai (GMT+4)',
+  'Europe/Berlin (GMT+2)',
+  'UTC',
+]
+const PLANT_OPTIONS = [
+  'Plant A — Riyadh',
+  'Plant B — Dammam',
+  'Plant C — Jeddah',
+  'Distribution Center 1',
+]
 
 export default function SettingsPage() {
   const { t } = usePreferences()
@@ -73,6 +126,137 @@ export default function SettingsPage() {
 
   // AI
   const [ragEnabled, setRagEnabled] = useState(true)
+  const [aiConfig, setAiConfig] = useState<AssistantConfigResponse | null>(null)
+  const [aiConfigLoading, setAiConfigLoading] = useState(false)
+  const [apiKeyInput, setApiKeyInput] = useState('')
+  const [showApiKey, setShowApiKey] = useState(false)
+  const [savingApiKey, setSavingApiKey] = useState(false)
+  const [confirmClearKey, setConfirmClearKey] = useState(false)
+
+  const fetchAiConfig = async () => {
+    setAiConfigLoading(true)
+    try {
+      const cfg = await getAssistantConfig()
+      setAiConfig(cfg)
+    } catch {
+      // Backend may be offline or starting up
+    } finally {
+      setAiConfigLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (section === 'ai') {
+      void fetchAiConfig()
+    }
+  }, [section])
+
+  const handleAddApiKey = async () => {
+    const trimmed = apiKeyInput.trim()
+    if (!trimmed) {
+      notify(
+        'warning',
+        t('API Key cannot be empty'),
+        t('Enter a valid Groq API key (starting with gsk_).'),
+      )
+      return
+    }
+    setSavingApiKey(true)
+    try {
+      const result = await updateAssistantConfig({ api_key: trimmed, action: 'add' })
+      setAiConfig(result)
+      setApiKeyInput('')
+      notify(
+        'success',
+        t('Key added successfully'),
+        t('Your AI Assistant key pool has been updated.'),
+      )
+    } catch (err) {
+      const msg =
+        err instanceof Error ? err.message : t('Failed to verify or update the API key.')
+      notify('error', t('Invalid API Key'), msg)
+    } finally {
+      setSavingApiKey(false)
+    }
+  }
+
+  const handleRemoveApiKey = async (keyToRemove: string) => {
+    setSavingApiKey(true)
+    try {
+      const result = await updateAssistantConfig({ api_key: keyToRemove, action: 'remove' })
+      setAiConfig(result)
+      notify('info', t('Key removed successfully'), t('Key was removed from the active pool.'))
+    } catch (err) {
+      const msg =
+        err instanceof Error ? err.message : t('Failed to verify or update the API key.')
+      notify('error', t('Error'), msg)
+    } finally {
+      setSavingApiKey(false)
+    }
+  }
+
+  const handleSelectActiveKey = async (index: number) => {
+    try {
+      const result = await updateAssistantConfig({ active_key_index: index, action: 'select' })
+      setAiConfig(result)
+      notify('success', t('Active key updated'), t('AI requests will now use this key as primary.'))
+    } catch (err) {
+      const msg =
+        err instanceof Error ? err.message : t('Failed to verify or update the API key.')
+      notify('error', t('Error'), msg)
+    }
+  }
+
+  const handleToggleAutoRotate = async (enabled: boolean) => {
+    try {
+      const result = await updateAssistantConfig({ auto_rotate: enabled })
+      setAiConfig(result)
+    } catch (err) {
+      const msg =
+        err instanceof Error ? err.message : t('Failed to verify or update the API key.')
+      notify('error', t('Error'), msg)
+    }
+  }
+
+  const handleModelChange = async (chatModel?: string, sttModel?: string) => {
+    try {
+      const payload: AssistantConfigPayload = {}
+      if (chatModel) payload.chat_model = chatModel
+      if (sttModel) payload.stt_model = sttModel
+      const result = await updateAssistantConfig(payload)
+      setAiConfig(result)
+      notify(
+        'success',
+        t('AI models updated successfully'),
+        `${chatModel || result.chat_model} · ${sttModel || result.stt_model}`,
+      )
+    } catch (err) {
+      const msg =
+        err instanceof Error ? err.message : t('Failed to verify or update the API key.')
+      notify('error', t('Error'), msg)
+    }
+  }
+
+  const handleClearApiKey = async () => {
+    setSavingApiKey(true)
+    try {
+      const result = await updateAssistantConfig({ action: 'clear' })
+      setAiConfig(result)
+      setApiKeyInput('')
+      notify(
+        'info',
+        t('Groq API key has been cleared.'),
+        t('AI Assistant provider is now deactivated.'),
+      )
+    } catch (err) {
+      const msg =
+        err instanceof Error ? err.message : t('Failed to verify or update the API key.')
+      notify('error', t('Error'), msg)
+    } finally {
+      setSavingApiKey(false)
+      setConfirmClearKey(false)
+    }
+  }
 
   useEffect(() => {
     setDraft(thresholds)
@@ -108,18 +292,23 @@ export default function SettingsPage() {
 
   const applyThresholds = () => {
     if (invalid) {
-      notify('error', 'Invalid thresholds', 'Critical limits must be stricter than warning limits.')
+      notify(
+        'error',
+        'Invalid thresholds',
+        'Critical limits must be stricter than warning limits.'
+      )
       return
     }
     saveThresholds(draft)
     notify(
       'success',
       'Thresholds updated',
-      `Health and risk thresholds applied to ${machines.length} machines and future predictions.`,
+      `Health and risk thresholds applied to ${machines.length} machines and future predictions.`
     )
   }
 
-  const setDraftKey = (k: keyof Thresholds, v: number) => setDraft((d) => ({ ...d, [k]: v }))
+  const setDraftKey = (k: keyof Thresholds, v: number) =>
+    setDraft((d) => ({ ...d, [k]: v }))
 
   return (
     <div className="space-y-5">
@@ -134,7 +323,9 @@ export default function SettingsPage() {
                 onClick={() => setSection(s.key)}
                 className={cx(
                   'group flex min-w-[172px] items-center gap-2.5 rounded-xl px-3 py-2.5 text-left transition-all lg:min-w-0',
-                  section === s.key ? 'bg-sky-500/10 ring-1 ring-sky-400/25' : 'hover:bg-navy-800/60',
+                  section === s.key
+                    ? 'bg-sky-500/10 ring-1 ring-sky-400/25'
+                    : 'hover:bg-navy-800/60'
                 )}
               >
                 <span
@@ -142,7 +333,7 @@ export default function SettingsPage() {
                     'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ring-1',
                     section === s.key
                       ? 'bg-sky-500/15 text-sky-300 ring-sky-400/25'
-                      : 'bg-navy-700/50 text-ink-faint ring-line group-hover:text-ink-dim',
+                      : 'bg-navy-700/50 text-ink-faint ring-line group-hover:text-ink-dim'
                   )}
                 >
                   {s.icon}
@@ -151,12 +342,14 @@ export default function SettingsPage() {
                   <span
                     className={cx(
                       'block truncate text-[12.5px] font-semibold',
-                      section === s.key ? 'text-ink' : 'text-ink-dim',
+                      section === s.key ? 'text-ink' : 'text-ink-dim'
                     )}
                   >
                     {t(s.label)}
                   </span>
-                  <span className="block truncate text-[10.5px] text-ink-faint">{t(s.desc)}</span>
+                  <span className="block truncate text-[10.5px] text-ink-faint">
+                    {t(s.desc)}
+                  </span>
                 </span>
               </button>
             ))}
@@ -193,7 +386,10 @@ export default function SettingsPage() {
                   </SelectInput>
                 </Field>
                 <Field label="Timezone">
-                  <SelectInput value={timezone} onChange={(e) => setTimezone(e.target.value)}>
+                  <SelectInput
+                    value={timezone}
+                    onChange={(e) => setTimezone(e.target.value)}
+                  >
                     {TIMEZONES.map((t) => (
                       <option key={t} value={t}>
                         {t}
@@ -201,7 +397,10 @@ export default function SettingsPage() {
                     ))}
                   </SelectInput>
                 </Field>
-                <Field label="Measurement Units" hint="Applies to sensors, charts and reports.">
+                <Field
+                  label="Measurement Units"
+                  hint="Applies to sensors, charts and reports."
+                >
                   <SelectInput value={units} onChange={(e) => setUnits(e.target.value)}>
                     <option>Metric (°C, bar, kW)</option>
                     <option>Imperial (°F, psi, hp)</option>
@@ -215,9 +414,7 @@ export default function SettingsPage() {
                   </SelectInput>
                 </Field>
                 <Field label="Fleet Name" className="sm:col-span-2">
-                  <TextInput
-                    defaultValue={t('Riyadh Plant A — Production Line 1')}
-                  />
+                  <TextInput defaultValue={t('Riyadh Plant A — Production Line 1')} />
                 </Field>
               </div>
               <div className="flex flex-wrap items-center gap-2 border-t border-line px-4 py-3.5 sm:px-5">
@@ -309,8 +506,9 @@ export default function SettingsPage() {
                 <div className="mx-4 mb-4 flex items-start gap-2.5 rounded-xl border border-red-400/30 bg-red-500/10 px-3.5 py-3 sm:mx-5">
                   <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-red-400" />
                   <p className="text-[12px] leading-relaxed text-red-200">
-                    Invalid configuration: the Critical threshold must be stricter than the Warning threshold
-                    (health critical &lt; health warning, risk critical &gt; risk warning).
+                    Invalid configuration: the Critical threshold must be stricter than
+                    the Warning threshold (health critical &lt; health warning, risk
+                    critical &gt; risk warning).
                   </p>
                 </div>
               )}
@@ -320,14 +518,24 @@ export default function SettingsPage() {
                     {t('Status Under Draft Thresholds')}
                   </h4>
                   <span className="text-[10px] text-ink-faint">
-                    {t('Preview of how applying the draft health and risk limits will classify current predictions.')}
+                    {t(
+                      'Preview of how applying the draft health and risk limits will classify current predictions.'
+                    )}
                   </span>
                 </div>
                 <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
                   {(
-                    ['Operational', 'Warning', 'Critical', 'Under Maintenance'] as MachineStatus[]
+                    [
+                      'Operational',
+                      'Warning',
+                      'Critical',
+                      'Under Maintenance',
+                    ] as MachineStatus[]
                   ).map((k) => (
-                    <div key={k} className="rounded-xl border border-line bg-navy-900/50 px-3.5 py-3">
+                    <div
+                      key={k}
+                      className="rounded-xl border border-line bg-navy-900/50 px-3.5 py-3"
+                    >
                       <p className="text-[10.5px] font-semibold uppercase tracking-wider text-ink-faint">
                         {k}
                       </p>
@@ -337,7 +545,9 @@ export default function SettingsPage() {
                           <span
                             className={cx(
                               'text-[11px] font-semibold',
-                              afterCounts[k] > beforeCounts[k] ? 'text-amber-300' : 'text-emerald-300',
+                              afterCounts[k] > beforeCounts[k]
+                                ? 'text-amber-300'
+                                : 'text-emerald-300'
                             )}
                           >
                             {afterCounts[k] > beforeCounts[k] ? '+' : ''}
@@ -345,7 +555,9 @@ export default function SettingsPage() {
                           </span>
                         )}
                       </p>
-                      <p className="mt-1 text-[10.5px] text-ink-faint">was {beforeCounts[k]}</p>
+                      <p className="mt-1 text-[10.5px] text-ink-faint">
+                        was {beforeCounts[k]}
+                      </p>
                     </div>
                   ))}
                 </div>
@@ -362,19 +574,32 @@ export default function SettingsPage() {
                     </thead>
                     <tbody>
                       {machines.slice(0, 8).map((m) => (
-                          <tr key={m.id} className="border-b border-line/60 last:border-0">
-                            <td className="py-2.5 pr-3 font-mono text-[11.5px] text-ink-dim">{m.id}</td>
-                            <td className="px-3 py-2.5 font-mono text-ink-dim">{m.healthScore === null ? '—' : `${m.healthScore}%`}</td>
-                            <td className="px-3 py-2.5 font-mono text-ink-dim">{m.failureRisk === null ? '—' : `${m.failureRisk.toFixed(1)}%`}</td>
-                            <td className="px-3 py-2.5 text-ink-faint">
-                              {m.prediction
-                                ? statusForPrediction(m.prediction, draft)
-                                : m.status ?? (m.predictionStatus === 'loading' ? 'Loading…' : 'Unavailable')}
-                            </td>
-                            <td className="px-3 py-2.5 text-ink-faint">
-                              {m.predictionStatus === 'available' ? 'Model output' : 'Not available'}
-                            </td>
-                          </tr>
+                        <tr key={m.id} className="border-b border-line/60 last:border-0">
+                          <td className="py-2.5 pr-3 font-mono text-[11.5px] text-ink-dim">
+                            {m.id}
+                          </td>
+                          <td className="px-3 py-2.5 font-mono text-ink-dim">
+                            {m.healthScore === null ? '—' : `${m.healthScore}%`}
+                          </td>
+                          <td className="px-3 py-2.5 font-mono text-ink-dim">
+                            {m.failureRisk === null
+                              ? '—'
+                              : `${m.failureRisk.toFixed(1)}%`}
+                          </td>
+                          <td className="px-3 py-2.5 text-ink-faint">
+                            {m.prediction
+                              ? statusForPrediction(m.prediction, draft)
+                              : (m.status ??
+                                (m.predictionStatus === 'loading'
+                                  ? 'Loading…'
+                                  : 'Unavailable'))}
+                          </td>
+                          <td className="px-3 py-2.5 text-ink-faint">
+                            {m.predictionStatus === 'available'
+                              ? 'Model output'
+                              : 'Not available'}
+                          </td>
+                        </tr>
                       ))}
                     </tbody>
                   </table>
@@ -395,7 +620,7 @@ export default function SettingsPage() {
                       notify(
                         'success',
                         'Notification preferences saved',
-                        'Alert routing updated for the operations team.',
+                        'Alert routing updated for the operations team.'
                       )
                     }
                   >
@@ -516,12 +741,16 @@ export default function SettingsPage() {
                     hint="Downloads machines, work orders, alerts and inspections as JSON."
                     actionLabel="Export JSON"
                     onAction={() => {
-                      notify('info', 'Preparing export…', 'Packaging platform data as JSON.')
+                      notify(
+                        'info',
+                        'Preparing export…',
+                        'Packaging platform data as JSON.'
+                      )
                       window.setTimeout(() => {
                         notify(
                           'success',
                           'Export ready',
-                          `${machines.length} machines · ${maintenance.length} work orders — prototype export.`,
+                          `${machines.length} machines · ${maintenance.length} work orders — prototype export.`
                         )
                       }, 1200)
                     }}
@@ -546,61 +775,322 @@ export default function SettingsPage() {
             </div>
           )}
           {section === 'ai' && (
-            <Panel>
-              <PanelHeader
-                title="AI Configuration"
-                subtitle="Model selection, inference behaviour and explainability controls"
-                right={
-                  <button
-                    type="button"
-                    className="btn-primary btn-sm"
-                    onClick={() =>
-                      notify(
-                        'success',
-                        'AI configuration saved',
-                        `Prediction service: /api/predict · RAG ${ragEnabled ? 'enabled' : 'disabled'}.`,
-                      )
+            <div className="space-y-4">
+              {/* PANEL 1: Key Pool & Automatic Rotation */}
+              <Panel>
+                <PanelHeader
+                  title={t('API Key Pool')}
+                  subtitle={t(
+                    'Manage multiple Groq API keys with automatic rotation and failover.',
+                  )}
+                  right={
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        className="btn-ghost btn-sm"
+                        onClick={() => void fetchAiConfig()}
+                        disabled={aiConfigLoading}
+                        title={t('Refresh status')}
+                      >
+                        <RefreshCw
+                          className={cx('h-3.5 w-3.5', aiConfigLoading && 'animate-spin')}
+                        />
+                        {t('Refresh status')}
+                      </button>
+                      {aiConfig?.configured && (
+                        <button
+                          type="button"
+                          className="btn-danger btn-sm"
+                          onClick={() => setConfirmClearKey(true)}
+                          disabled={savingApiKey}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                          {t('Clear Key')}
+                        </button>
+                      )}
+                    </div>
+                  }
+                />
+
+                <div className="space-y-4 px-4 py-4 sm:px-5">
+                  {/* Auto-Rotation Toggle */}
+                  <ToggleRow
+                    label={t('Auto-rotate keys on rate limit (Round-Robin / Failover)')}
+                    hint={t(
+                      'Automatically switches to the next available API key when rate limits (429) or transient errors occur.',
+                    )}
+                    checked={aiConfig?.auto_rotate ?? true}
+                    onChange={(val) => void handleToggleAutoRotate(val)}
+                  />
+
+                  {/* Key Pool List */}
+                  <div className="space-y-2">
+                    <p className="text-[12px] font-medium text-ink-dim">
+                      {t('API Key Pool')} ({aiConfig?.api_keys?.length || 0})
+                    </p>
+                    {aiConfig?.api_keys && aiConfig.api_keys.length > 0 ? (
+                      <div className="divide-y divide-line rounded-xl border border-line bg-navy-900/50">
+                        {aiConfig.api_keys.map((item, idx) => (
+                          <div
+                            key={item.id || idx}
+                            className="flex flex-wrap items-center justify-between gap-3 px-3.5 py-3"
+                          >
+                            <div className="flex items-center gap-3">
+                              <span
+                                className={cx(
+                                  'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ring-1 font-mono text-[11px] font-bold',
+                                  item.is_active
+                                    ? 'bg-emerald-500/20 text-emerald-300 ring-emerald-500/40'
+                                    : 'bg-navy-700/60 text-ink-dim ring-line',
+                                )}
+                              >
+                                #{idx + 1}
+                              </span>
+                              <div>
+                                <span className="font-mono text-[13px] font-medium text-ink">
+                                  {item.masked_key}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              {item.is_active ? (
+                                <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-300 ring-1 ring-emerald-500/30">
+                                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                                  {t('Active Key')}
+                                </span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  className="btn-ghost btn-xs text-sky-400 hover:text-sky-300"
+                                  onClick={() => void handleSelectActiveKey(idx)}
+                                >
+                                  {t('Make Active')}
+                                </button>
+                              )}
+
+                              <button
+                                type="button"
+                                className="btn-ghost btn-xs text-red-400 hover:bg-red-500/10 hover:text-red-300"
+                                onClick={() => void handleRemoveApiKey(item.masked_key)}
+                                disabled={savingApiKey}
+                                title={t('Remove key')}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="rounded-xl border border-dashed border-line bg-navy-900/30 p-4 text-center">
+                        <p className="text-[12.5px] text-ink-dim">{t('No API keys added yet')}</p>
+                        <p className="mt-0.5 text-[11px] text-ink-faint">
+                          {t('Add at least one Groq API key to activate AI assistant features.')}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Add Key Input */}
+                  <div className="space-y-2 pt-2 border-t border-line">
+                    <label className="block text-[12px] font-medium text-ink-dim">
+                      {t('Add API Key')}
+                    </label>
+                    <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
+                      <div className="relative flex-1">
+                        <input
+                          type={showApiKey ? 'text' : 'password'}
+                          value={apiKeyInput}
+                          onChange={(e) => setApiKeyInput(e.target.value)}
+                          placeholder="gsk_..."
+                          className="w-full rounded-xl border border-line bg-navy-950/80 px-3.5 py-2.5 pr-10 font-mono text-[13px] text-ink placeholder:text-ink-faint focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                          disabled={savingApiKey}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault()
+                              void handleAddApiKey()
+                            }
+                          }}
+                        />
+                        <button
+                          type="button"
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-ink-faint hover:text-ink"
+                          onClick={() => setShowApiKey(!showApiKey)}
+                          tabIndex={-1}
+                        >
+                          {showApiKey ? (
+                            <EyeOff className="h-4 w-4" />
+                          ) : (
+                            <Eye className="h-4 w-4" />
+                          )}
+                        </button>
+                      </div>
+
+                      <button
+                        type="button"
+                        className="btn-primary btn-md shrink-0 justify-center"
+                        onClick={() => void handleAddApiKey()}
+                        disabled={savingApiKey || !apiKeyInput.trim()}
+                      >
+                        {savingApiKey ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            {t('Adding...')}
+                          </>
+                        ) : (
+                          <>
+                            <Plus className="h-4 w-4" />
+                            {t('Add Key')}
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    <p className="text-[11px] text-ink-faint">
+                      <span>💡 </span>
+                      {t('Enter a valid Groq API key (starting with gsk_).')}{' '}
+                      <a
+                        href="https://console.groq.com/keys"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-sky-400 hover:underline"
+                      >
+                        console.groq.com/keys
+                      </a>
+                    </p>
+                  </div>
+                </div>
+              </Panel>
+
+              {/* PANEL 2: Model Selection (تحديد الموديل المحدد) */}
+              <Panel>
+                <PanelHeader
+                  title={t('Model Selection')}
+                  subtitle={t('Select the AI model for maintenance assistant responses')}
+                />
+                <div className="grid gap-4 px-4 py-4 sm:grid-cols-2 sm:px-5">
+                  <Field
+                    label={t('Chat & Diagnostics Model')}
+                    hint={
+                      aiConfig?.available_chat_models?.find(
+                        (m) => m.id === (aiConfig?.chat_model || 'openai/gpt-oss-120b'),
+                      )?.desc || t('Select the AI model for maintenance assistant responses')
                     }
                   >
-                    <Save className="h-3.5 w-3.5" />
-                    Save
-                  </button>
-                }
-              />
-              <div className="grid gap-4 px-4 py-4 sm:grid-cols-2 sm:px-5">
-                <Field
-                  label="Prediction Model"
-                  className="sm:col-span-2"
-                  hint="Demo predictions use separate simulated model inputs. The sensor profiles and uploaded file previews are not sent as model inputs."
-                >
-                  <TextInput value="Trained ML Models · same-origin /api/predict" readOnly />
-                </Field>
-                <Field label="Prediction Inputs">
-                  <TextInput value="DEMO MODE · simulated failure features + separate simulated anomaly window" readOnly />
-                </Field>
-              </div>
-              <div className="space-y-2.5 border-t border-line px-4 py-4 sm:px-5">
-                <ToggleRow
-                  label="Document-grounded answers (RAG)"
-                  hint="Ground assistant answers in the uploaded knowledge base with source citations."
-                  checked={ragEnabled}
-                  onChange={setRagEnabled}
+                    <SelectInput
+                      value={aiConfig?.chat_model || 'openai/gpt-oss-120b'}
+                      onChange={(e) => void handleModelChange(e.target.value, undefined)}
+                    >
+                      {aiConfig?.available_chat_models && aiConfig.available_chat_models.length > 0 ? (
+                        aiConfig.available_chat_models.map((model) => (
+                          <option key={model.id} value={model.id}>
+                            {model.name} {model.tag ? `(${model.tag})` : ''}
+                          </option>
+                        ))
+                      ) : (
+                        <>
+                          <option value="openai/gpt-oss-120b">GPT OSS 120B (Reasoning - Recommended)</option>
+                          <option value="llama-3.3-70b-versatile">Llama 3.3 70B (Fast & Balanced)</option>
+                          <option value="openai/gpt-oss-20b">GPT OSS 20B (Ultra-Fast)</option>
+                          <option value="qwen/qwen3.8-27b">Qwen 3.8 27B (Multimodal)</option>
+                          <option value="allam-2-7b">ALLaM 2.0 7B (Arabic Specialized)</option>
+                        </>
+                      )}
+                    </SelectInput>
+                  </Field>
+
+                  <Field
+                    label={t('Speech-to-Text Model (Whisper)')}
+                    hint={
+                      aiConfig?.available_stt_models?.find(
+                        (m) => m.id === (aiConfig?.stt_model || 'whisper-large-v3'),
+                      )?.desc || t('Select the Whisper model for audio transcription')
+                    }
+                  >
+                    <SelectInput
+                      value={aiConfig?.stt_model || 'whisper-large-v3'}
+                      onChange={(e) => void handleModelChange(undefined, e.target.value)}
+                    >
+                      {aiConfig?.available_stt_models && aiConfig.available_stt_models.length > 0 ? (
+                        aiConfig.available_stt_models.map((model) => (
+                          <option key={model.id} value={model.id}>
+                            {model.name}
+                          </option>
+                        ))
+                      ) : (
+                        <>
+                          <option value="whisper-large-v3">Whisper Large v3 (Highest Precision)</option>
+                          <option value="whisper-large-v3-turbo">Whisper Large v3 Turbo (Ultra-Fast)</option>
+                        </>
+                      )}
+                    </SelectInput>
+                  </Field>
+                </div>
+              </Panel>
+
+              {/* PANEL 3: Prediction & Inference Controls */}
+              <Panel>
+                <PanelHeader
+                  title={t('AI Configuration')}
+                  subtitle="Model selection, inference behaviour and explainability controls"
                 />
-              </div>
-              <div className="flex flex-wrap items-center gap-2 border-t border-line px-4 py-3.5 sm:px-5">
-                <span className="chip">
-                  <Sparkles className="h-3 w-3 text-sky-300" />
-                  Assistant model: Industrial Copilot (mock)
-                </span>
-                <span className="chip">
-                  <Database className="h-3 w-3" />
-                  Vector store: not connected (API-ready)
-                </span>
-              </div>
-            </Panel>
+                <div className="grid gap-4 px-4 py-4 sm:grid-cols-2 sm:px-5">
+                  <Field
+                    label="Prediction Model"
+                    className="sm:col-span-2"
+                    hint="Demo predictions use separate simulated model inputs. The sensor profiles and uploaded file previews are not sent as model inputs."
+                  >
+                    <TextInput
+                      value="Trained ML Models · same-origin /api/predict"
+                      readOnly
+                    />
+                  </Field>
+                  <Field label="Prediction Inputs">
+                    <TextInput
+                      value="DEMO MODE · simulated failure features + separate simulated anomaly window"
+                      readOnly
+                    />
+                  </Field>
+                </div>
+                <div className="space-y-2.5 border-t border-line px-4 py-4 sm:px-5">
+                  <ToggleRow
+                    label="Document-grounded answers (RAG)"
+                    hint="Ground assistant answers in the uploaded knowledge base with source citations."
+                    checked={ragEnabled}
+                    onChange={setRagEnabled}
+                  />
+                </div>
+                <div className="flex flex-wrap items-center gap-2 border-t border-line px-4 py-3.5 sm:px-5">
+                  <span className="chip">
+                    <Sparkles className="h-3 w-3 text-sky-300" />
+                    Chat Model: {aiConfig?.chat_model || 'openai/gpt-oss-120b'}
+                  </span>
+                  <span className="chip">
+                    <Key className="h-3 w-3 text-amber-300" />
+                    Pool: {aiConfig?.api_keys?.length || (aiConfig?.configured ? 1 : 0)} key(s)
+                  </span>
+                  <span className="chip">
+                    <Database className="h-3 w-3 text-emerald-400" />
+                    Vector store: Qdrant Local
+                  </span>
+                </div>
+              </Panel>
+            </div>
           )}
         </div>
       </div>
+
+      <ConfirmDialog
+        open={confirmClearKey}
+        title={t('Clear Groq API Key?')}
+        message={t(
+          'This will remove the active API key and disable AI assistant and voice transcription features.'
+        )}
+        confirmLabel={t('Clear Key')}
+        onConfirm={() => void handleClearApiKey()}
+        onCancel={() => setConfirmClearKey(false)}
+      />
 
       <ConfirmDialog
         open={confirmReset}
@@ -609,7 +1099,11 @@ export default function SettingsPage() {
         confirmLabel="Reset data"
         onConfirm={() => {
           resetDemo()
-          notify('success', 'Demo data restored', 'The platform has been reset to its original seed dataset.')
+          notify(
+            'success',
+            'Demo data restored',
+            'The platform has been reset to its original seed dataset.'
+          )
         }}
         onCancel={() => setConfirmReset(false)}
       />
@@ -661,14 +1155,16 @@ function ThresholdSlider({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-[12.5px] font-semibold text-ink">{title}</p>
-          <p className="mt-0.5 text-[10.5px] leading-relaxed text-ink-faint">{description}</p>
+          <p className="mt-0.5 text-[10.5px] leading-relaxed text-ink-faint">
+            {description}
+          </p>
         </div>
         <span
           className={cx(
             'shrink-0 rounded-lg border px-2.5 py-1 font-mono text-[13px] font-bold',
             tone === 'amber'
               ? 'border-amber-400/30 bg-amber-500/10 text-amber-300'
-              : 'border-red-400/30 bg-red-500/10 text-red-300',
+              : 'border-red-400/30 bg-red-500/10 text-red-300'
           )}
         >
           {value}
@@ -724,8 +1220,12 @@ function ToggleRow({
 function StatTile({ label, value }: { label: string; value: number }) {
   return (
     <div className="rounded-xl border border-line bg-navy-900/50 px-3.5 py-3">
-      <p className="text-[10.5px] font-semibold uppercase tracking-wider text-ink-faint">{label}</p>
-      <p className="mt-1.5 font-mono text-[18px] font-bold leading-none text-ink">{value}</p>
+      <p className="text-[10.5px] font-semibold uppercase tracking-wider text-ink-faint">
+        {label}
+      </p>
+      <p className="mt-1.5 font-mono text-[18px] font-bold leading-none text-ink">
+        {value}
+      </p>
     </div>
   )
 }

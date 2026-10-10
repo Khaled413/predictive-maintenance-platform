@@ -5,23 +5,34 @@ export const DASHBOARD_TREND_DAYS = 7
 export const TREND_CHANGE_THRESHOLD = 2
 
 export function hasProvidedPrediction(machine: Machine) {
-  return machine.predictionStatus === 'available' &&
+  return (
+    machine.predictionStatus === 'available' &&
     machine.healthScore !== null &&
     machine.prediction?.machine_input_source === 'provided' &&
     machine.prediction.sensor_input_source === 'provided' &&
     dataFreshness(machine.prediction.latest_reading_at) === 'fresh'
+  )
 }
 
 export function dataFreshness(timestamp: string | null | undefined, now = Date.now()) {
   const time = timestamp ? Date.parse(timestamp) : Number.NaN
   if (!Number.isFinite(time) || time > now) return 'unavailable' as const
-  return now - time <= DATA_FRESHNESS_STALE_AFTER_MS ? 'fresh' as const : 'stale' as const
+  return now - time <= DATA_FRESHNESS_STALE_AFTER_MS
+    ? ('fresh' as const)
+    : ('stale' as const)
 }
 
 export function durationHours(value: string): number | null {
-  const matches = [...value.toLowerCase().matchAll(/(\d+(?:\.\d+)?)\s*(hours?|hrs?|minutes?|mins?|h|m)\b/g)]
+  const matches = [
+    ...value
+      .toLowerCase()
+      .matchAll(/(\d+(?:\.\d+)?)\s*(hours?|hrs?|minutes?|mins?|h|m)\b/g),
+  ]
   if (!matches.length) return null
-  const remainder = value.toLowerCase().replace(/(\d+(?:\.\d+)?)\s*(hours?|hrs?|minutes?|mins?|h|m)\b/g, '').trim()
+  const remainder = value
+    .toLowerCase()
+    .replace(/(\d+(?:\.\d+)?)\s*(hours?|hrs?|minutes?|mins?|h|m)\b/g, '')
+    .trim()
   if (remainder) return null
   const total = matches.reduce((sum, match) => {
     const amount = Number(match[1])
@@ -41,7 +52,7 @@ export function fleetHealth(machines: Machine[]) {
           machine.healthScore !== null &&
           machine.failureRisk !== null &&
           machine.prediction?.machine_input_source === 'simulated' &&
-          machine.prediction.sensor_input_source === 'simulated',
+          machine.prediction.sensor_input_source === 'simulated'
       )
   const counts = {
     healthy: available.filter((machine) => machine.status === 'Operational').length,
@@ -52,7 +63,10 @@ export function fleetHealth(machines: Machine[]) {
     availableCount: available.length,
     totalCount: machines.length,
     averageHealth: available.length
-      ? Math.round(available.reduce((sum, machine) => sum + (machine.healthScore ?? 0), 0) / available.length)
+      ? Math.round(
+          available.reduce((sum, machine) => sum + (machine.healthScore ?? 0), 0) /
+            available.length
+        )
       : null,
     isDemo: provided.length === 0 && available.length > 0,
     ...counts,
@@ -70,11 +84,15 @@ export interface OperationalKpis {
 export function operationalKpis(records: MaintenanceRecord[]): OperationalKpis {
   const operationalRecords = records.filter((record) => !record.isDemo)
   const completed = operationalRecords.filter(
-    (record) => record.status === 'Completed' && record.actualDowntimeHours !== null &&
-      record.actualDowntimeHours !== undefined && Number.isFinite(record.actualDowntimeHours),
+    (record) =>
+      record.status === 'Completed' &&
+      record.actualDowntimeHours !== null &&
+      record.actualDowntimeHours !== undefined &&
+      Number.isFinite(record.actualDowntimeHours)
   )
   const classified = operationalRecords.filter(
-    (record) => record.maintenanceKind === 'preventive' || record.maintenanceKind === 'corrective',
+    (record) =>
+      record.maintenanceKind === 'preventive' || record.maintenanceKind === 'corrective'
   )
   const downtimeHours = completed.length
     ? completed.reduce((sum, record) => sum + (record.actualDowntimeHours ?? 0), 0)
@@ -85,7 +103,9 @@ export function operationalKpis(records: MaintenanceRecord[]): OperationalKpis {
     failureRate: null,
     downtimeHours,
     preventiveMaintenancePercent: classified.length
-      ? (classified.filter((record) => record.maintenanceKind === 'preventive').length / classified.length) * 100
+      ? (classified.filter((record) => record.maintenanceKind === 'preventive').length /
+          classified.length) *
+        100
       : null,
   }
 }

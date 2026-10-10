@@ -15,37 +15,16 @@ interface PreferencesContextValue {
   t: (key: TranslationKey) => string
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 const PreferencesContext = createContext<PreferencesContextValue | null>(null)
 const localizedTerms = Object.entries(translations)
   .sort(([left], [right]) => right.length - left.length)
   .map(([source, target]) => ({
     source,
     target,
-    pattern: new RegExp(`(^|[^A-Za-z])${source.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?=$|[^A-Za-z])`, 'gi'),
+    pattern: new RegExp(
+      `(^|[^A-Za-z])${source.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?=$|[^A-Za-z])`,
+      'gi'
+    ),
   }))
 
 function localizeText(value: string, language: Language): string {
@@ -71,8 +50,9 @@ function localizeText(value: string, language: Language): string {
   let localized = exact
     ? value.replace(trimmed, exact)
     : localizedTerms.reduce(
-        (text, { pattern, target }) => text.replace(pattern, (_match, prefix: string) => `${prefix}${target}`),
-        value,
+        (text, { pattern, target }) =>
+          text.replace(pattern, (_match, prefix: string) => `${prefix}${target}`),
+        value
       )
 
   localized = localized
@@ -109,14 +89,20 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
   const [theme, setThemeState] = useState<ThemeMode>(getInitialTheme)
   const originalText = useMemo(() => new WeakMap<Text, string>(), [])
   const renderedText = useMemo(() => new WeakMap<Text, string>(), [])
-  const originalAttributes = useMemo(() => new WeakMap<Element, Map<string, string>>(), [])
-  const renderedAttributes = useMemo(() => new WeakMap<Element, Map<string, string>>(), [])
+  const originalAttributes = useMemo(
+    () => new WeakMap<Element, Map<string, string>>(),
+    []
+  )
+  const renderedAttributes = useMemo(
+    () => new WeakMap<Element, Map<string, string>>(),
+    []
+  )
 
   useEffect(() => {
     document.documentElement.lang = language
     document.documentElement.dir = language === 'ar' ? 'rtl' : 'ltr'
     const title = 'Industrial AI Platform — Machine Health & Maintenance Dashboard'
-    document.title = language === 'ar' ? translations[title] ?? title : title
+    document.title = language === 'ar' ? (translations[title] ?? title) : title
     localStorage.setItem('iap-language', language)
   }, [language])
 
@@ -152,9 +138,11 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
           const current = textNode.nodeValue ?? ''
           const previousTarget = renderedText.get(textNode)
           const source = originalText.get(textNode)
-          const latestSource = source === undefined || (previousTarget !== undefined && current !== previousTarget)
-            ? current
-            : source
+          const latestSource =
+            source === undefined ||
+            (previousTarget !== undefined && current !== previousTarget)
+              ? current
+              : source
           originalText.set(textNode, latestSource)
           const target = localizeText(latestSource, language)
           renderedText.set(textNode, target)
@@ -171,9 +159,11 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
             if (value === null) return
             const previousTarget = rendered.get(attribute)
             const source = stored.get(attribute)
-            const latestSource = source === undefined || (previousTarget !== undefined && value !== previousTarget)
-              ? value
-              : source
+            const latestSource =
+              source === undefined ||
+              (previousTarget !== undefined && value !== previousTarget)
+                ? value
+                : source
             stored.set(attribute, latestSource)
             const target = localizeText(latestSource, language)
             rendered.set(attribute, target)
@@ -203,16 +193,20 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
     () => ({
       language,
       theme,
-      toggleLanguage: () => setLanguageState((current) => (current === 'en' ? 'ar' : 'en')),
-      toggleTheme: () => setThemeState((current) => (current === 'dark' ? 'light' : 'dark')),
+      toggleLanguage: () =>
+        setLanguageState((current) => (current === 'en' ? 'ar' : 'en')),
+      toggleTheme: () =>
+        setThemeState((current) => (current === 'dark' ? 'light' : 'dark')),
       setLanguage: (next) => setLanguageState(next),
       setTheme: (next) => setThemeState(next),
-      t: (key) => language === 'ar' ? translations[key] ?? key : key,
+      t: (key) => (language === 'ar' ? (translations[key] ?? key) : key),
     }),
-    [language, theme],
+    [language, theme]
   )
 
-  return <PreferencesContext.Provider value={value}>{children}</PreferencesContext.Provider>
+  return (
+    <PreferencesContext.Provider value={value}>{children}</PreferencesContext.Provider>
+  )
 }
 
 // eslint-disable-next-line react-refresh/only-export-components -- hooks must ship with their provider in the same module

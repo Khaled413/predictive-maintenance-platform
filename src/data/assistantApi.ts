@@ -62,6 +62,44 @@ export interface IndexedAssistantDocumentResult {
   warnings: string[]
 }
 
+export interface ApiKeyItem {
+  id: string
+  masked_key: string
+  is_active: boolean
+}
+
+export interface ModelOption {
+  id: string
+  name: string
+  desc: string
+  tag?: string | null
+}
+
+export interface AssistantConfigResponse {
+  configured: boolean
+  masked_key: string | null
+  model: string
+  chat_model: string
+  stt_model: string
+  vision_model: string
+  auto_rotate: boolean
+  active_key_index: number
+  api_keys: ApiKeyItem[]
+  available_chat_models: ModelOption[]
+  available_stt_models: ModelOption[]
+  message: string | null
+}
+
+export interface AssistantConfigPayload {
+  api_key?: string
+  action?: 'add' | 'remove' | 'select' | 'update' | 'clear'
+  active_key_index?: number
+  chat_model?: string
+  stt_model?: string
+  auto_rotate?: boolean
+}
+
+
 async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, init)
   if (!response.ok) {
@@ -69,12 +107,15 @@ async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
     try {
       const body: unknown = await response.json()
       if (body && typeof body === 'object' && 'detail' in body) {
-        detail = typeof body.detail === 'string' ? body.detail : JSON.stringify(body.detail)
+        detail =
+          typeof body.detail === 'string' ? body.detail : JSON.stringify(body.detail)
       }
     } catch {
       detail = await response.text().catch(() => '')
     }
-    throw new Error(`Assistant request failed (${response.status})${detail ? `: ${detail}` : ''}`)
+    throw new Error(
+      `Assistant request failed (${response.status})${detail ? `: ${detail}` : ''}`
+    )
   }
   return (await response.json()) as T
 }
@@ -82,15 +123,18 @@ async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
 function isAssistantReply(value: unknown): value is AssistantReply {
   if (!value || typeof value !== 'object') return false
   const reply = value as Partial<AssistantReply>
-  return typeof reply.answer === 'string' &&
+  return (
+    typeof reply.answer === 'string' &&
     Array.isArray(reply.sources) &&
-    reply.sources.every((source) =>
-      !!source &&
-      typeof source.filename === 'string' &&
-      typeof source.score === 'number' &&
-      (source.page === null || typeof source.page === 'number'),
+    reply.sources.every(
+      (source) =>
+        !!source &&
+        typeof source.filename === 'string' &&
+        typeof source.score === 'number' &&
+        (source.page === null || typeof source.page === 'number')
     ) &&
     typeof reply.intent === 'string'
+  )
 }
 
 export async function getAssistantHealth(): Promise<AssistantHealth> {
@@ -109,7 +153,9 @@ export async function getAssistantHealth(): Promise<AssistantHealth> {
     result.max_audio_bytes <= 0 ||
     typeof result.ocr_available !== 'boolean' ||
     typeof result.speech_output_available !== 'boolean' ||
-    !(result.indexed_documents === null || typeof result.indexed_documents === 'number') ||
+    !(
+      result.indexed_documents === null || typeof result.indexed_documents === 'number'
+    ) ||
     !(result.message === null || typeof result.message === 'string')
   ) {
     throw new Error('Assistant returned an invalid health response')
@@ -117,17 +163,22 @@ export async function getAssistantHealth(): Promise<AssistantHealth> {
   return result
 }
 
-export async function listIndexedAssistantDocuments(): Promise<IndexedAssistantDocument[]> {
-  const result = await requestJson<{ documents: IndexedAssistantDocument[] }>('/api/assistant/documents')
+export async function listIndexedAssistantDocuments(): Promise<
+  IndexedAssistantDocument[]
+> {
+  const result = await requestJson<{ documents: IndexedAssistantDocument[] }>(
+    '/api/assistant/documents'
+  )
   if (
     !result ||
     !Array.isArray(result.documents) ||
-    !result.documents.every((document) =>
-      typeof document.document_id === 'string' &&
-      typeof document.filename === 'string' &&
-      typeof document.pages === 'number' &&
-      typeof document.chunks === 'number' &&
-      typeof document.uploaded_at === 'number',
+    !result.documents.every(
+      (document) =>
+        typeof document.document_id === 'string' &&
+        typeof document.filename === 'string' &&
+        typeof document.pages === 'number' &&
+        typeof document.chunks === 'number' &&
+        typeof document.uploaded_at === 'number'
     )
   ) {
     throw new Error('Assistant returned an invalid document list')
@@ -137,7 +188,7 @@ export async function listIndexedAssistantDocuments(): Promise<IndexedAssistantD
 
 export async function askAssistant(
   request: AssistantRequest,
-  image?: File | null,
+  image?: File | null
 ): Promise<AssistantReply> {
   let response: unknown
   if (image) {
@@ -177,13 +228,18 @@ export async function askAssistant(
   return response
 }
 
-export async function uploadAssistantDocument(file: File): Promise<IndexedAssistantDocumentResult> {
+export async function uploadAssistantDocument(
+  file: File
+): Promise<IndexedAssistantDocumentResult> {
   const form = new FormData()
   form.append('file', file)
-  const result = await requestJson<IndexedAssistantDocumentResult>('/api/assistant/documents', {
-    method: 'POST',
-    body: form,
-  })
+  const result = await requestJson<IndexedAssistantDocumentResult>(
+    '/api/assistant/documents',
+    {
+      method: 'POST',
+      body: form,
+    }
+  )
   if (
     typeof result.document_id !== 'string' ||
     typeof result.filename !== 'string' ||
@@ -199,17 +255,20 @@ export async function uploadAssistantDocument(file: File): Promise<IndexedAssist
 export async function deleteIndexedAssistantDocument(documentId: string): Promise<void> {
   await requestJson<{ deleted: boolean }>(
     `/api/assistant/documents/${encodeURIComponent(documentId)}`,
-    { method: 'DELETE' },
+    { method: 'DELETE' }
   )
 }
 
 export async function transcribeAssistantAudio(blob: Blob): Promise<string> {
   const form = new FormData()
   form.append('file', blob, 'recording.webm')
-  const result = await requestJson<{ text: string; recognized?: boolean }>('/api/assistant/transcribe', {
-    method: 'POST',
-    body: form,
-  })
+  const result = await requestJson<{ text: string; recognized?: boolean }>(
+    '/api/assistant/transcribe',
+    {
+      method: 'POST',
+      body: form,
+    }
+  )
   if (result.recognized === false) return ''
   if (typeof result.text !== 'string') {
     throw new Error('Assistant could not recognize speech in this recording')
@@ -224,9 +283,11 @@ export async function synthesizeAssistantSpeech(text: string): Promise<Blob> {
     body: JSON.stringify({ text }),
   })
   if (!response.ok) {
-    const body = await response.json().catch(() => null) as { detail?: unknown } | null
+    const body = (await response.json().catch(() => null)) as { detail?: unknown } | null
     const detail = typeof body?.detail === 'string' ? body.detail : ''
-    throw new Error(`Speech request failed (${response.status})${detail ? `: ${detail}` : ''}`)
+    throw new Error(
+      `Speech request failed (${response.status})${detail ? `: ${detail}` : ''}`
+    )
   }
   return response.blob()
 }
@@ -237,8 +298,32 @@ export async function splitAssistantSpeech(text: string): Promise<string[]> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ text }),
   })
-  if (!Array.isArray(result.chunks) || result.chunks.some((chunk) => typeof chunk !== 'string' || !chunk.trim())) {
+  if (
+    !Array.isArray(result.chunks) ||
+    result.chunks.some((chunk) => typeof chunk !== 'string' || !chunk.trim())
+  ) {
     throw new Error('Assistant returned invalid speech chunks')
   }
   return result.chunks
 }
+
+export async function getAssistantConfig(): Promise<AssistantConfigResponse> {
+  return requestJson<AssistantConfigResponse>('/api/assistant/config', {
+    cache: 'no-store',
+  })
+}
+
+export async function updateAssistantConfig(
+  payload: string | AssistantConfigPayload,
+): Promise<AssistantConfigResponse> {
+  const body =
+    typeof payload === 'string'
+      ? { api_key: payload, action: payload ? 'add' : 'clear' }
+      : payload
+  return requestJson<AssistantConfigResponse>('/api/assistant/config', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+}
+

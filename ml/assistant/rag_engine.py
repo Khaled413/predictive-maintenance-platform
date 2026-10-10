@@ -98,28 +98,245 @@ VOICE_MEMORY_ANSWER_CHARS = int(
 # عدد النتايج المرشّحة من Qdrant لكل استعلام (كان 30)
 SEMANTIC_CANDIDATES = int(os.getenv("SEMANTIC_CANDIDATES", "15"))
 
+AVAILABLE_CHAT_MODELS = [
+    {
+        "id": "openai/gpt-oss-120b",
+        "name": "GPT OSS 120B",
+        "desc": "أعلى قدرة على التفكير والاستنتاج وتشخيص الأعطال الصناعية المعقدة (موصى به)",
+        "tag": "Reasoning",
+    },
+    {
+        "id": "llama-3.3-70b-versatile",
+        "name": "Llama 3.3 70B Versatile",
+        "desc": "موديل شامل عالي الدقة وسريع الاستجابة",
+        "tag": "Balanced",
+    },
+    {
+        "id": "openai/gpt-oss-20b",
+        "name": "GPT OSS 20B",
+        "desc": "فائق السرعة وبزمن استجابة منخفض جداً (مثالي للمحادثة الصوتية والتنبيهات)",
+        "tag": "Ultra-Fast",
+    },
+    {
+        "id": "qwen/qwen3.8-27b",
+        "name": "Qwen 3.8 27B",
+        "desc": "موديل متعدد الوسائط لفهم الكتالوجات والصور الصناعية",
+        "tag": "Multimodal",
+    },
+    {
+        "id": "allam-2-7b",
+        "name": "ALLaM 2.0 7B",
+        "desc": "موديل مخصص ومدرّب على صياغة اللغة والمصطلحات العربية بامتياز",
+        "tag": "Arabic",
+    },
+]
+
+AVAILABLE_STT_MODELS = [
+    {
+        "id": "whisper-large-v3",
+        "name": "Whisper Large v3",
+        "desc": "أعلى دقة في تفريغ اللهجات والمصطلحات التقنية",
+    },
+    {
+        "id": "whisper-large-v3-turbo",
+        "name": "Whisper Large v3 Turbo",
+        "desc": "تفريغ صوتي فائق السرعة بزمن استجابة أقل",
+    },
+]
+
+
+def _parse_keys_from_env() -> list[str]:
+    raw_keys = os.getenv("GROQ_API_KEYS", "") or os.getenv("GROQ_API_KEY", "") or ""
+    keys: list[str] = []
+    for k in raw_keys.split(","):
+        clean = k.strip()
+        if clean and clean not in keys:
+            keys.append(clean)
+    return keys
+
+
+_groq_api_keys: list[str] = _parse_keys_from_env()
+_active_key_index: int = 0
+_auto_rotate_keys: bool = os.getenv("AUTO_ROTATE_KEYS", "true").lower() in ("1", "true", "yes")
+
 groq_client = None
 _groq_client_lock = threading.Lock()
 
 
+def get_groq_api_keys() -> list[str]:
+    with _groq_client_lock:
+        return list(_groq_api_keys)
+
+
+def get_active_key_index() -> int:
+    with _groq_client_lock:
+        return _active_key_index
+
+
+def is_auto_rotate() -> bool:
+    with _groq_client_lock:
+        return _auto_rotate_keys
+
+
+def set_auto_rotate(enabled: bool) -> None:
+    global _auto_rotate_keys
+    with _groq_client_lock:
+        _auto_rotate_keys = enabled
+    os.environ["AUTO_ROTATE_KEYS"] = "true" if enabled else "false"
+
+
+def mask_api_key(key: str) -> str:
+    cleaned = (key or "").strip()
+    if not cleaned:
+        return ""
+    if len(cleaned) > 8:
+        return f"{cleaned[:4]}••••••••{cleaned[-4:]}"
+    return "••••••••"
+
+
 def _get_groq_client() -> Groq:
-    global groq_client
-    if not GROQ_API_KEY:
-        raise RuntimeError("GROQ_API_KEY is not configured.")
-    if groq_client is None:
-        with _groq_client_lock:
-            if groq_client is None:
-                groq_client = Groq(api_key=GROQ_API_KEY, max_retries=0)
-    return groq_client
+    global groq_client, GROQ_API_KEY
+    with _groq_client_lock:
+        if not _groq_api_keys:
+            if GROQ_API_KEY:
+                _groq_api_keys.append(GROQ_API_KEY)
+            else:
+                raise RuntimeError("GROQ_API_KEY is not configured.")
+        active_key = _groq_api_keys[_active_key_index % len(_groq_api_keys)]
+        GROQ_API_KEY = active_key
+        if groq_client is None:
+            groq_client = Groq(api_key=active_key, max_retries=0)
+        return groq_client
+
+
+def rotate_groq_key(reason: str = "") -> str:
+    global groq_client, GROQ_API_KEY, _active_key_index
+    with _groq_client_lock:
+        if not _groq_api_keys:
+            raise RuntimeError("No Groq API keys available to rotate.")
+        old_idx = _active_key_index
+        _active_key_index = (_active_key_index + 1) % len(_groq_api_keys)
+        new_key = _groq_api_keys[_active_key_index]
+        GROQ_API_KEY = new_key
+        groq_client = None
+        if reason:
+            print(
+                f"[KeyPool] Rotated from key #{old_idx + 1} to #{_active_key_index + 1} "
+                f"({mask_api_key(new_key)}): {reason}"
+            )
+        return new_key
+
+
+def set_active_key_index(index: int) -> None:
+    global groq_client, GROQ_API_KEY, _active_key_index
+    with _groq_client_lock:
+        if not _groq_api_keys:
+            return
+        _active_key_index = index % len(_groq_api_keys)
+        new_key = _groq_api_keys[_active_key_index]
+        GROQ_API_KEY = new_key
+        groq_client = None
+
+
+def validate_groq_api_key(test_key: str) -> None:
+    """Validates a Groq API key by performing a lightweight models.list query."""
+    cleaned = (test_key or "").strip()
+    if not cleaned:
+        raise ValueError("API key cannot be empty.")
+    test_client = Groq(api_key=cleaned, max_retries=0)
+    test_client.models.list()
+
+
+def set_groq_api_key(new_key: str | None) -> None:
+    """Dynamically updates the active Groq API key and clears client cache."""
+    global GROQ_API_KEY, groq_client, _groq_api_keys, _active_key_index
+    cleaned = new_key.strip() if new_key else None
+    with _groq_client_lock:
+        if cleaned:
+            if cleaned not in _groq_api_keys:
+                _groq_api_keys.insert(0, cleaned)
+            _active_key_index = _groq_api_keys.index(cleaned)
+            GROQ_API_KEY = cleaned
+            os.environ["GROQ_API_KEY"] = cleaned
+            os.environ["GROQ_API_KEYS"] = ",".join(_groq_api_keys)
+        else:
+            _groq_api_keys = []
+            _active_key_index = 0
+            GROQ_API_KEY = None
+            os.environ.pop("GROQ_API_KEY", None)
+            os.environ.pop("GROQ_API_KEYS", None)
+        groq_client = None
+
+
+def add_groq_api_key(new_key: str) -> None:
+    """Adds a validated Groq API key to the key pool."""
+    cleaned = (new_key or "").strip()
+    if not cleaned:
+        raise ValueError("API key cannot be empty.")
+    validate_groq_api_key(cleaned)
+    global GROQ_API_KEY, groq_client, _groq_api_keys, _active_key_index
+    with _groq_client_lock:
+        if cleaned not in _groq_api_keys:
+            _groq_api_keys.append(cleaned)
+        _active_key_index = _groq_api_keys.index(cleaned)
+        GROQ_API_KEY = cleaned
+        os.environ["GROQ_API_KEY"] = cleaned
+        os.environ["GROQ_API_KEYS"] = ",".join(_groq_api_keys)
+        groq_client = None
+
+
+def remove_groq_api_key(key: str) -> None:
+    """Removes a key from the key pool."""
+    global GROQ_API_KEY, groq_client, _groq_api_keys, _active_key_index
+    cleaned = (key or "").strip()
+    with _groq_client_lock:
+        matched = None
+        for k in _groq_api_keys:
+            if k == cleaned or mask_api_key(k) == cleaned:
+                matched = k
+                break
+        if matched:
+            _groq_api_keys.remove(matched)
+        if _groq_api_keys:
+            _active_key_index = min(_active_key_index, len(_groq_api_keys) - 1)
+            GROQ_API_KEY = _groq_api_keys[_active_key_index]
+            os.environ["GROQ_API_KEY"] = GROQ_API_KEY
+            os.environ["GROQ_API_KEYS"] = ",".join(_groq_api_keys)
+        else:
+            _active_key_index = 0
+            GROQ_API_KEY = None
+            os.environ.pop("GROQ_API_KEY", None)
+            os.environ.pop("GROQ_API_KEYS", None)
+        groq_client = None
+
+
+def set_active_models(chat_model: str | None = None, stt_model: str | None = None) -> None:
+    """Dynamically updates active chat/reasoning and speech models."""
+    global CHAT_MODEL, STT_MODEL
+    with _groq_client_lock:
+        if chat_model and chat_model.strip():
+            CHAT_MODEL = chat_model.strip()
+            os.environ["CHAT_MODEL"] = CHAT_MODEL
+        if stt_model and stt_model.strip():
+            STT_MODEL = stt_model.strip()
+            os.environ["STT_MODEL"] = STT_MODEL
+
+
+def _get_groq_method(fn):
+    client = _get_groq_client()
+    self_obj = getattr(fn, "__self__", None)
+    if self_obj is not None:
+        self_str = str(type(self_obj)).lower()
+        if "transcription" in self_str:
+            return client.audio.transcriptions.create
+        elif "completion" in self_str or "chat" in self_str:
+            return client.chat.completions.create
+    return fn
 
 
 # ============================================================
 # RETRY / BACKOFF WRAPPER FOR GROQ CALLS
 # ============================================================
-# بيعيد المحاولة بس مع الأخطاء المؤقتة (ضغط / rate limit / شبكة)
-# وأي خطأ تاني (مفتاح غلط، مدخل غلط...) بيتعمله raise فورًا.
-# ============================================================
-
 TRANSIENT_ERROR_MARKERS = (
     "503",
     "502",
@@ -144,12 +361,14 @@ def _call_with_retry(
 ):
 
     last_error = None
+    keys_count = len(get_groq_api_keys())
+    effective_retries = max(max_retries, keys_count * 2) if keys_count > 1 else max_retries
 
-    for attempt in range(max_retries):
+    for attempt in range(effective_retries):
 
         try:
-
-            return fn(*args, **kwargs)
+            target_fn = _get_groq_method(fn)
+            return target_fn(*args, **kwargs)
 
         except Exception as e:
 
@@ -157,18 +376,33 @@ def _call_with_retry(
 
             error_str = str(e)
 
-            is_transient = any(
+            is_rate_limit = (
+                "429" in error_str
+                or "rate limit" in error_str.lower()
+                or "rate_limit" in error_str.lower()
+            )
+            is_auth_error = (
+                "401" in error_str
+                or "invalid_api_key" in error_str.lower()
+            )
+            is_transient = is_rate_limit or any(
                 marker.lower() in error_str.lower()
                 for marker in TRANSIENT_ERROR_MARKERS
             )
 
-            if is_transient and attempt < max_retries - 1:
+            # Auto-rotate key if pool has multiple keys and we hit rate limit, auth error, or transient error
+            if len(get_groq_api_keys()) > 1 and (is_rate_limit or is_auth_error or is_transient or is_auto_rotate()):
+                rotate_groq_key(reason=f"Attempt {attempt + 1}: {error_str[:50]}")
+                time.sleep(0.5)
+                continue
 
-                wait = base_delay * (2 ** attempt)
+            if is_transient and attempt < effective_retries - 1:
+
+                wait = base_delay * (2 ** min(attempt, 3))
 
                 print(
                     f"Groq transient error "
-                    f"(attempt {attempt + 1}/{max_retries}), "
+                    f"(attempt {attempt + 1}/{effective_retries}), "
                     f"retrying in {wait:.1f}s: {error_str}"
                 )
 
@@ -179,6 +413,7 @@ def _call_with_retry(
             raise
 
     raise last_error
+
 
 
 # ============================================================

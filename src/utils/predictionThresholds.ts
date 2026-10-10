@@ -1,4 +1,9 @@
-import type { DecisionThresholds, MachineStatus, PredictionResponse, Thresholds } from '../types'
+import type {
+  DecisionThresholds,
+  MachineStatus,
+  PredictionResponse,
+  Thresholds,
+} from '../types'
 
 export function toDecisionThresholds(thresholds: Thresholds): DecisionThresholds {
   return {
@@ -11,21 +16,31 @@ export function toDecisionThresholds(thresholds: Thresholds): DecisionThresholds
 
 export function statusForPrediction(
   prediction: Pick<PredictionResponse, 'health_score' | 'failure_probability'>,
-  thresholds: Thresholds,
+  thresholds: Thresholds
 ): Exclude<MachineStatus, 'Under Maintenance'> {
   const failureRisk = prediction.failure_probability * 100
-  if (prediction.health_score <= thresholds.healthCritical || failureRisk >= thresholds.riskCritical) {
+  if (
+    prediction.health_score <= thresholds.healthCritical ||
+    failureRisk >= thresholds.riskCritical
+  ) {
     return 'Critical'
   }
-  if (prediction.health_score <= thresholds.healthWarning || failureRisk >= thresholds.riskWarning) {
+  if (
+    prediction.health_score <= thresholds.healthWarning ||
+    failureRisk >= thresholds.riskWarning
+  ) {
     return 'Warning'
   }
   return 'Operational'
 }
 
-export function recommendationForStatus(status: Exclude<MachineStatus, 'Under Maintenance'>) {
-  if (status === 'Critical') return 'Stop or reduce operation and inspect the machine immediately.'
-  if (status === 'Warning') return 'Inspect the machine soon and schedule preventive maintenance.'
+export function recommendationForStatus(
+  status: Exclude<MachineStatus, 'Under Maintenance'>
+) {
+  if (status === 'Critical')
+    return 'Stop or reduce operation and inspect the machine immediately.'
+  if (status === 'Warning')
+    return 'Inspect the machine soon and schedule preventive maintenance.'
   return 'Continue normal operation and routine maintenance.'
 }
 
@@ -43,7 +58,7 @@ export function healthBandLabel(
   thresholds: Pick<Thresholds, 'healthWarning' | 'healthCritical'> = {
     healthWarning: 70,
     healthCritical: 40,
-  },
+  }
 ) {
   const goodFloor = thresholds.healthWarning + (100 - thresholds.healthWarning) / 2
   if (score > goodFloor) return 'Good condition'
@@ -53,7 +68,7 @@ export function healthBandLabel(
 }
 
 export function maintenanceStatusFromPrediction(
-  status: Exclude<MachineStatus, 'Under Maintenance'>,
+  status: Exclude<MachineStatus, 'Under Maintenance'>
 ) {
   if (status === 'Critical') return 'Immediate'
   if (status === 'Warning') return 'Due Soon'

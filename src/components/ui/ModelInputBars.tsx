@@ -80,20 +80,28 @@ function readingLevel(value: number, reading: ReadingDefinition) {
   return value >= reading.critical ? 'danger' : value >= reading.warning ? 'warn' : 'ok'
 }
 
-function ModelInputBar({ value, reading }: { value: number; reading: ReadingDefinition }) {
+function ModelInputBar({
+  value,
+  reading,
+}: {
+  value: number
+  reading: ReadingDefinition
+}) {
   const { t } = usePreferences()
   const level = readingLevel(value, reading)
   const position = clamp(((value - reading.min) / (reading.max - reading.min)) * 100)
-  const colorClass = level === 'danger'
-    ? 'bg-red-400'
-    : level === 'warn'
-      ? 'bg-amber-400'
-      : 'bg-emerald-400'
-  const textClass = level === 'danger'
-    ? 'text-red-300'
-    : level === 'warn'
-      ? 'text-amber-300'
-      : 'text-emerald-300'
+  const colorClass =
+    level === 'danger'
+      ? 'bg-red-400'
+      : level === 'warn'
+        ? 'bg-amber-400'
+        : 'bg-emerald-400'
+  const textClass =
+    level === 'danger'
+      ? 'text-red-300'
+      : level === 'warn'
+        ? 'text-amber-300'
+        : 'text-emerald-300'
 
   return (
     <div className="grid min-w-0 grid-cols-[minmax(4.5rem,0.85fr)_auto_minmax(3.5rem,1fr)_6px] items-center gap-2">
@@ -112,7 +120,10 @@ function ModelInputBar({ value, reading }: { value: number; reading: ReadingDefi
       >
         <span
           aria-hidden="true"
-          className={cx('absolute inset-y-0 left-0 rounded-full transition-[width] duration-500', colorClass)}
+          className={cx(
+            'absolute inset-y-0 left-0 rounded-full transition-[width] duration-500',
+            colorClass
+          )}
           style={{ width: `${position}%` }}
         />
       </div>
@@ -125,11 +136,7 @@ export default function ModelInputBars({ inputs }: { inputs: ModelReadings }) {
   return (
     <div className="grid gap-y-2.5">
       {READING_DEFINITIONS.map((reading) => (
-        <ModelInputBar
-          key={reading.key}
-          value={inputs[reading.key]}
-          reading={reading}
-        />
+        <ModelInputBar key={reading.key} value={inputs[reading.key]} reading={reading} />
       ))}
     </div>
   )

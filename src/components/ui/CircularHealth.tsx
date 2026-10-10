@@ -19,8 +19,16 @@ export default function CircularHealth({
   status?: Exclude<MachineStatus, 'Under Maintenance'>
 }) {
   const tone = status
-    ? status === 'Critical' ? 'danger' : status === 'Warning' ? 'warn' : 'ok'
-    : value <= criticalThreshold ? 'danger' : value <= warningThreshold ? 'warn' : 'ok'
+    ? status === 'Critical'
+      ? 'danger'
+      : status === 'Warning'
+        ? 'warn'
+        : 'ok'
+    : value <= criticalThreshold
+      ? 'danger'
+      : value <= warningThreshold
+        ? 'warn'
+        : 'ok'
   const colors = HEALTH_CIRCLE_COLORS[tone]
   const r = (size - strokeWidth) / 2
   const c = 2 * Math.PI * r
@@ -55,7 +63,10 @@ export default function CircularHealth({
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className={cx('font-mono font-semibold leading-none', colors.text)} style={{ fontSize: size * 0.24 }}>
+        <span
+          className={cx('font-mono font-semibold leading-none', colors.text)}
+          style={{ fontSize: size * 0.24 }}
+        >
           {Math.round(value)}
           <span className="text-[0.6em]">%</span>
         </span>
