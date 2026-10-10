@@ -135,6 +135,83 @@ body.light-mode .border-line {
   border-color: var(--border) !important;
 }
 
+/* ChatGPT Capsule Bar - Light and Dark Theme Harmony */
+.chat-capsule {
+  background-color: #212121;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  box-shadow: 0 4px 14px -2px rgba(0, 0, 0, 0.35);
+}
+.chat-capsule:focus-within {
+  border-color: rgba(56, 189, 248, 0.5);
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.15), 0 4px 14px -2px rgba(0, 0, 0, 0.35);
+}
+.chat-capsule textarea {
+  color: #f1f5f9;
+}
+.chat-capsule textarea::placeholder {
+  color: #94a3b8;
+}
+.chat-capsule .btn-capsule-icon {
+  color: #94a3b8;
+}
+.chat-capsule .btn-capsule-icon:hover {
+  color: #ffffff;
+  background-color: rgba(255, 255, 255, 0.1);
+}
+.chat-capsule .btn-think {
+  color: #cbd5e1;
+}
+.chat-capsule .btn-think:hover {
+  color: #ffffff;
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Light Mode Overrides */
+body.light-mode .chat-capsule {
+  background-color: #f8fafc;
+  border: 1px solid rgba(39, 56, 84, 0.18);
+  color: #0f172a;
+  box-shadow: 0 2px 8px -2px rgba(0, 0, 0, 0.08);
+}
+body.light-mode .chat-capsule:focus-within {
+  border-color: rgba(2, 132, 199, 0.5);
+  box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.15), 0 2px 8px -2px rgba(0, 0, 0, 0.08);
+}
+body.light-mode .chat-capsule textarea {
+  color: #0f172a;
+}
+body.light-mode .chat-capsule textarea::placeholder {
+  color: #64748b;
+}
+body.light-mode .chat-capsule .btn-capsule-icon {
+  color: #475569;
+}
+body.light-mode .chat-capsule .btn-capsule-icon:hover {
+  color: #0f172a;
+  background-color: rgba(0, 0, 0, 0.06);
+}
+body.light-mode .chat-capsule .btn-think {
+  color: #334155;
+}
+body.light-mode .chat-capsule .btn-think:hover {
+  color: #0f172a;
+  background-color: rgba(0, 0, 0, 0.06);
+}
+
+/* Messages styling in light mode */
+body.light-mode .chat-msg-assistant {
+  background-color: #ffffff !important;
+  border-color: rgba(39, 56, 84, 0.14) !important;
+  color: #0f172a !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.06);
+}
+body.light-mode .chat-msg-user {
+  background-color: #eff6ff !important;
+  border-color: #bfdbfe !important;
+  color: #1e3a8a !important;
+}
+
 [dir='rtl'] aside {
   left: auto;
   right: 0;

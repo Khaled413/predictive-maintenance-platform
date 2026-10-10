@@ -504,6 +504,8 @@ def create_app(models_dir: str | Path | None = None) -> FastAPI:
                 operational_context=request.operational_context,
                 history_context=history,
                 document_id=request.document_id,
+                reasoning_mode=request.reasoning_mode,
+                voice=request.voice,
             )
             return result
         except HTTPException:
@@ -523,6 +525,7 @@ def create_app(models_dir: str | Path | None = None) -> FastAPI:
         document_id: str | None = Form(None),
         history: str = Form("[]"),
         operational_context: str = Form("{}"),
+        reasoning_mode: bool = Form(False),
         image: UploadFile = File(...),
     ) -> dict[str, Any]:
         contents = await image.read(MAX_ASSISTANT_IMAGE_BYTES + 1)
@@ -537,6 +540,7 @@ def create_app(models_dir: str | Path | None = None) -> FastAPI:
                     "document_id": document_id,
                     "history": history_value,
                     "operational_context": operational_context,
+                    "reasoning_mode": reasoning_mode,
                 }
             )
         except (json.JSONDecodeError, ValidationError) as exc:
@@ -562,6 +566,7 @@ def create_app(models_dir: str | Path | None = None) -> FastAPI:
                 image_type,
                 operational_context=request.operational_context,
                 document_id=request.document_id,
+                reasoning_mode=request.reasoning_mode,
             )
             return {**result, "intent": "image_question"}
         except HTTPException:
@@ -591,7 +596,10 @@ def create_app(models_dir: str | Path | None = None) -> FastAPI:
         except (ImportError, OSError, RuntimeError) as exc:
             logger.exception("Assistant audio transcription failed")
             raise HTTPException(status_code=502, detail="Audio transcription failed.") from exc
-        return {"text": text}
+        no_speech_text = getattr(engine, "NO_SPEECH_TEXT", None)
+        if not text.strip() or text == no_speech_text:
+            return {"text": "", "recognized": False}
+        return {"text": text, "recognized": True}
 
     @application.post("/api/assistant/speak")
     async def assistant_speak(request: AssistantSpeechRequest) -> Response:

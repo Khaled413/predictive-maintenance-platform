@@ -52,8 +52,15 @@ is `GET /api/assistant/health`.
   sent to Groq for answer generation.
 - Live voice chat keeps the microphone active during the call, detects pauses
   between turns, transcribes each question, uses the selected project context
-  and conversation history, and plays each answer in speech chunks. It requires
-  browser microphone permission and a secure browser context (HTTPS or localhost).
+  and conversation history, and plays concise, language-matched answers in
+  speech chunks. It uses the hosted TTS service when available and falls back
+  to a matching installed browser speech voice if that service is unavailable.
+  If no matching voice is installed, it keeps the answer visible as text and
+  reports that speech output is unavailable. It requires browser microphone
+  permission and a secure browser context (HTTPS or localhost).
+- The optional **Think** composer toggle asks the assistant to compare available
+  evidence and check uncertainty before answering, without exposing private
+  chain-of-thought. It applies to text, image, and live voice questions.
 - Chat messages and saved conversations remain in the existing browser-local
   application state; they are not added to the vector database.
 
@@ -69,6 +76,12 @@ safety rules.
 
 - `GROQ_API_KEY`: required for chat, vision, and transcription.
 - `CHAT_MODEL`, `VISION_MODEL`, `STT_MODEL`: provider model names.
+- Chat and image answers follow the language of the current question (Arabic
+  or English). `STT_LANGUAGE` is optional; when unset, transcription detects
+  Arabic or English automatically.
+- `VOICE_CHAT_MODEL`: optional model for concise live voice responses.
+- `TTS_LANGUAGE` is optional; when unset, spoken replies use Arabic or English
+  based on the response text. Set it only to force a specific speech language.
 - `EMBEDDING_MODEL`: local Sentence Transformers model; default
   `intfloat/multilingual-e5-large`.
 - `QDRANT_URL` and `QDRANT_API_KEY`: required together on Vercel for persistent

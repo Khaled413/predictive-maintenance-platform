@@ -23,7 +23,7 @@ TTS_SPACE_ID = os.getenv("TTS_SPACE_ID", "mohammedaly22/VoiceTut-TTS")
 HF_TOKEN = os.getenv("HF_TOKEN") or None
 
 TTS_DEFAULT_SPEAKER = os.getenv("TTS_DEFAULT_SPEAKER", "Mohamed")
-TTS_LANGUAGE = os.getenv("TTS_LANGUAGE", "العربية (Egyptian)")  # أو "English"
+TTS_LANGUAGE = os.getenv("TTS_LANGUAGE", "")
 
 # عدد الـsteps: كل ما قل كل ما كان أسرع (الـSpace بيقبل 8..64)
 # 16-24 كفاية جدًا للمكالمة.
@@ -257,6 +257,9 @@ def _predict_chunk(
 ) -> str:
 
     client = get_tts()
+    language = TTS_LANGUAGE or (
+        "العربية (Egyptian)" if re.search(r"[\u0600-\u06ff]", text) else "English"
+    )
 
     if ref_audio:
         # استنساخ صوت: ref_audio, ref_text, text, language, steps, guidance, speed, normalize
@@ -265,7 +268,7 @@ def _predict_chunk(
             handle_file(ref_audio),
             ref_text or "",
             text,
-            TTS_LANGUAGE,
+            language,
             num_step,
             guidance_scale,
             speed,
@@ -278,7 +281,7 @@ def _predict_chunk(
             client.predict,
             speaker or TTS_DEFAULT_SPEAKER,
             text,
-            TTS_LANGUAGE,
+            language,
             num_step,
             guidance_scale,
             speed,

@@ -66,7 +66,7 @@ VISION_MODEL = os.getenv(
 
 # موديل تحويل الصوت لنص
 STT_MODEL = os.getenv("STT_MODEL", "whisper-large-v3")
-STT_LANGUAGE = os.getenv("STT_LANGUAGE", "ar")
+STT_LANGUAGE = os.getenv("STT_LANGUAGE", "")
 STT_PROMPT = os.getenv("STT_PROMPT", "")
 
 # إعدادات وضع المكالمة الصوتية
@@ -2917,9 +2917,54 @@ def _image_content(
 # IMAGE ANALYSIS
 # ============================================================
 
+def _response_language_instruction(text: str) -> str:
+    if re.search(r"[\u0600-\u06ff]", text):
+        return (
+            "LANGUAGE REQUIREMENT (STRICT):\n"
+            "- The user asked in Arabic.\n"
+            "- You MUST reply completely in Arabic.\n"
+            "- أجب باللغة العربية حصراً وبنفس لهجة أو أسلوب المستخدم إن أمكن."
+        )
+    return (
+        "LANGUAGE REQUIREMENT (STRICT):\n"
+        "- The user asked in English.\n"
+        "- Respond in English.\n"
+        "- You MUST reply completely in English.\n"
+        "- Do NOT use any Arabic words, phrases, or greetings in the answer.\n"
+        "- If information is not from the catalogs, write 'General engineering note (not from catalogs):' in English."
+    )
+
+
+def _reasoning_mode_instruction(enabled: bool) -> str:
+    if not enabled:
+        return ""
+    return (
+        "\n\nREASONING MODE:\n"
+        "Carefully evaluate the available evidence, compare plausible explanations, "
+        "and check for uncertainty before answering. Do not reveal private chain-of-thought; "
+        "present only the concise conclusion, supporting evidence, and relevant caveats."
+    )
+
+
+def _greeting_answer(text: str, voice: bool = False) -> str:
+    if re.search(r"[\u0600-\u06ff]", text):
+        return GREETING_ANSWER_VOICE if voice else GREETING_ANSWER
+    if voice:
+        return (
+            "Hello. I'm CUPII, your industrial maintenance assistant. "
+            "Tell me about the machine issue or error code, and I'll help."
+        )
+    return (
+        "Hello! I'm CUPII, your industrial maintenance assistant. "
+        "Ask me about a machine issue, error code, or fault image, and "
+        "I'll help using the available knowledge base."
+    )
+
+
 def analyze_image_with_context(
     image_bytes,
-    mime_type
+    mime_type,
+    question: str,
 ):
 
     system_prompt = """
@@ -2950,13 +2995,12 @@ def analyze_image_with_context(
 في النهاية أعطني وصفًا تقنيًا مختصرًا
 يمكن استخدامه كـ retrieval query داخل قاعدة المعرفة.
 
-أجب باللغة العربية.
 """
+    system_prompt += "\n\n" + _response_language_instruction(question)
 
     user_text = """
-حلل الصورة وأعطني وصفًا تقنيًا
-يمكن استخدامه للبحث داخل كتالوجات
-صيانة الماكينات.
+Analyze the image and provide a technical description that can be used
+to search machine-maintenance manuals.
 """
 
     return _chat(
@@ -2982,6 +3026,7 @@ def ask_rag_with_image(
     limit: int = 7,
     operational_context: str = "",
     document_id: Optional[str] = None,
+    reasoning_mode: bool = False,
 ):
 
     # ========================================================
@@ -2990,7 +3035,8 @@ def ask_rag_with_image(
 
     image_analysis = analyze_image_with_context(
         image_bytes,
-        mime_type
+        mime_type,
+        question,
     )
 
     # ========================================================
@@ -3030,10 +3076,11 @@ def ask_rag_with_image(
 
         return {
 
-            "answer":
-                "لم أجد معلومات مرتبطة "
-                "بالصورة والسؤال داخل "
-                "قاعدة المعرفة.",
+            "answer": (
+                "لم أجد معلومات مرتبطة بالصورة والسؤال داخل قاعدة المعرفة."
+                if re.search(r"[\u0600-\u06ff]", question)
+                else "I couldn't find information related to this image and question in the knowledge base."
+            ),
 
             "image_analysis":
                 image_analysis,
@@ -3106,8 +3153,9 @@ def ask_rag_with_image(
 - لا تكتب قسم "المصدر ورقم الصفحة".
 - المصادر تستخدم داخليًا للتحقق فقط.
 
-أجب باللغة العربية.
 """
+    system_prompt += _reasoning_mode_instruction(reasoning_mode)
+    system_prompt += "\n\n" + _response_language_instruction(question)
 
     user_prompt = f"""
 
@@ -3218,7 +3266,7 @@ UNDERSTAND_PROMPT = """
   "unclear"           مفهوش تفسير معقول حتى مع السياق
 
 - standalone_question: السؤال بعد حل أي إشارة لكلام سابق
-  ("هو"، "ده"، "والحل؟"، "طب ليه؟") بحيث يتفهم لوحده، بالعربية.
+  ("هو"، "ده"، "والحل؟"، "طب ليه؟") بحيث يتفهم لوحده، وبنفس لغة رسالة المستخدم (الإنجليزية إذا كان بالإنجليزية، والعربية إذا كان بالعربية).
 
 - search_queries: من 1 إلى 3 استعلامات بحث قصيرة ومختلفة
   (مصطلحات فنية بالعربي والإنجليزي، Error Code لو موجود،
@@ -3482,12 +3530,14 @@ def _generate(
     system_prompt: str,
     prompt: str,
     temperature: float = 0.1,
-    max_tokens: Optional[int] = None
+    max_tokens: Optional[int] = None,
+    model: Optional[str] = None,
 ):
 
     text = _chat(
         system_prompt,
         prompt,
+        model=model,
         temperature=temperature,
         max_tokens=max_tokens
     )
@@ -3661,6 +3711,7 @@ def ask_rag(
     operational_context: str = "",
     history_context: str = "",
     document_id: Optional[str] = None,
+    reasoning_mode: bool = False,
 ):
     """
     voice=True: وضع المكالمة الصوتية
@@ -3687,7 +3738,7 @@ def ask_rag(
         for pattern in CASUAL_PATTERNS
     ):
 
-        greeting = GREETING_ANSWER_VOICE if voice else GREETING_ANSWER
+        greeting = _greeting_answer(current, voice=voice)
 
         if voice:
             add_voice_turn(session_id, current, greeting)
@@ -3723,13 +3774,20 @@ def ask_rag(
     if intent in ("chitchat", "about_assistant"):
 
         answer = _generate(
-            ASSISTANT_SYSTEM_PROMPT + style_suffix,
+            (
+                ASSISTANT_SYSTEM_PROMPT
+                + style_suffix
+                + _reasoning_mode_instruction(reasoning_mode)
+                + "\n\n"
+                + _response_language_instruction(current)
+            ),
             (
                 f"سياق المحادثة السابق:\n{history_block}\n\n"
                 f"رسالة المستخدم:\n{current}"
             ),
             temperature=0.4,
             max_tokens=max_tokens,
+            model=VOICE_CHAT_MODEL if voice else None,
         )
 
         if voice and not answer.startswith("معرفتش أطلّع"):
@@ -3818,10 +3876,17 @@ CONTEXT (نتائج من قاعدة المعرفة، وممكن تكون غير 
 """
 
     answer = _generate(
-        ANSWER_SYSTEM_PROMPT + style_suffix,
+        (
+            ANSWER_SYSTEM_PROMPT
+            + style_suffix
+            + _reasoning_mode_instruction(reasoning_mode)
+            + "\n\n"
+            + _response_language_instruction(current)
+        ),
         user_prompt,
         temperature=0.2,
         max_tokens=max_tokens,
+        model=VOICE_CHAT_MODEL if voice else None,
     )
 
     if voice and not answer.startswith("معرفتش أطلّع"):
@@ -3913,13 +3978,14 @@ def ask_rag_voice_stream(
         for pattern in CASUAL_PATTERNS
     ):
 
-        add_voice_turn(session_id, current, GREETING_ANSWER_VOICE)
+        greeting = _greeting_answer(current, voice=True)
+        add_voice_turn(session_id, current, greeting)
 
-        yield {"type": "sentence", "text": GREETING_ANSWER_VOICE}
+        yield {"type": "sentence", "text": greeting}
 
         yield {
             "type": "done",
-            "answer": GREETING_ANSWER_VOICE,
+            "answer": greeting,
             "sources": [],
         }
 
@@ -3982,7 +4048,12 @@ CONTEXT (نتائج من قاعدة المعرفة، وممكن تكون غير 
         "messages": [
             {
                 "role": "system",
-                "content": ANSWER_SYSTEM_PROMPT + VOICE_STYLE_SUFFIX
+                "content": (
+                    ANSWER_SYSTEM_PROMPT
+                    + VOICE_STYLE_SUFFIX
+                    + "\n\n"
+                    + _response_language_instruction(current)
+                )
             },
             {
                 "role": "user",
@@ -4130,12 +4201,13 @@ def transcribe_audio(
 
         "model": STT_MODEL,
 
-        "language": STT_LANGUAGE,
-
         "temperature": 0.0,
 
         "response_format": "json",
     }
+
+    if STT_LANGUAGE:
+        kwargs["language"] = STT_LANGUAGE
 
     if STT_PROMPT:
         kwargs["prompt"] = STT_PROMPT

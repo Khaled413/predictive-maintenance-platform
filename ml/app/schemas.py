@@ -160,6 +160,8 @@ class PredictionResponse(BaseModel):
 
 
 class HealthResponse(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+
     status: Literal["ok", "not_ready"]
     models_loaded: bool
     failure_model: Literal["ready", "unavailable"]
@@ -202,6 +204,8 @@ class AssistantChatRequest(BaseModel):
     document_id: str | None = Field(default=None, max_length=64)
     history: list[AssistantHistoryMessage] = Field(default_factory=list, max_length=12)
     operational_context: str = Field(default="{}", max_length=20000)
+    reasoning_mode: bool = False
+    voice: bool = False
 
     @field_validator("question")
     @classmethod

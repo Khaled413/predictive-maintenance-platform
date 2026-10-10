@@ -209,6 +209,8 @@ export interface Conversation {
   updated: string
   context: 'factory' | 'machine' | 'knowledge' | 'document'
   contextLabel?: string
+  machineId?: string
+  documentId?: string
   messages: ChatMessage[]
 }
 

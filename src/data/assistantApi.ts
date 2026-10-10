@@ -10,6 +10,8 @@ export interface AssistantRequest {
   documentId?: string
   history: AssistantHistoryItem[]
   operationalContext: string
+  reasoningMode?: boolean
+  voice?: boolean
 }
 
 export interface AssistantSource {
@@ -147,6 +149,8 @@ export async function askAssistant(
     form.append('document_id', request.documentId ?? '')
     form.append('history', JSON.stringify(request.history))
     form.append('operational_context', request.operationalContext)
+    form.append('reasoning_mode', String(request.reasoningMode ?? false))
+    form.append('voice', String(request.voice ?? false))
     response = await requestJson<unknown>('/api/assistant/chat/image', {
       method: 'POST',
       body: form,
@@ -162,6 +166,8 @@ export async function askAssistant(
         document_id: request.documentId,
         history: request.history,
         operational_context: request.operationalContext,
+        reasoning_mode: request.reasoningMode ?? false,
+        voice: request.voice ?? false,
       }),
     })
   }
@@ -200,11 +206,12 @@ export async function deleteIndexedAssistantDocument(documentId: string): Promis
 export async function transcribeAssistantAudio(blob: Blob): Promise<string> {
   const form = new FormData()
   form.append('file', blob, 'recording.webm')
-  const result = await requestJson<{ text: string }>('/api/assistant/transcribe', {
+  const result = await requestJson<{ text: string; recognized?: boolean }>('/api/assistant/transcribe', {
     method: 'POST',
     body: form,
   })
-  if (typeof result.text !== 'string' || !result.text.trim()) {
+  if (result.recognized === false) return ''
+  if (typeof result.text !== 'string') {
     throw new Error('Assistant could not recognize speech in this recording')
   }
   return result.text.trim()

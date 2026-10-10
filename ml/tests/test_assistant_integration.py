@@ -11,6 +11,7 @@ from PIL import Image
 from pydantic import ValidationError
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, PointStruct, VectorParams
+from starlette.datastructures import Headers, UploadFile
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -89,10 +90,20 @@ class AssistantApiTests(unittest.TestCase):
             for route in application.routes
             if getattr(route, "path", None) == "/api/assistant/chat"
         )
+        self.image_chat_route = next(
+            route
+            for route in application.routes
+            if getattr(route, "path", None) == "/api/assistant/chat/image"
+        )
         self.speech_chunks_route = next(
             route
             for route in application.routes
             if getattr(route, "path", None) == "/api/assistant/speak/chunks"
+        )
+        self.transcribe_route = next(
+            route
+            for route in application.routes
+            if getattr(route, "path", None) == "/api/assistant/transcribe"
         )
         self.application = application
 
@@ -142,6 +153,8 @@ class AssistantApiTests(unittest.TestCase):
             context="factory",
             history=[{"role": "user", "content": "Tell me about this machine."}],
             operational_context='{"scope":"factory","model_predictions":[]}',
+            reasoning_mode=True,
+            voice=True,
         )
         with patch("app.api._assistant_engine", return_value=engine), patch(
             "app.api._ensure_assistant_index", return_value=engine
@@ -155,7 +168,27 @@ class AssistantApiTests(unittest.TestCase):
             engine.call[1]["operational_context"],
             request.operational_context,
         )
+        self.assertTrue(engine.call[1]["reasoning_mode"])
+        self.assertTrue(engine.call[1]["voice"])
         self.assertIn("Tell me about this machine.", engine.call[1]["history_context"])
+
+    def test_live_transcription_reports_no_speech_without_returning_arabic_prompt_text(self):
+        class FakeEngine:
+            GROQ_API_KEY = "configured-for-test"
+            NO_SPEECH_TEXT = rag_engine.NO_SPEECH_TEXT
+
+            def transcribe_audio(self, contents, content_type):
+                return self.NO_SPEECH_TEXT
+
+        upload = UploadFile(
+            filename="recording.webm",
+            file=io.BytesIO(b"audio"),
+            headers=Headers({"content-type": "audio/webm"}),
+        )
+        with patch("app.api._assistant_engine", return_value=FakeEngine()):
+            result = asyncio.run(self.transcribe_route.endpoint(upload))
+
+        self.assertEqual(result, {"text": "", "recognized": False})
 
     def test_missing_groq_key_returns_explicit_unavailable(self):
         class FakeEngine:
@@ -166,6 +199,45 @@ class AssistantApiTests(unittest.TestCase):
             with self.assertRaises(HTTPException) as raised:
                 asyncio.run(self.chat_route.endpoint(request))
         self.assertEqual(raised.exception.status_code, 503)
+
+    def test_image_chat_forwards_reasoning_mode(self):
+        class FakeEngine:
+            GROQ_API_KEY = "configured-for-test"
+
+            def ask_rag_with_image(self, question, image_bytes, image_type, **kwargs):
+                self.reasoning_mode = kwargs["reasoning_mode"]
+                return {
+                    "answer": "Image result.",
+                    "image_analysis": "A product image.",
+                    "sources": [],
+                }
+
+        engine = FakeEngine()
+        image = io.BytesIO()
+        Image.new("RGB", (8, 6), color=(80, 120, 160)).save(image, format="PNG")
+        upload = UploadFile(
+            filename="sample.png",
+            file=io.BytesIO(image.getvalue()),
+            headers=Headers({"content-type": "image/png"}),
+        )
+        with patch("app.api._assistant_engine", return_value=engine), patch(
+            "app.api._ensure_assistant_index", return_value=engine
+        ):
+            result = asyncio.run(
+                self.image_chat_route.endpoint(
+                    question="What is in the image?",
+                    context="factory",
+                    machine_id=None,
+                    document_id=None,
+                    history="[]",
+                    operational_context="{}",
+                    reasoning_mode=True,
+                    image=upload,
+                )
+            )
+
+        self.assertTrue(engine.reasoning_mode)
+        self.assertEqual(result["answer"], "Image result.")
 
     def test_live_speech_chunks_use_cleaned_and_truncated_answer_text(self):
         request = AssistantSpeechRequest(text="A complete spoken response.")
@@ -183,6 +255,108 @@ class AssistantApiTests(unittest.TestCase):
 
 
 class AssistantRetrievalTests(unittest.TestCase):
+    def test_answer_language_tracks_the_current_question(self):
+        questions = (
+            ("What is the current machine risk?", "Respond in English"),
+            ("ما مستوى خطورة الآلة حاليًا؟", "أجب باللغة العربية"),
+        )
+        for question, expected_instruction in questions:
+            understanding = {
+                "intent": "document_question",
+                "standalone_question": question,
+                "search_queries": [],
+                "clarifying_question": "",
+            }
+            with self.subTest(question=question), patch.object(
+                rag_engine, "understand_question", return_value=understanding
+            ), patch.object(rag_engine, "search_solved_cases", return_value=[]), patch.object(
+                rag_engine, "retrieve_for_queries", return_value=[]
+            ), patch.object(rag_engine, "_generate", return_value="A safe answer.") as generate:
+                rag_engine.ask_rag(question)
+
+            self.assertIn(expected_instruction, generate.call_args.args[0])
+
+    def test_voice_mode_uses_short_answer_style_and_preserves_question_language(self):
+        questions = (
+            ("What is the current machine risk?", "Respond in English"),
+            ("ما مستوى خطورة الآلة حاليًا؟", "أجب باللغة العربية"),
+        )
+        for question, expected_instruction in questions:
+            understanding = {
+                "intent": "document_question",
+                "standalone_question": question,
+                "search_queries": [],
+                "clarifying_question": "",
+            }
+            with self.subTest(question=question), patch.object(
+                rag_engine, "understand_question", return_value=understanding
+            ), patch.object(
+                rag_engine, "retrieve_for_queries", return_value=[]
+            ) as retrieve, patch.object(
+                rag_engine, "_generate", return_value="The risk is unavailable."
+            ) as generate, patch.object(rag_engine, "add_voice_turn"):
+                rag_engine.ask_rag(question, voice=True)
+
+            prompt = generate.call_args.args[0]
+            self.assertIn(expected_instruction, prompt)
+            self.assertIn(rag_engine.VOICE_STYLE_SUFFIX.strip(), prompt)
+            self.assertEqual(retrieve.call_args.kwargs["limit"], rag_engine.VOICE_RETRIEVAL_LIMIT)
+            self.assertEqual(generate.call_args.kwargs["model"], rag_engine.VOICE_CHAT_MODEL)
+
+    def test_reasoning_mode_adds_evidence_review_without_exposing_chain_of_thought(self):
+        understanding = {
+            "intent": "document_question",
+            "standalone_question": "Why is M-001 at risk?",
+            "search_queries": [],
+            "clarifying_question": "",
+        }
+        with patch.object(rag_engine, "understand_question", return_value=understanding), patch.object(
+            rag_engine, "search_solved_cases", return_value=[]
+        ), patch.object(rag_engine, "retrieve_for_queries", return_value=[]), patch.object(
+            rag_engine, "_generate", return_value="The prediction is unavailable."
+        ) as generate:
+            rag_engine.ask_rag(
+                "Why is M-001 at risk?",
+                reasoning_mode=True,
+            )
+
+        prompt = generate.call_args.args[0]
+        self.assertIn("REASONING MODE", prompt)
+        self.assertIn("Do not reveal private chain-of-thought", prompt)
+
+    def test_greeting_language_tracks_the_current_question(self):
+        self.assertIn("Hello", rag_engine._greeting_answer("Hello"))
+        self.assertIn("أهلاً", rag_engine._greeting_answer("السلام عليكم"))
+
+    def test_image_analysis_language_tracks_the_current_question(self):
+        questions = (
+            ("What is wrong with this motor?", "Respond in English"),
+            ("ما العطل الظاهر في المحرك؟", "أجب باللغة العربية"),
+        )
+        for question, expected_instruction in questions:
+            with self.subTest(question=question), patch.object(
+                rag_engine, "_chat", return_value="Image findings."
+            ) as chat:
+                rag_engine.analyze_image_with_context(b"image", "image/png", question)
+
+            self.assertIn(expected_instruction, chat.call_args.args[0])
+
+    def test_transcription_uses_automatic_language_detection_by_default(self):
+        class FakeTranscriptions:
+            def create(self, **kwargs):
+                self.kwargs = kwargs
+                return type("Transcription", (), {"text": "How is the machine?"})()
+
+        transcriptions = FakeTranscriptions()
+        client = type("Client", (), {"audio": type("Audio", (), {"transcriptions": transcriptions})()})()
+        with patch.object(rag_engine, "STT_LANGUAGE", ""), patch.object(
+            rag_engine, "_get_groq_client", return_value=client
+        ):
+            text = rag_engine.transcribe_audio(b"audio", "audio/webm")
+
+        self.assertEqual(text, "How is the machine?")
+        self.assertNotIn("language", transcriptions.kwargs)
+
     def test_remote_qdrant_uses_tls_endpoint_and_api_key(self):
         with patch.dict(
             os.environ,
