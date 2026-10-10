@@ -22,7 +22,9 @@ export default function TopHeader({ onMenu }: TopHeaderProps) {
     const m = machines.find((x) => x.id === id)
     meta = {
       title: m ? `${m.id} · ${t('Machine Profile')}` : t('Machine Profile'),
-      subtitle: m ? `${m.name} — ${m.type}` : t('Detailed machine telemetry and analysis'),
+      subtitle: m
+        ? `${m.name} — ${m.type}`
+        : t('Detailed machine telemetry and analysis'),
     }
   }
   if (!meta) meta = { title: 'Overview', subtitle: '' }
@@ -50,7 +52,14 @@ export default function TopHeader({ onMenu }: TopHeaderProps) {
   const activeAlerts = alerts.filter((a) => a.status === 'active').length
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 min-w-0 items-center gap-2 border-b border-line bg-navy-900/70 px-3 backdrop-blur-xl sm:gap-4 sm:px-6">
+    <header
+      className="sticky top-0 z-30 flex h-16 min-w-0 items-center gap-2 border-b border-line px-3 backdrop-blur-xl sm:gap-4 sm:px-6"
+      style={{
+        backgroundColor: 'rgb(var(--navy-900) / 0.72)',
+        backgroundImage:
+          'linear-gradient(180deg, rgba(56, 189, 248, 0.05) 0%, rgba(0, 0, 0, 0) 100%)',
+      }}
+    >
       <button
         type="button"
         onClick={onMenu}
@@ -61,7 +70,9 @@ export default function TopHeader({ onMenu }: TopHeaderProps) {
       </button>
 
       <div className="min-w-0 flex-1">
-        <h1 className="truncate text-[15.5px] font-bold tracking-tight text-ink">{meta.title}</h1>
+        <h1 className="truncate text-[15.5px] font-bold tracking-tight text-ink">
+          {meta.title}
+        </h1>
         <p className="truncate text-[11.5px] text-ink-faint">{meta.subtitle}</p>
       </div>
 
@@ -83,13 +94,19 @@ export default function TopHeader({ onMenu }: TopHeaderProps) {
             <p className="text-[9.5px] font-semibold uppercase tracking-wider text-ink-faint">
               {t('Last Updated')}
             </p>
-            <p className="mt-0.5 text-[11px] font-medium text-ink">{formatDateTime(lastUpdated)}</p>
+            <p className="mt-0.5 text-[11px] font-medium text-ink">
+              {formatDateTime(lastUpdated)}
+            </p>
           </div>
           <button
             type="button"
             onClick={() => {
               refreshTimestamp()
-              notify('info', 'Local data refreshed', 'The dashboard timestamp was updated; no live telemetry connection is configured.')
+              notify(
+                'info',
+                'Local data refreshed',
+                'The dashboard timestamp was updated; no live telemetry connection is configured.'
+              )
             }}
             className="rounded-md p-1 text-ink-faint transition-colors hover:bg-navy-700 hover:text-sky-300"
             aria-label="Refresh data"
@@ -105,13 +122,18 @@ export default function TopHeader({ onMenu }: TopHeaderProps) {
             status === null
               ? 'border-amber-400/25 bg-amber-400/5'
               : status === 'Operational'
-              ? 'border-emerald-400/25 bg-emerald-400/5'
-              : status === 'Warning'
-                ? 'border-amber-400/25 bg-amber-400/5'
-                : 'border-red-400/30 bg-red-400/10',
+                ? 'border-emerald-400/25 bg-emerald-400/5'
+                : status === 'Warning'
+                  ? 'border-amber-400/25 bg-amber-400/5'
+                  : 'border-red-400/30 bg-red-400/10'
           )}
         >
-          <span className={cx('h-2 w-2 rounded-full', status === null ? 'bg-amber-400 animate-pulseSoft' : statusDot)} />
+          <span
+            className={cx(
+              'h-2 w-2 rounded-full',
+              status === null ? 'bg-amber-400 animate-pulseSoft' : statusDot
+            )}
+          />
           <div className="min-w-0 leading-tight">
             <p className="hidden truncate text-[9.5px] font-semibold uppercase tracking-wider text-ink-faint sm:block">
               {status ? t('Prediction Status') : 'Model Predictions'}
@@ -122,15 +144,16 @@ export default function TopHeader({ onMenu }: TopHeaderProps) {
                 status === null
                   ? 'text-amber-300'
                   : status === 'Operational'
-                  ? 'text-emerald-300'
-                  : status === 'Warning'
-                    ? 'text-amber-300'
-                    : 'text-red-300',
+                    ? 'text-emerald-300'
+                    : status === 'Warning'
+                      ? 'text-amber-300'
+                      : 'text-red-300'
               )}
             >
-              {status ?? (machines.some((machine) => machine.predictionStatus === 'loading')
-                ? 'Loading predictions'
-                : 'ML prediction service unavailable')}
+              {status ??
+                (machines.some((machine) => machine.predictionStatus === 'loading')
+                  ? 'Loading predictions'
+                  : 'ML prediction service unavailable')}
             </p>
           </div>
         </div>
@@ -160,7 +183,9 @@ export default function TopHeader({ onMenu }: TopHeaderProps) {
           </div>
           <div className="hidden text-left leading-none sm:block">
             <p className="text-[11.5px] font-semibold text-ink">{t('Eng. Sarah')}</p>
-            <p className="mt-0.5 text-[10px] text-ink-faint">{t('Maintenance Manager')}</p>
+            <p className="mt-0.5 text-[10px] text-ink-faint">
+              {t('Maintenance Manager')}
+            </p>
           </div>
           <ChevronDown className="hidden h-3.5 w-3.5 text-ink-faint sm:block" />
         </button>

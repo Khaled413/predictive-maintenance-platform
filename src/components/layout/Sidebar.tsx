@@ -13,7 +13,9 @@ interface SidebarProps {
 export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
   const { alerts } = useApp()
   const { t } = usePreferences()
-  const criticalActive = alerts.filter((a) => a.severity === 'critical' && a.status === 'active').length
+  const criticalActive = alerts.filter(
+    (a) => a.severity === 'critical' && a.status === 'active'
+  ).length
 
   return (
     <>
@@ -28,18 +30,28 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
 
       <aside
         className={cx(
-          'fixed inset-y-0 left-0 z-50 flex w-60 flex-col border-r border-line bg-navy-900/95 backdrop-blur-xl transition-transform duration-300',
-          mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
+          'fixed inset-y-0 left-0 z-50 flex w-60 flex-col border-r border-line backdrop-blur-xl transition-transform duration-300',
+          mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         )}
+        style={{
+          backgroundColor: 'rgb(var(--navy-900) / 0.92)',
+          backgroundImage:
+            'linear-gradient(180deg, rgba(56, 189, 248, 0.06) 0%, rgba(99, 102, 241, 0.04) 32%, rgba(0, 0, 0, 0) 100%)',
+        }}
       >
         {/* Logo */}
         <div className="flex h-16 shrink-0 items-center gap-3 border-b border-line px-5">
-          <div className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500 to-blue-700 shadow-[0_6px_18px_-6px_rgba(37,99,235,0.8)]">
+          <div
+            className="relative flex h-9 w-9 items-center justify-center rounded-xl shadow-[0_6px_18px_-6px_rgba(37,99,235,0.8)]"
+            style={{ backgroundImage: 'var(--grad-accent-strong)' }}
+          >
             <Activity className="h-5 w-5 text-white" strokeWidth={2.4} />
             <span className="absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full bg-emerald-400 ring-2 ring-navy-900" />
           </div>
           <div className="leading-tight">
-            <p className="text-[13px] font-bold tracking-tight text-ink">Industrial AI Platform</p>
+            <p className="text-[13px] font-bold tracking-tight text-gradient">
+              Industrial AI Platform
+            </p>
             <p className="text-[10.5px] font-medium text-ink-faint">
               Machine Health &amp; Maintenance
             </p>
@@ -69,20 +81,32 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
                 cx(
                   'group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-medium transition-all duration-150',
                   isActive
-                    ? 'bg-sky-500/10 text-sky-300'
-                    : 'text-ink-dim hover:bg-navy-700/60 hover:text-ink',
+                    ? 'text-sky-300'
+                    : 'text-ink-dim hover:bg-navy-700/60 hover:text-ink'
                 )
               }
             >
               {({ isActive }) => (
                 <>
                   {isActive && (
-                    <span className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-full bg-sky-400" />
+                    <>
+                      <span
+                        className="absolute inset-0 rounded-xl border border-sky-400/20"
+                        style={{
+                          backgroundImage:
+                            'linear-gradient(90deg, rgba(56, 189, 248, 0.16) 0%, rgba(99, 102, 241, 0.1) 50%, rgba(56, 189, 248, 0.06) 100%)',
+                        }}
+                        aria-hidden
+                      />
+                      <span className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-full bg-gradient-to-b from-sky-300 to-blue-500" />
+                    </>
                   )}
                   <item.icon
                     className={cx(
                       'h-[18px] w-[18px]',
-                      isActive ? 'text-sky-400' : 'text-ink-faint group-hover:text-ink-dim',
+                      isActive
+                        ? 'text-sky-400'
+                        : 'text-ink-faint group-hover:text-ink-dim'
                     )}
                     strokeWidth={1.9}
                   />
@@ -100,8 +124,15 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
 
         {/* Bottom promo */}
         <div className="p-3">
-          <div className="relative overflow-hidden rounded-2xl border border-sky-400/15 bg-gradient-to-br from-navy-700 via-navy-800 to-navy-900 p-4">
+          <div
+            className="relative overflow-hidden rounded-2xl border border-sky-400/15 p-4"
+            style={{
+              backgroundImage:
+                'linear-gradient(160deg, rgba(56, 189, 248, 0.14) 0%, rgba(99, 102, 241, 0.1) 45%, rgba(0, 0, 0, 0) 100%), linear-gradient(180deg, rgb(var(--navy-700)) 0%, rgb(var(--navy-900)) 100%)',
+            }}
+          >
             <div className="absolute -right-4 -top-6 h-20 w-20 rounded-full bg-sky-500/10 blur-2xl" />
+            <div className="absolute -bottom-8 -left-4 h-16 w-16 rounded-full bg-indigo-500/10 blur-2xl" />
             <div className="mb-2.5 flex h-8 w-8 items-center justify-center rounded-lg bg-sky-500/15 ring-1 ring-sky-400/25">
               <Factory className="h-4 w-4 text-sky-300" />
             </div>

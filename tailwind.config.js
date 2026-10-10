@@ -36,12 +36,18 @@ export default {
           'Roboto',
           'sans-serif',
         ],
-        mono: ['"JetBrains Mono"', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
+        mono: [
+          '"JetBrains Mono"',
+          'ui-monospace',
+          'SFMono-Regular',
+          'Menlo',
+          'monospace',
+        ],
       },
       boxShadow: {
-        panel: '0 1px 2px rgba(0,0,0,0.4), 0 8px 24px -12px rgba(0,0,0,0.5)',
-        glow: '0 0 0 1px rgba(96,165,250,0.25), 0 8px 40px -12px rgba(37,99,235,0.35)',
-        card: '0 1px 0 rgba(255,255,255,0.02) inset, 0 10px 30px -14px rgba(0,0,0,0.6)',
+        panel: 'var(--shadow-panel)',
+        glow: 'var(--shadow-glow)',
+        card: 'var(--shadow-card)',
       },
       borderRadius: {
         xl2: '0.875rem',

@@ -9,6 +9,28 @@ const TONES: Record<string, string> = {
   gray: 'bg-navy-700/50 text-ink-dim ring-line',
 }
 
+/** Gradient wash in the card corner, per tone. */
+const WASHES: Record<string, string> = {
+  blue: 'radial-gradient(120px 80px at 100% 0%, rgba(56, 189, 248, 0.22), transparent 70%)',
+  green:
+    'radial-gradient(120px 80px at 100% 0%, rgba(52, 211, 153, 0.22), transparent 70%)',
+  amber:
+    'radial-gradient(120px 80px at 100% 0%, rgba(251, 191, 36, 0.22), transparent 70%)',
+  red: 'radial-gradient(120px 80px at 100% 0%, rgba(248, 113, 113, 0.24), transparent 70%)',
+  gray: 'none',
+}
+
+/** Thin gradient accent line along the top edge. */
+const RAILS: Record<string, string> = {
+  blue: 'linear-gradient(90deg, rgba(56, 189, 248, 0.7), rgba(99, 102, 241, 0.35) 55%, transparent)',
+  green:
+    'linear-gradient(90deg, rgba(52, 211, 153, 0.7), rgba(20, 184, 166, 0.35) 55%, transparent)',
+  amber:
+    'linear-gradient(90deg, rgba(251, 191, 36, 0.7), rgba(249, 115, 22, 0.35) 55%, transparent)',
+  red: 'linear-gradient(90deg, rgba(248, 113, 113, 0.7), rgba(244, 63, 94, 0.35) 55%, transparent)',
+  gray: 'linear-gradient(90deg, rgba(148, 163, 184, 0.35), transparent)',
+}
+
 export default function KpiCard({
   label,
   value,
@@ -33,18 +55,18 @@ export default function KpiCard({
       onClick={onClick}
       className={cx(
         'panel panel-hover group relative overflow-hidden p-4 text-left',
-        onClick && 'w-full cursor-pointer',
+        onClick && 'w-full cursor-pointer'
       )}
     >
+      <span
+        aria-hidden
+        className="absolute inset-x-0 top-0 h-[2px] rounded-t-2xl"
+        style={{ backgroundImage: RAILS[tone] }}
+      />
       <div
-        className={cx(
-          'absolute -right-5 -top-5 h-16 w-16 rounded-full opacity-60 blur-2xl transition-opacity group-hover:opacity-100',
-          tone === 'blue' && 'bg-sky-500/20',
-          tone === 'green' && 'bg-emerald-500/20',
-          tone === 'amber' && 'bg-amber-500/20',
-          tone === 'red' && 'bg-red-500/20',
-          tone === 'gray' && 'bg-transparent',
-        )}
+        aria-hidden
+        className="pointer-events-none absolute inset-0 opacity-80 transition-opacity duration-300 group-hover:opacity-100"
+        style={{ backgroundImage: WASHES[tone] }}
       />
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
@@ -62,7 +84,7 @@ export default function KpiCard({
         <div
           className={cx(
             'flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ring-1',
-            TONES[tone],
+            TONES[tone]
           )}
         >
           {icon}

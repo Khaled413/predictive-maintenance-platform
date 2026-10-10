@@ -4,27 +4,50 @@
 
 :root {
   color-scheme: dark;
-  --bg-page: #060b18;
-  --bg-panel: #0a1428;
+  --bg-page: #050914;
+  --bg-panel: #0a1326;
   --bg-panel-soft: rgba(11, 17, 31, 0.85);
-  --bg-elevated: #0d1830;
-  --text: #e6edf6;
-  --text-dim: #9fb0c8;
-  --text-faint: #6b7d99;
-  --border: rgba(148, 163, 184, 0.12);
+  --bg-elevated: #0e1a35;
+  --text: #e8eefb;
+  --text-dim: #a6b6cf;
+  --text-faint: #7488a8;
+  --border: rgba(148, 163, 184, 0.14);
   --shadow: rgba(2, 6, 23, 0.8);
-  --navy-950: 6 11 24;
-  --navy-900: 8 16 32;
-  --navy-850: 10 20 40;
-  --navy-800: 13 24 48;
-  --navy-750: 15 27 54;
-  --navy-700: 18 32 63;
-  --navy-600: 24 42 79;
-  --navy-500: 31 52 96;
-  --ink: 230 237 246;
-  --ink-dim: 159 176 200;
-  --ink-faint: 107 125 153;
+  --navy-950: 5 10 22;
+  --navy-900: 8 16 33;
+  --navy-850: 11 21 42;
+  --navy-800: 14 26 51;
+  --navy-750: 17 30 58;
+  --navy-700: 21 36 68;
+  --navy-600: 27 46 85;
+  --navy-500: 35 57 103;
+  --ink: 232 238 251;
+  --ink-dim: 166 182 207;
+  --ink-faint: 116 136 168;
   --line: 148 163 184;
+
+  /* Layered page glows (consumed by the body background below) */
+  --page-glow-1: rgba(37, 99, 235, 0.16);
+  --page-glow-2: rgba(13, 148, 136, 0.1);
+  --page-glow-3: rgba(99, 102, 241, 0.09);
+  --page-base: linear-gradient(180deg, #060b18 0%, #050914 100%);
+
+  /* Subtle vertical sheen layered on top of panel surfaces */
+  --panel-sheen: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.035),
+    rgba(255, 255, 255, 0) 42%
+  );
+
+  /* Brand accent gradients */
+  --grad-accent: linear-gradient(135deg, #38bdf8 0%, #6366f1 100%);
+  --grad-accent-strong: linear-gradient(135deg, #0ea5e9 0%, #4f46e5 100%);
+
+  /* Theme-aware elevation */
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 28px -14px rgba(0, 0, 0, 0.55);
+  --shadow-panel: 0 1px 2px rgba(0, 0, 0, 0.45), 0 24px 48px -20px rgba(0, 0, 0, 0.65);
+  --shadow-glow:
+    0 0 0 1px rgba(56, 189, 248, 0.22), 0 18px 44px -16px rgba(37, 99, 235, 0.4);
 }
 
 html,
@@ -43,7 +66,6 @@ body {
   @apply antialiased;
   min-height: 100vh;
   overflow-x: clip;
-  background: var(--bg-page);
   color: var(--text);
   font-family:
     'Inter',
@@ -52,9 +74,12 @@ body {
     'Segoe UI',
     Roboto,
     sans-serif;
+  background-color: var(--bg-page);
   background-image:
-    radial-gradient(1100px 560px at 82% -12%, rgba(37, 99, 235, 0.1), transparent 60%),
-    radial-gradient(900px 520px at -12% 112%, rgba(14, 116, 144, 0.07), transparent 60%);
+    radial-gradient(1100px 560px at 85% -10%, var(--page-glow-1), transparent 62%),
+    radial-gradient(900px 520px at -12% 112%, var(--page-glow-2), transparent 60%),
+    radial-gradient(720px 440px at 42% 46%, var(--page-glow-3), transparent 65%),
+    var(--page-base);
   background-attachment: fixed;
 }
 
@@ -71,30 +96,57 @@ html:lang(ar) body {
 
 body.light-mode {
   color-scheme: light;
-  --bg-page: #eef4ff;
+  --bg-page: #eef3fb;
   --bg-panel: #ffffff;
-  --bg-panel-soft: rgba(255, 255, 255, 0.8);
-  --bg-elevated: #f5f8ff;
-  --text: #122036;
-  --text-dim: #495f83;
-  --text-faint: #6a7d99;
-  --border: rgba(39, 56, 84, 0.12);
-  --shadow: rgba(148, 163, 184, 0.2);
-  --navy-950: 238 244 255;
-  --navy-900: 247 250 255;
+  --bg-panel-soft: rgba(255, 255, 255, 0.85);
+  --bg-elevated: #f7faff;
+  --text: #132039;
+  --text-dim: #44597c;
+  --text-faint: #64779a;
+  --border: rgba(39, 56, 84, 0.13);
+  --shadow: rgba(100, 116, 139, 0.22);
+  --navy-950: 238 243 251;
+  --navy-900: 246 249 254;
   --navy-850: 255 255 255;
-  --navy-800: 245 248 255;
-  --navy-750: 239 244 252;
+  --navy-800: 247 250 255;
+  --navy-750: 241 245 252;
   --navy-700: 232 239 249;
-  --navy-600: 218 228 241;
-  --navy-500: 202 216 232;
-  --ink: 18 32 54;
-  --ink-dim: 73 95 131;
-  --ink-faint: 106 125 153;
+  --navy-600: 217 227 242;
+  --navy-500: 199 214 234;
+  --ink: 19 32 57;
+  --ink-dim: 68 89 124;
+  --ink-faint: 100 119 154;
   --line: 39 56 84;
+
+  /* Soft daylight page glows */
+  --page-glow-1: rgba(59, 130, 246, 0.14);
+  --page-glow-2: rgba(20, 184, 166, 0.1);
+  --page-glow-3: rgba(129, 140, 248, 0.1);
+  --page-base: linear-gradient(180deg, #f4f8ff 0%, #eaf1fb 55%, #eef3fb 100%);
+
+  /* Airy sheen for white panels */
+  --panel-sheen: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.9),
+    rgba(240, 246, 255, 0.35) 60%,
+    rgba(240, 246, 255, 0)
+  );
+
+  --grad-accent: linear-gradient(135deg, #0ea5e9 0%, #6366f1 100%);
+  --grad-accent-strong: linear-gradient(135deg, #0284c7 0%, #4f46e5 100%);
+
+  --shadow-card:
+    0 1px 2px rgba(15, 34, 66, 0.05), 0 10px 26px -14px rgba(15, 34, 66, 0.18);
+  --shadow-panel:
+    0 1px 3px rgba(15, 34, 66, 0.06), 0 22px 44px -20px rgba(15, 34, 66, 0.22);
+  --shadow-glow:
+    0 0 0 1px rgba(14, 165, 233, 0.3), 0 16px 38px -16px rgba(37, 99, 235, 0.28);
+
   background-image:
-    radial-gradient(1100px 560px at 82% -12%, rgba(96, 165, 250, 0.12), transparent 60%),
-    radial-gradient(900px 520px at -12% 112%, rgba(14, 116, 144, 0.06), transparent 60%);
+    radial-gradient(1100px 560px at 85% -10%, var(--page-glow-1), transparent 62%),
+    radial-gradient(900px 520px at -12% 112%, var(--page-glow-2), transparent 60%),
+    radial-gradient(720px 440px at 42% 46%, var(--page-glow-3), transparent 65%),
+    var(--page-base);
 }
 
 body {
@@ -135,6 +187,98 @@ body.light-mode .border-line {
   border-color: var(--border) !important;
 }
 
+/* ---------------------------------------------------------------------------
+ * Light-mode accent re-mapping.
+ * The dark theme uses pale "-300/-400" tints that wash out on white panels;
+ * swap them for readable saturated equivalents without touching every
+ * component. MachineVisual's "-200" glows sit on permanently dark gradient
+ * tiles in both themes and are intentionally left untouched.
+ * ------------------------------------------------------------------------ */
+body.light-mode .text-sky-300 {
+  color: #0284c7;
+}
+body.light-mode .text-blue-300 {
+  color: #2563eb;
+}
+body.light-mode .text-indigo-300 {
+  color: #4f46e5;
+}
+body.light-mode .text-violet-300 {
+  color: #7c3aed;
+}
+body.light-mode .text-emerald-300 {
+  color: #059669;
+}
+body.light-mode .text-teal-300 {
+  color: #0d9488;
+}
+body.light-mode .text-cyan-300 {
+  color: #0891b2;
+}
+body.light-mode .text-amber-300 {
+  color: #b45309;
+}
+body.light-mode .text-orange-300 {
+  color: #c2410c;
+}
+body.light-mode .text-red-300 {
+  color: #dc2626;
+}
+body.light-mode .text-rose-300 {
+  color: #e11d48;
+}
+body.light-mode .text-fuchsia-300 {
+  color: #a21caf;
+}
+body.light-mode .text-yellow-300 {
+  color: #a16207;
+}
+
+body.light-mode .text-sky-400 {
+  color: #0284c7;
+}
+body.light-mode .text-blue-400 {
+  color: #2563eb;
+}
+body.light-mode .text-emerald-400 {
+  color: #059669;
+}
+body.light-mode .text-teal-400 {
+  color: #0d9488;
+}
+body.light-mode .text-amber-400 {
+  color: #d97706;
+}
+body.light-mode .text-orange-400 {
+  color: #c2410c;
+}
+body.light-mode .text-red-400 {
+  color: #dc2626;
+}
+body.light-mode .text-violet-400 {
+  color: #7c3aed;
+}
+body.light-mode .text-cyan-400 {
+  color: #0891b2;
+}
+
+/* Hover variants follow the same readable ramp */
+body.light-mode .hover\:text-sky-300:hover {
+  color: #0284c7;
+}
+body.light-mode .hover\:text-emerald-300:hover {
+  color: #059669;
+}
+body.light-mode .hover\:text-amber-300:hover {
+  color: #b45309;
+}
+body.light-mode .hover\:text-red-300:hover {
+  color: #dc2626;
+}
+body.light-mode .group:hover .group-hover\:text-sky-300 {
+  color: #0284c7;
+}
+
 /* ChatGPT Capsule Bar - Light and Dark Theme Harmony */
 .chat-capsule {
   background-color: #212121;
@@ -144,7 +288,9 @@ body.light-mode .border-line {
 }
 .chat-capsule:focus-within {
   border-color: rgba(56, 189, 248, 0.5);
-  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.15), 0 4px 14px -2px rgba(0, 0, 0, 0.35);
+  box-shadow:
+    0 0 0 2px rgba(56, 189, 248, 0.15),
+    0 4px 14px -2px rgba(0, 0, 0, 0.35);
 }
 .chat-capsule textarea {
   color: #f1f5f9;
@@ -176,7 +322,9 @@ body.light-mode .chat-capsule {
 }
 body.light-mode .chat-capsule:focus-within {
   border-color: rgba(2, 132, 199, 0.5);
-  box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.15), 0 2px 8px -2px rgba(0, 0, 0, 0.08);
+  box-shadow:
+    0 0 0 2px rgba(2, 132, 199, 0.15),
+    0 2px 8px -2px rgba(0, 0, 0, 0.08);
 }
 body.light-mode .chat-capsule textarea {
   color: #0f172a;
@@ -270,9 +418,33 @@ body.light-mode .chat-msg-user {
 body.light-mode .shadow-card,
 body.light-mode .shadow-glow,
 body.light-mode .shadow-panel {
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.4) inset,
-    0 12px 30px -16px var(--shadow);
+  box-shadow: var(--shadow-card);
+}
+
+body.light-mode .shadow-glow {
+  box-shadow: var(--shadow-glow);
+}
+
+body.light-mode .shadow-panel {
+  box-shadow: var(--shadow-panel);
+}
+
+/* Theme transition — smooth cross-fade when toggling dark/light */
+@media (prefers-reduced-motion: no-preference) {
+  body,
+  .panel,
+  .btn,
+  .chip,
+  .input {
+    transition:
+      background-color 0.25s ease,
+      background-image 0.25s ease,
+      border-color 0.25s ease,
+      color 0.25s ease,
+      box-shadow 0.25s ease,
+      transform 0.2s ease,
+      filter 0.2s ease;
+  }
 }
 
 ::-webkit-scrollbar {
@@ -302,11 +474,20 @@ body.light-mode .shadow-panel {
 
 @layer components {
   .panel {
-    @apply rounded-2xl border border-line bg-navy-850 shadow-card;
+    @apply rounded-2xl border border-line;
+    background-color: var(--bg-panel);
+    background-image: var(--panel-sheen);
+    box-shadow: var(--shadow-card);
   }
 
   .panel-hover {
-    @apply transition-all duration-200 hover:-translate-y-0.5 hover:border-sky-400/25 hover:shadow-glow;
+    @apply transition-all duration-200;
+  }
+
+  .panel-hover:hover {
+    transform: translateY(-2px);
+    border-color: rgba(56, 189, 248, 0.28);
+    box-shadow: var(--shadow-glow);
   }
 
   .btn {
@@ -314,15 +495,37 @@ body.light-mode .shadow-panel {
   }
 
   .btn-primary {
-    @apply btn bg-gradient-to-b from-sky-500 to-blue-600 text-white border border-sky-400/40 shadow-[0_8px_20px_-8px_rgba(37,99,235,0.7)] hover:brightness-110 active:scale-[0.98];
+    @apply btn text-white border border-sky-400/40 active:scale-[0.98];
+    background-image: linear-gradient(180deg, #38bdf8 0%, #2563eb 100%);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.22),
+      0 8px 20px -8px rgba(37, 99, 235, 0.7);
+  }
+
+  .btn-primary:hover {
+    filter: brightness(1.08);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.25),
+      0 10px 26px -8px rgba(37, 99, 235, 0.85);
   }
 
   .btn-ghost {
-    @apply btn bg-navy-700/40 border border-line text-ink-dim hover:text-ink hover:border-sky-400/30 hover:bg-navy-700 active:scale-[0.98];
+    @apply btn border border-line text-ink-dim active:scale-[0.98];
+    background-image: var(--panel-sheen);
+    background-color: rgb(var(--navy-700) / 0.4);
+  }
+
+  .btn-ghost:hover {
+    @apply text-ink border-sky-400/30;
+    background-color: rgb(var(--navy-700) / 0.75);
   }
 
   .btn-danger {
-    @apply btn bg-red-500/10 border border-red-500/30 text-red-300 hover:bg-red-500/20 active:scale-[0.98];
+    @apply btn bg-red-500/10 border border-red-500/30 text-red-300 active:scale-[0.98];
+  }
+
+  .btn-danger:hover {
+    background-color: rgb(239 68 68 / 0.18);
   }
 
   .btn-sm {
@@ -330,7 +533,13 @@ body.light-mode .shadow-panel {
   }
 
   .input {
-    @apply w-full rounded-xl border border-line bg-navy-900/60 px-3.5 h-10 text-sm text-ink placeholder:text-ink-faint outline-none transition-all focus:border-sky-400/50 focus:ring-2 focus:ring-sky-400/30;
+    @apply w-full rounded-xl border border-line px-3.5 h-10 text-sm text-ink placeholder:text-ink-faint outline-none transition-all;
+    background-color: rgb(var(--navy-900) / 0.6);
+  }
+
+  .input:focus {
+    border-color: rgba(56, 189, 248, 0.5);
+    box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.18);
   }
 
   .label {
@@ -338,7 +547,9 @@ body.light-mode .shadow-panel {
   }
 
   .chip {
-    @apply inline-flex items-center gap-1.5 rounded-lg border border-line bg-navy-700/40 px-2.5 py-1 text-[11px] font-medium text-ink-dim;
+    @apply inline-flex items-center gap-1.5 rounded-lg border border-line px-2.5 py-1 text-[11px] font-medium text-ink-dim;
+    background-image: var(--panel-sheen);
+    background-color: rgb(var(--navy-700) / 0.4);
   }
 
   .card-grid {
@@ -354,6 +565,14 @@ body.light-mode .shadow-panel {
   .thin-scroll {
     scrollbar-width: thin;
     scrollbar-color: rgba(148, 163, 184, 0.18) transparent;
+  }
+
+  /* Gradient text helper for brand accents */
+  .text-gradient {
+    background-image: var(--grad-accent);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
   }
 
   @media (max-width: 639px) {
