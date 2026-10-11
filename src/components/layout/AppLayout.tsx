@@ -12,12 +12,22 @@ export default function AppLayout() {
   const { theme, language, toggleTheme, toggleLanguage, t } = usePreferences()
 
   return (
-    <div className="min-h-screen">
+    <div className="relative min-h-screen overflow-x-hidden">
+      {/* Decorative ambient gradient orbs */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed inset-0 z-0 overflow-hidden"
+      >
+        <div className="absolute -right-32 -top-32 h-[500px] w-[500px] rounded-full bg-gradient-to-br from-cyan-500/4 via-blue-600/3 to-transparent blur-[120px]" />
+        <div className="absolute -left-32 top-1/3 h-[450px] w-[450px] rounded-full bg-gradient-to-tr from-purple-600/3 via-indigo-500/3 to-transparent blur-[120px]" />
+        <div className="absolute bottom-10 right-1/4 h-[380px] w-[380px] rounded-full bg-gradient-to-r from-teal-500/3 via-sky-500/3 to-transparent blur-[120px]" />
+      </div>
+
       <Sidebar mobileOpen={mobileOpen} onClose={() => setMobileOpen(false)} />
-      <div className="flex min-h-screen min-w-0 flex-col lg:pl-60">
+      <div className="relative z-10 flex min-h-screen min-w-0 flex-col lg:pl-60">
         <TopHeader onMenu={() => setMobileOpen(true)} />
         <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-8">
-          <div className="mx-auto max-w-[1500px]">
+          <div className="mx-auto max-w-[1500px] animate-fadeInScale">
             <Suspense fallback={<PageSkeleton />}>
               <Outlet />
             </Suspense>
@@ -31,39 +41,47 @@ export default function AppLayout() {
         </footer>
       </div>
 
+      {/* Floating Theme & Language Quick-Switcher */}
       <div
-        className="fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 items-center gap-2 rounded-full border border-line p-2 shadow-card backdrop-blur-xl"
+        className="fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 items-center gap-2 rounded-full border border-sky-400/25 p-1.5 shadow-[0_14px_34px_-6px_rgba(0,0,0,0.65)] backdrop-blur-2xl transition-all hover:scale-105"
         style={{
-          backgroundColor: 'rgb(var(--navy-900) / 0.88)',
+          backgroundColor: 'rgb(var(--navy-900) / 0.94)',
           backgroundImage:
-            'linear-gradient(180deg, rgba(56, 189, 248, 0.08) 0%, rgba(0, 0, 0, 0) 100%)',
+            'linear-gradient(135deg, rgba(56, 189, 248, 0.12) 0%, rgba(99, 102, 241, 0.08) 50%, rgba(168, 85, 247, 0.06) 100%)',
         }}
       >
         <button
           type="button"
           onClick={toggleTheme}
-          className="flex h-10 w-10 items-center justify-center rounded-full border border-line bg-navy-800 text-ink-dim transition-all hover:border-sky-400/35 hover:bg-sky-500/15 hover:text-sky-300 active:scale-95"
+          className="group flex h-9 w-9 items-center justify-center rounded-full border border-line bg-navy-800 text-ink-dim transition-all hover:border-sky-400/40 hover:bg-sky-500/20 hover:text-sky-300 active:scale-95"
           aria-label={
             theme === 'dark' ? t('Switch to light mode') : t('Switch to dark mode')
           }
           title={theme === 'dark' ? t('Switch to light mode') : t('Switch to dark mode')}
         >
-          {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          {theme === 'dark' ? (
+            <Sun className="h-4 w-4 transition-transform duration-300 group-hover:rotate-45 text-amber-300" />
+          ) : (
+            <Moon className="h-4 w-4 transition-transform duration-300 group-hover:-rotate-12 text-sky-400" />
+          )}
         </button>
         <button
           type="button"
           onClick={toggleLanguage}
-          className="flex items-center gap-2 rounded-full px-3 py-2 text-sm font-semibold text-sky-300 transition-all active:scale-95"
+          className="group flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold text-sky-300 transition-all hover:brightness-110 active:scale-95"
           style={{
             backgroundImage:
-              'linear-gradient(135deg, rgba(56, 189, 248, 0.18) 0%, rgba(99, 102, 241, 0.14) 100%)',
-            border: '1px solid rgba(56, 189, 248, 0.28)',
+              'linear-gradient(135deg, rgba(56, 189, 248, 0.22) 0%, rgba(99, 102, 241, 0.2) 100%)',
+            border: '1px solid rgba(56, 189, 248, 0.35)',
+            boxShadow: '0 0 12px -2px rgba(56, 189, 248, 0.25)',
           }}
           aria-label={language === 'en' ? t('Switch to Arabic') : t('Switch to English')}
           title={language === 'en' ? t('Switch to Arabic') : t('Switch to English')}
         >
-          <Languages className="h-4 w-4" />
-          <span data-no-translate>{language === 'en' ? 'AR' : 'EN'}</span>
+          <Languages className="h-3.5 w-3.5 transition-transform duration-300 group-hover:scale-110" />
+          <span data-no-translate className="font-mono text-[11px] font-bold tracking-wider">
+            {language === 'en' ? 'AR' : 'EN'}
+          </span>
         </button>
       </div>
 

@@ -1530,12 +1530,16 @@ export default function AssistantPage() {
         <Panel className="flex h-full flex-col overflow-hidden">
           <PanelHeader
             title={
-              <span className="flex items-center gap-2">
-                <span className="relative flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-sky-500/70 to-blue-700">
+              <span className="flex items-center gap-2.5">
+                <span
+                  className="relative flex h-8 w-8 items-center justify-center rounded-xl shadow-md ring-1 ring-white/20"
+                  style={{ backgroundImage: 'var(--grad-accent-strong)' }}
+                >
                   <Bot className="h-4 w-4 text-white" />
+                  <span className="absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full bg-emerald-400 ring-1 ring-navy-900" />
                 </span>
                 <span>
-                  <span className="block text-[13.5px] font-bold text-ink">
+                  <span className="block text-[14px] font-bold tracking-tight text-gradient">
                     {t('Industrial AI Assistant')}
                   </span>
                   <span className="mt-0.5 block text-[10.5px] text-ink-faint">
@@ -1634,14 +1638,14 @@ export default function AssistantPage() {
               >
                 <span
                   className={cx(
-                    'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg',
+                    'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg shadow-sm',
                     msg.role === 'user'
-                      ? 'bg-navy-700/70'
-                      : 'bg-gradient-to-br from-sky-500/70 to-blue-700'
+                      ? 'bg-gradient-to-br from-indigo-500 to-purple-600 text-white ring-1 ring-white/10'
+                      : 'bg-gradient-to-br from-cyan-400 via-sky-500 to-indigo-600 ring-1 ring-white/20'
                   )}
                 >
                   {msg.role === 'user' ? (
-                    <span className="text-[10px] font-bold text-ink">
+                    <span className="text-[10px] font-bold text-white">
                       {language === 'ar' ? 'م.خ' : 'EK'}
                     </span>
                   ) : (
@@ -1650,10 +1654,10 @@ export default function AssistantPage() {
                 </span>
                 <div
                   className={cx(
-                    'max-w-[85%] rounded-2xl px-3.5 py-2.5',
+                    'max-w-[85%] rounded-2xl px-3.5 py-2.5 transition-all',
                     msg.role === 'user'
-                      ? 'chat-msg-user border border-sky-500/20 bg-sky-500/10'
-                      : 'chat-msg-assistant border border-line bg-navy-800/70'
+                      ? 'chat-msg-user border border-sky-400/30 bg-gradient-to-r from-sky-500/15 via-blue-500/10 to-indigo-500/15 shadow-sm'
+                      : 'chat-msg-assistant border border-line bg-navy-800/80 shadow-sm'
                   )}
                 >
                   <div
@@ -2107,7 +2111,7 @@ export default function AssistantPage() {
               )}
               <span
                 className={cx(
-                  'relative flex h-28 w-28 items-center justify-center rounded-full border shadow-[0_0_60px_rgba(56,189,248,0.16)] transition-all',
+                  'relative flex h-28 w-28 items-center justify-center rounded-full border shadow-xl shadow-black/40 transition-all',
                   liveVoiceStatus === 'error'
                     ? 'border-red-400/30 bg-red-500/10 text-red-300'
                     : liveVoiceStatus === 'thinking' || liveVoiceStatus === 'transcribing'

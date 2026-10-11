@@ -74,23 +74,23 @@ export const statusBadge: Record<
 > = {
   Operational: {
     dot: 'bg-emerald-400',
-    text: 'text-emerald-300',
-    pill: 'bg-emerald-400/10 border-emerald-400/25',
+    text: 'text-emerald-300 font-semibold',
+    pill: 'bg-gradient-to-r from-emerald-500/15 via-emerald-500/10 to-teal-500/15 border border-emerald-400/30',
   },
   Warning: {
     dot: 'bg-amber-400',
-    text: 'text-amber-300',
-    pill: 'bg-amber-400/10 border-amber-400/25',
+    text: 'text-amber-300 font-semibold',
+    pill: 'bg-gradient-to-r from-amber-500/15 via-amber-500/10 to-orange-500/15 border border-amber-400/30',
   },
   Critical: {
     dot: 'bg-red-400',
-    text: 'text-red-300',
-    pill: 'bg-red-400/10 border-red-400/30',
+    text: 'text-red-300 font-semibold',
+    pill: 'bg-gradient-to-r from-red-500/20 via-rose-500/15 to-red-600/20 border border-red-400/35',
   },
   'Under Maintenance': {
     dot: 'bg-sky-400',
-    text: 'text-sky-300',
-    pill: 'bg-sky-400/10 border-sky-400/25',
+    text: 'text-sky-300 font-semibold',
+    pill: 'bg-gradient-to-r from-sky-500/15 via-blue-500/10 to-indigo-500/15 border border-sky-400/30',
   },
 }
 
@@ -100,22 +100,22 @@ export const severityClasses: Record<
 > = {
   critical: {
     text: 'text-red-300',
-    pill: 'bg-red-500/10 border-red-500/30',
+    pill: 'bg-gradient-to-r from-red-500/20 to-rose-600/15 border border-red-400/35',
     ring: 'text-red-400',
   },
   warning: {
     text: 'text-amber-300',
-    pill: 'bg-amber-500/10 border-amber-500/30',
+    pill: 'bg-gradient-to-r from-amber-500/20 to-orange-600/15 border border-amber-400/35',
     ring: 'text-amber-400',
   },
   info: {
     text: 'text-sky-300',
-    pill: 'bg-sky-500/10 border-sky-500/30',
+    pill: 'bg-gradient-to-r from-sky-500/20 to-blue-600/15 border border-sky-400/30',
     ring: 'text-sky-400',
   },
   success: {
     text: 'text-emerald-300',
-    pill: 'bg-emerald-500/10 border-emerald-500/30',
+    pill: 'bg-gradient-to-r from-emerald-500/20 to-teal-600/15 border border-emerald-400/30',
     ring: 'text-emerald-400',
   },
 }

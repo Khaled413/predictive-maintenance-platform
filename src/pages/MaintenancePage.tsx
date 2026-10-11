@@ -260,30 +260,32 @@ export default function MaintenancePage() {
   }
   return (
     <div className="space-y-5">
-      <div className="rounded-xl border border-sky-400/15 bg-sky-500/5 px-4 py-3 text-[10.5px] leading-relaxed text-ink-faint">
+      <div className="rounded-xl border border-sky-400/25 bg-gradient-to-r from-sky-500/10 via-indigo-500/5 to-transparent px-4 py-3 text-[11px] leading-relaxed text-ink-faint shadow-sm backdrop-blur-md">
         Work orders are stored in this browser only; demo example records are labeled and
         excluded from actual downtime and cost KPIs. This is not a connected CMMS.
       </div>
       {/* Tabs */}
       <div className="flex flex-wrap items-center gap-2">
-        <div className="flex rounded-xl border border-line bg-navy-900/50 p-1">
+        <div className="flex rounded-xl border border-line bg-navy-900/60 p-1">
           {TABS.map((t) => (
             <button
               key={t.key}
               type="button"
               onClick={() => setTab(t.key)}
               className={cx(
-                'flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-semibold transition-all',
+                'flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-semibold transition-all duration-200',
                 tab === t.key
-                  ? 'bg-sky-500/15 text-sky-300'
-                  : 'text-ink-dim hover:bg-navy-800 hover:text-ink'
+                  ? 'border border-sky-400/30 bg-gradient-to-r from-sky-500/20 via-blue-500/15 to-indigo-500/20 text-sky-300 shadow-sm'
+                  : 'text-ink-dim hover:bg-navy-800/80 hover:text-ink'
               )}
             >
               {t.label}
               <span
                 className={cx(
-                  'rounded-md bg-navy-700/80 px-1.5 font-mono text-[9.5px]',
-                  tab === t.key ? 'text-sky-300' : 'text-ink-faint'
+                  'rounded-md px-1.5 font-mono text-[9.5px]',
+                  tab === t.key
+                    ? 'bg-sky-500/25 text-sky-200 font-bold'
+                    : 'bg-navy-700/80 text-ink-faint'
                 )}
               >
                 {t.key === 'Upcoming'

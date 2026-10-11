@@ -83,14 +83,19 @@ export default function MachinesPage() {
       {/* Header row */}
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="chip">Total · {machines.length}</span>
-          <span className="chip border-emerald-400/25 bg-emerald-500/5 text-emerald-300">
+          <span className="chip border-line/60 bg-navy-800/80 font-mono text-[11px] font-semibold text-ink">
+            Total · {machines.length}
+          </span>
+          <span className="chip border-emerald-400/35 bg-gradient-to-r from-emerald-500/15 to-teal-500/10 text-emerald-300 font-semibold shadow-sm">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
             {summary.Operational} Operational
           </span>
-          <span className="chip border-amber-400/25 bg-amber-500/5 text-amber-300">
+          <span className="chip border-amber-400/35 bg-gradient-to-r from-amber-500/15 to-orange-500/10 text-amber-300 font-semibold shadow-sm">
+            <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
             {summary.Warning} Warning
           </span>
-          <span className="chip border-red-400/30 bg-red-500/5 text-red-300">
+          <span className="chip border-red-400/40 bg-gradient-to-r from-red-500/20 to-rose-500/15 text-red-300 font-semibold shadow-sm">
+            <span className="h-1.5 w-1.5 rounded-full bg-red-400" />
             {summary.Critical} Critical
           </span>
         </div>

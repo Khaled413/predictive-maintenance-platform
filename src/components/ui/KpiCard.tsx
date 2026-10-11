@@ -2,33 +2,24 @@ import React from 'react'
 import { cx } from '../../utils/helpers'
 
 const TONES: Record<string, string> = {
-  blue: 'bg-sky-500/12 text-sky-300 ring-sky-400/25',
-  green: 'bg-emerald-500/12 text-emerald-300 ring-emerald-400/25',
-  amber: 'bg-amber-500/12 text-amber-300 ring-amber-400/25',
-  red: 'bg-red-500/12 text-red-300 ring-red-400/30',
-  gray: 'bg-navy-700/50 text-ink-dim ring-line',
-}
-
-/** Gradient wash in the card corner, per tone. */
-const WASHES: Record<string, string> = {
-  blue: 'radial-gradient(120px 80px at 100% 0%, rgba(56, 189, 248, 0.22), transparent 70%)',
+  blue: 'bg-gradient-to-br from-cyan-500/20 via-sky-500/20 to-blue-600/25 text-cyan-300 ring-1 ring-sky-400/30 shadow-sm',
   green:
-    'radial-gradient(120px 80px at 100% 0%, rgba(52, 211, 153, 0.22), transparent 70%)',
+    'bg-gradient-to-br from-emerald-500/20 via-teal-500/20 to-emerald-600/25 text-emerald-300 ring-1 ring-emerald-400/30 shadow-sm',
   amber:
-    'radial-gradient(120px 80px at 100% 0%, rgba(251, 191, 36, 0.22), transparent 70%)',
-  red: 'radial-gradient(120px 80px at 100% 0%, rgba(248, 113, 113, 0.24), transparent 70%)',
-  gray: 'none',
+    'bg-gradient-to-br from-amber-500/20 via-orange-500/20 to-amber-600/25 text-amber-300 ring-1 ring-amber-400/30 shadow-sm',
+  red: 'bg-gradient-to-br from-red-500/20 via-rose-500/20 to-red-600/25 text-red-300 ring-1 ring-red-400/30 shadow-sm',
+  gray: 'bg-gradient-to-br from-navy-700/60 to-navy-800/80 text-ink-dim ring-1 ring-line/50 shadow-sm',
 }
 
-/** Thin gradient accent line along the top edge. */
+/** Rich multi-stop gradient accent line along the top edge. */
 const RAILS: Record<string, string> = {
-  blue: 'linear-gradient(90deg, rgba(56, 189, 248, 0.7), rgba(99, 102, 241, 0.35) 55%, transparent)',
+  blue: 'linear-gradient(90deg, #00f2fe 0%, #38bdf8 30%, #6366f1 70%, transparent)',
   green:
-    'linear-gradient(90deg, rgba(52, 211, 153, 0.7), rgba(20, 184, 166, 0.35) 55%, transparent)',
+    'linear-gradient(90deg, #10b981 0%, #34d399 30%, #06b6d4 70%, transparent)',
   amber:
-    'linear-gradient(90deg, rgba(251, 191, 36, 0.7), rgba(249, 115, 22, 0.35) 55%, transparent)',
-  red: 'linear-gradient(90deg, rgba(248, 113, 113, 0.7), rgba(244, 63, 94, 0.35) 55%, transparent)',
-  gray: 'linear-gradient(90deg, rgba(148, 163, 184, 0.35), transparent)',
+    'linear-gradient(90deg, #fbbf24 0%, #f59e0b 30%, #f97316 70%, transparent)',
+  red: 'linear-gradient(90deg, #f43f5e 0%, #ef4444 30%, #b91c1c 70%, transparent)',
+  gray: 'linear-gradient(90deg, rgba(148, 163, 184, 0.5) 0%, transparent)',
 }
 
 export default function KpiCard({
@@ -54,36 +45,34 @@ export default function KpiCard({
       type={onClick ? 'button' : undefined}
       onClick={onClick}
       className={cx(
-        'panel panel-hover group relative overflow-hidden p-4 text-left',
+        'panel panel-hover group relative overflow-hidden p-4 text-left transition-all duration-300 hover:-translate-y-1',
         onClick && 'w-full cursor-pointer'
       )}
     >
       <span
         aria-hidden
-        className="absolute inset-x-0 top-0 h-[2px] rounded-t-2xl"
+        className="absolute inset-x-0 top-0 h-[1.5px] rounded-t-2xl transition-opacity"
         style={{ backgroundImage: RAILS[tone] }}
       />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 opacity-80 transition-opacity duration-300 group-hover:opacity-100"
-        style={{ backgroundImage: WASHES[tone] }}
-      />
-      <div className="flex items-start justify-between gap-2">
+      <div className="relative flex items-start justify-between gap-2 z-10">
         <div className="min-w-0">
           <p className="text-[10.5px] font-semibold uppercase tracking-wider text-ink-faint">
             {label}
           </p>
-          <p className="mt-1.5 font-mono text-[22px] font-bold leading-none tracking-tight text-ink">
+          <p className="mt-1.5 font-mono text-[23px] font-bold leading-none tracking-tight text-ink group-hover:text-white transition-colors">
             {value}
           </p>
           {delta && (
-            <p className="mt-1.5 text-[11px] font-medium text-emerald-300">{delta}</p>
+            <p className="mt-1.5 text-[11px] font-medium text-emerald-300 flex items-center gap-1">
+              <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400" />
+              {delta}
+            </p>
           )}
           {sub && !delta && <p className="mt-1.5 text-[11px] text-ink-faint">{sub}</p>}
         </div>
         <div
           className={cx(
-            'flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ring-1',
+            'flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3',
             TONES[tone]
           )}
         >

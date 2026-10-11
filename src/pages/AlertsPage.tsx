@@ -113,16 +113,30 @@ export default function AlertsPage() {
               <article
                 key={a.id}
                 className={cx(
-                  'panel relative overflow-hidden p-4',
+                  'panel relative overflow-hidden p-4 transition-all duration-200 hover:-translate-y-0.5',
                   a.severity === 'critical' && a.status !== 'resolved'
-                    ? 'border-red-400/40'
-                    : ''
+                    ? 'border-red-400/40 shadow-[0_4px_24px_-4px_rgba(248,113,113,0.35)]'
+                    : a.severity === 'warning' && a.status !== 'resolved'
+                      ? 'border-amber-400/35 shadow-[0_4px_20px_-4px_rgba(251,191,36,0.25)]'
+                      : ''
                 )}
               >
+                {/* Severity top gradient rail */}
+                <span
+                  aria-hidden
+                  className={cx(
+                    'absolute inset-x-0 top-0 h-[2px]',
+                    a.severity === 'critical'
+                      ? 'bg-gradient-to-r from-red-500 via-rose-500 to-transparent'
+                      : a.severity === 'warning'
+                        ? 'bg-gradient-to-r from-amber-500 via-orange-400 to-transparent'
+                        : 'bg-gradient-to-r from-sky-400 via-blue-500 to-transparent'
+                  )}
+                />
                 <div className="flex items-start gap-3.5">
                   <div
                     className={cx(
-                      'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ring-1',
+                      'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ring-1 shadow-sm',
                       s.pill
                     )}
                   >

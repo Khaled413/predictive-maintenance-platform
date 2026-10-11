@@ -124,8 +124,61 @@ export default function OverviewPage() {
       setIsRegenerating(false)
     }
   }
+  const operationalCount = machines.filter((m) => m.status === 'Operational').length
+  const warningCount = machines.filter((m) => m.status === 'Warning').length
+  const criticalCount = machines.filter((m) => m.status === 'Critical').length
+
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
+      {/* Hero intelligence banner */}
+      <div
+        className="relative overflow-hidden rounded-2xl border border-sky-400/25 p-5 sm:p-6 shadow-[0_12px_36px_-10px_rgba(0,0,0,0.5)] transition-all"
+        style={{
+          backgroundImage:
+            'linear-gradient(135deg, rgba(56, 189, 248, 0.12) 0%, rgba(99, 102, 241, 0.1) 45%, rgba(168, 85, 247, 0.06) 100%), linear-gradient(180deg, rgb(var(--navy-850)) 0%, rgb(var(--navy-900)) 100%)',
+        }}
+      >
+        {/* Ambient background glows */}
+        <div className="pointer-events-none absolute -right-12 -top-12 h-44 w-44 rounded-full bg-cyan-500/20 blur-3xl animate-float" />
+        <div className="pointer-events-none absolute -bottom-10 left-1/3 h-36 w-36 rounded-full bg-indigo-500/20 blur-3xl" />
+
+        <div className="relative z-10 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="space-y-1.5">
+            <div className="inline-flex items-center gap-2 rounded-full border border-sky-400/35 bg-sky-500/10 px-3 py-1 text-[11px] font-semibold text-sky-300 shadow-sm backdrop-blur-md">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+              <span>{t('AI Fleet Health & Predictive Maintenance')}</span>
+            </div>
+            <h2 className="text-xl sm:text-2xl font-extrabold tracking-tight text-ink">
+              <span className="text-gradient">Industrial Fleet Intelligence</span>
+            </h2>
+            <p className="max-w-2xl text-[12.5px] leading-relaxed text-ink-dim">
+              {t(
+                'Real-time machine health monitoring, predictive failure risk classification, and automated maintenance scheduling powered by machine learning.'
+              )}
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 self-start md:self-center">
+            <div className="flex items-center gap-1.5 rounded-xl border border-emerald-400/30 bg-gradient-to-r from-emerald-500/15 to-teal-500/10 px-3 py-2 text-xs font-semibold text-emerald-300 shadow-sm">
+              <span className="h-2 w-2 rounded-full bg-emerald-400" />
+              <span>{operationalCount} {t('Operational')}</span>
+            </div>
+            {warningCount > 0 && (
+              <div className="flex items-center gap-1.5 rounded-xl border border-amber-400/30 bg-gradient-to-r from-amber-500/15 to-orange-500/10 px-3 py-2 text-xs font-semibold text-amber-300 shadow-sm">
+                <span className="h-2 w-2 rounded-full bg-amber-400" />
+                <span>{warningCount} {t('Warning')}</span>
+              </div>
+            )}
+            {criticalCount > 0 && (
+              <div className="flex items-center gap-1.5 rounded-xl border border-red-400/35 bg-gradient-to-r from-red-500/20 to-rose-500/15 px-3 py-2 text-xs font-semibold text-red-300 shadow-sm">
+                <span className="h-2 w-2 rounded-full bg-red-400" />
+                <span>{criticalCount} {t('Critical')}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
       {/* KPI cards */}
       <div className="grid grid-cols-1 gap-3 min-[400px]:grid-cols-2 sm:grid-cols-3 xl:grid-cols-5">
         <KpiCard
