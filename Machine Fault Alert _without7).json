@@ -1,0 +1,192 @@
+{
+  "name": "Machine Fault Alert",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "machine-fault",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "22fda432-e363-4251-b9b1-4df817850465",
+      "name": "Webhook",
+      "webhookId": "2965e612-10ca-4d28-aeab-06c7dee75762"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ===== EDIT THIS TABLE =====\n// key = department name EXACTLY as your website sends it\nconst engineers = {\n  'Department 1': { chatId: '10761' },\n  'Department 2': { chatId: '13161' },\n  'default':      { chatId: '131' }\n};\n// values of the \"status\" field that mean \"broken\"\nconst faultStatuses = ['fault', 'error', 'broken', 'down'];\n// ===========================\n\nconst b = $input.first().json.body || $input.first().json;\n\nconst machineName = b.machine_name || 'Unknown';\nconst machineId   = b.machine_id || '-';\nconst department  = b.department || 'default';\nconst status      = String(b.status || '').toLowerCase();\nconst fault       = b.fault || 'Not specified';\nconst time        = new Date().toLocaleString('en-GB', { timeZone: 'Africa/Cairo' });\n\nconst isFault = faultStatuses.includes(status);\nconst eng = engineers[department] || engineers['default'];\n\nconst text = `🚨 MACHINE FAULT\\nMachine: ${machineName} (ID: ${machineId})\\nDepartment: ${department}\\nFault: ${fault}\\nTime: ${time}`;\n\nreturn [{ json: { isFault, chatId: eng.chatId, text } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        0
+      ],
+      "id": "75cd902e-204c-4737-b3b4-24c3c6078e8c",
+      "name": "Code in JavaScript",
+      "notes": "Extract & Pick Engineer"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "ce2b2be8-2424-4eb1-a662-09ef0ebde7a3",
+              "leftValue": "={{ $json.isFault }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        416,
+        0
+      ],
+      "id": "1e780865-d0f0-4a97-87cb-fed789593624",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chatId }}",
+        "text": "={{ $json.text }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        624,
+        -96
+      ],
+      "id": "599063fc-cc8c-452d-a729-9fd4950ff19c",
+      "name": "Send a text message",
+      "webhookId": "998a395f-4878-4d56-83db-0585816dac4f",
+      "credentials": {
+        "telegramApi": {
+          "id": "5tkTE74JDrmpbNCo",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{ \"ok\": true, \"sent\": true }",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        832,
+        -96
+      ],
+      "id": "edcc7cbb-b581-4fb6-9ab1-c618de12377d",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{ \"ok\": true, \"sent\": false }",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        624,
+        96
+      ],
+      "id": "4ea189a9-4620-43b4-af92-6ea49b3ff0e3",
+      "name": "Respond to Webhook1"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond to Webhook1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a text message": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "5952c331-14c0-4c86-a6e5-0c334c4909a4",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "084a4c18e16733cc2a5ac06e70bbe60748d1203639f975d564383b2be0a8f3ef"
+  },
+  "id": "CFukimGEEGNtwU5t",
+  "tags": []
+}
