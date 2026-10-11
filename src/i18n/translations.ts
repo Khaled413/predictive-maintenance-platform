@@ -1588,4 +1588,9 @@ Object.assign(translations, {
   'Field Technician': 'فني الصيانة الميداني',
   'Enterprise Security & Trust': 'أمان وموثوقية المؤسسات',
   'Defense-in-Depth Architecture': 'بنية أمنية متعددة المستويات',
+  'Edit Employee Details': 'تعديل بيانات الموظف',
+  'Edit Details': 'تعديل البيانات',
+  'Department / Line': 'القسم / خط الإنتاج',
+  'Update full name and department assignment for this employee.': 'تحديث الاسم الكامل والقسم التابع له هذا الموظف.',
+  'Saving...': 'جارٍ الحفظ...',
 })

@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   Lock,
   Mail,
@@ -8,8 +9,8 @@ import {
   CheckCircle2,
   KeyRound,
   ArrowRight,
-  Database,
   Building2,
+  Info,
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { usePreferences } from '../../context/PreferencesContext'
@@ -27,13 +28,11 @@ export default function AuthModal({
   initialMode = 'signin',
   onSuccess,
 }: AuthModalProps) {
+  const navigate = useNavigate()
   const { t } = usePreferences()
   const {
     signInWithEmail,
     requestPasswordReset,
-    isSupabaseConnected,
-    switchUser,
-    users,
   } = useAuth()
 
   const [mode, setMode] = useState<'signin' | 'reset' | 'request'>(initialMode)
@@ -42,12 +41,6 @@ export default function AuthModal({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
-
-  // Request Access state
-  const [reqName, setReqName] = useState('')
-  const [reqCompany, setReqCompany] = useState('')
-  const [reqDepartment, setReqDepartment] = useState('')
-  const [reqMachines, setReqMachines] = useState('5-25')
 
   if (!isOpen) return null
 
@@ -60,13 +53,14 @@ export default function AuthModal({
     try {
       const res = await signInWithEmail(email, password)
       if (res.success) {
-        setSuccessMessage('Authentication successful! Welcome to the platform.')
+        setSuccessMessage('Authentication verified. Accessing industrial workspace…')
         setTimeout(() => {
           onClose()
+          navigate('/app')
           if (onSuccess) onSuccess()
-        }, 800)
+        }, 600)
       } else {
-        setError(res.error || 'Invalid credentials. Please try again.')
+        setError(res.error || 'Invalid credentials. Please verify your email and password.')
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Sign in failed')
@@ -77,7 +71,7 @@ export default function AuthModal({
 
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!email) {
+    if (!email.trim()) {
       setError('Please provide your work email address.')
       return
     }
@@ -88,7 +82,7 @@ export default function AuthModal({
       const res = await requestPasswordReset(email)
       if (res.success) {
         setSuccessMessage(
-          'Password reset instructions sent! Check your inbox to set a new password.'
+          'Password recovery instructions dispatched. Please check your corporate inbox.'
         )
       } else {
         setError(res.error || 'Failed to initiate password recovery.')
@@ -98,29 +92,6 @@ export default function AuthModal({
     } finally {
       setLoading(false)
     }
-  }
-
-  const handleRequestAccess = (e: React.FormEvent) => {
-    e.preventDefault()
-    setError(null)
-    setLoading(true)
-
-    setTimeout(() => {
-      setLoading(false)
-      setSuccessMessage(
-        `Access request submitted for ${reqName || email}! A plant administrator will review your organization request.`
-      )
-    }, 600)
-  }
-
-  // Quick-select demo accounts when offline/local mode
-  const handleDemoLogin = (userId: string) => {
-    switchUser(userId)
-    setSuccessMessage('Logged in with demo credentials.')
-    setTimeout(() => {
-      onClose()
-      if (onSuccess) onSuccess()
-    }, 400)
   }
 
   return (
@@ -138,47 +109,49 @@ export default function AuthModal({
             'radial-gradient(circle at top right, rgba(56, 189, 248, 0.12), transparent 70%), radial-gradient(circle at bottom left, rgba(99, 102, 241, 0.08), transparent 70%)',
         }}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between pb-4 border-b border-line/60">
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-sky-400/30 bg-sky-500/10 text-sky-400 shadow-[0_0_15px_-3px_rgba(56,189,248,0.3)]">
-              <Shield className="h-5 w-5" />
-            </div>
-            <div>
-              <h2 className="text-base font-bold text-ink">
-                {mode === 'signin' && t('Enterprise Sign In')}
-                {mode === 'reset' && t('Reset Password')}
-                {mode === 'request' && t('Request Platform Access')}
-              </h2>
-              <div className="flex items-center gap-1.5 text-[11px] text-ink-faint">
-                <Database className="h-3 w-3 text-emerald-400" />
-                <span>
-                  {isSupabaseConnected ? 'Supabase Auth Protected' : 'Local RBAC Sandbox'}
-                </span>
-              </div>
-            </div>
+        {/* Close Button */}
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute right-4 top-4 rounded-lg p-1.5 text-ink-dim hover:bg-navy-800 hover:text-ink transition-colors"
+          aria-label="Close"
+        >
+          <X className="h-4 w-4" />
+        </button>
+
+        {/* Modal Header */}
+        <div className="flex items-center gap-3 border-b border-line pb-4">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-sky-400/30 bg-gradient-to-br from-sky-500/20 to-indigo-600/20 text-sky-400 shadow-sm">
+            {mode === 'signin' && <Shield className="h-5 w-5" />}
+            {mode === 'reset' && <KeyRound className="h-5 w-5" />}
+            {mode === 'request' && <Building2 className="h-5 w-5" />}
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg p-1.5 text-ink-dim hover:bg-navy-800 hover:text-ink transition-colors"
-            aria-label="Close"
-          >
-            <X className="h-4 w-4" />
-          </button>
+          <div>
+            <h2 className="text-base font-bold text-ink">
+              {mode === 'signin' && t('Enterprise Authentication')}
+              {mode === 'reset' && t('Password Recovery')}
+              {mode === 'request' && t('Invitation-Only Access')}
+            </h2>
+            <p className="text-[11px] text-ink-dim">
+              {mode === 'signin' && t('Sign in to access assigned machinery & telemetry')}
+              {mode === 'reset' && t('Reset credentials via registered facility email')}
+              {mode === 'request' && t('Enterprise governance and user provisioning')}
+            </p>
+          </div>
         </div>
 
-        {/* Status Alerts */}
+        {/* Feedback alerts */}
         {error && (
-          <div className="mt-4 flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-300">
-            <AlertCircle className="h-4 w-4 shrink-0" />
-            <span>{error}</span>
+          <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-red-500/40 bg-red-500/10 p-3 text-xs text-red-200 animate-shake">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-400" />
+            <div className="flex-1">{error}</div>
           </div>
         )}
+
         {successMessage && (
-          <div className="mt-4 flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-xs text-emerald-300">
-            <CheckCircle2 className="h-4 w-4 shrink-0" />
-            <span>{successMessage}</span>
+          <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-3 text-xs text-emerald-200">
+            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
+            <div className="flex-1">{successMessage}</div>
           </div>
         )}
 
@@ -186,9 +159,7 @@ export default function AuthModal({
         {mode === 'signin' && (
           <form onSubmit={handleSignIn} className="mt-4 space-y-4">
             <div>
-              <label className="mb-1 block text-xs font-semibold text-ink-dim">
-                {t('Work Email')}
-              </label>
+              <label className="mb-1 block text-xs font-semibold text-ink-dim">{t('Email')}</label>
               <div className="relative">
                 <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-faint" />
                 <input
@@ -239,28 +210,6 @@ export default function AuthModal({
               <ArrowRight className="h-3.5 w-3.5" />
             </button>
 
-            {/* Offline Sandbox Quick Access Buttons */}
-            {!isSupabaseConnected && (
-              <div className="pt-2 border-t border-line/50">
-                <p className="mb-2 text-[11px] font-semibold text-ink-faint">
-                  {t('Quick Access Demo Accounts (Local Sandbox):')}
-                </p>
-                <div className="grid grid-cols-3 gap-2">
-                  {users.slice(0, 3).map((u) => (
-                    <button
-                      key={u.id}
-                      type="button"
-                      onClick={() => handleDemoLogin(u.id)}
-                      className="rounded-lg border border-line/60 bg-navy-800/60 p-2 text-left hover:border-sky-400/40 hover:bg-sky-500/10 transition-all text-[10px]"
-                    >
-                      <div className="font-bold text-ink truncate">{u.name}</div>
-                      <div className="text-sky-300 capitalize">{u.role}</div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
             <div className="text-center pt-2 text-xs text-ink-dim">
               <span>{t("Don't have an enterprise account?")} </span>
               <button
@@ -272,7 +221,7 @@ export default function AuthModal({
                 }}
                 className="font-semibold text-sky-400 hover:underline"
               >
-                {t('Request Access')}
+                {t('Access Policy')}
               </button>
             </div>
           </form>
@@ -328,97 +277,43 @@ export default function AuthModal({
           </form>
         )}
 
-        {/* Mode: Request Access */}
+        {/* Mode: Access Policy / Request Access Information */}
         {mode === 'request' && (
-          <form onSubmit={handleRequestAccess} className="mt-4 space-y-3">
-            <p className="text-xs text-ink-dim leading-relaxed">
-              {t(
-                'Account creation is invitation-only through your facility Administrator to enforce strict RBAC and equipment security.'
-              )}
-            </p>
-            <div>
-              <label className="mb-1 block text-xs font-semibold text-ink-dim">
-                {t('Full Name')}
-              </label>
-              <input
-                type="text"
-                required
-                placeholder="Eng. Mohamed Ali"
-                value={reqName}
-                onChange={(e) => setReqName(e.target.value)}
-                className="w-full rounded-xl border border-line bg-navy-800/80 py-2 px-3 text-xs text-ink placeholder:text-ink-faint focus:border-sky-400/50 focus:outline-none"
-              />
-            </div>
-
-            <div>
-              <label className="mb-1 block text-xs font-semibold text-ink-dim">
-                {t('Organization / Plant Name')}
-              </label>
-              <div className="relative">
-                <Building2 className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-ink-faint" />
-                <input
-                  type="text"
-                  required
-                  placeholder="Advanced Steel Rolling Mill"
-                  value={reqCompany}
-                  onChange={(e) => setReqCompany(e.target.value)}
-                  className="w-full rounded-xl border border-line bg-navy-800/80 py-2 pl-9 pr-3 text-xs text-ink placeholder:text-ink-faint focus:border-sky-400/50 focus:outline-none"
-                />
+          <div className="mt-4 space-y-4">
+            <div className="rounded-xl border border-sky-400/30 bg-sky-500/10 p-4 text-xs text-ink-dim leading-relaxed space-y-2">
+              <div className="flex items-center gap-2 font-bold text-sky-300">
+                <Info className="h-4 w-4 shrink-0 text-sky-400" />
+                <span>{t('Strict Invitation-Only Governance')}</span>
               </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="mb-1 block text-xs font-semibold text-ink-dim">
-                  {t('Department')}
-                </label>
-                <input
-                  type="text"
-                  placeholder="Maintenance Dept"
-                  value={reqDepartment}
-                  onChange={(e) => setReqDepartment(e.target.value)}
-                  className="w-full rounded-xl border border-line bg-navy-800/80 py-2 px-3 text-xs text-ink placeholder:text-ink-faint focus:border-sky-400/50 focus:outline-none"
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-semibold text-ink-dim">
-                  {t('Fleet Scale')}
-                </label>
-                <select
-                  value={reqMachines}
-                  onChange={(e) => setReqMachines(e.target.value)}
-                  className="w-full rounded-xl border border-line bg-navy-800/80 py-2 px-3 text-xs text-ink focus:border-sky-400/50 focus:outline-none"
-                >
-                  <option value="1-5">1 - 5 Machines</option>
-                  <option value="5-25">5 - 25 Machines</option>
-                  <option value="25-100">25 - 100 Machines</option>
-                  <option value="100+">100+ Fleet</option>
-                </select>
-              </div>
+              <p>
+                {t(
+                  'To uphold manufacturing plant safety, critical equipment integrity, and Row Level Security, public registration is strictly disabled.'
+                )}
+              </p>
+              <p>
+                {t(
+                  'All operator, manager, and technician accounts are provisioned exclusively through authorized Plant Administrators.'
+                )}
+              </p>
+              <p className="text-ink font-medium">
+                {t(
+                  'Please contact your organization’s Plant Administrator or IT reliability lead to receive an onboarding invitation link.'
+                )}
+              </p>
             </div>
 
             <button
-              type="submit"
-              disabled={loading}
-              className="btn-primary w-full justify-center py-2.5 text-xs font-bold shadow-lg"
+              type="button"
+              onClick={() => {
+                setError(null)
+                setSuccessMessage(null)
+                setMode('signin')
+              }}
+              className="btn-primary w-full justify-center py-2.5 text-xs font-bold"
             >
-              {loading ? t('Submitting…') : t('Submit Enterprise Request')}
+              {t('Return to Sign In')}
             </button>
-
-            <div className="text-center pt-1 text-xs text-ink-dim">
-              <button
-                type="button"
-                onClick={() => {
-                  setError(null)
-                  setSuccessMessage(null)
-                  setMode('signin')
-                }}
-                className="font-semibold text-sky-400 hover:underline"
-              >
-                {t('Back to Sign In')}
-              </button>
-            </div>
-          </form>
+          </div>
         )}
       </div>
     </div>

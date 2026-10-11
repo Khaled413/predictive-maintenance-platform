@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import {
   Users,
   UserPlus,
@@ -25,11 +25,17 @@ export default function UsersPage() {
     auditLog,
     createUser,
     updateUserRole,
+    updateUserProfile,
     setUserStatus,
     assignMachinesToTechnician,
+    refreshUsers,
   } = useAuth()
   const { machines } = useApp()
   const { t, language } = usePreferences()
+
+  useEffect(() => {
+    void refreshUsers()
+  }, [refreshUsers])
 
   const [activeTab, setActiveTab] = useState<'users' | 'audit'>('users')
   const [search, setSearch] = useState('')
@@ -42,6 +48,10 @@ export default function UsersPage() {
   const [newSelectedRole, setNewSelectedRole] = useState<UserRole>('technician')
   const [assignModalUser, setAssignModalUser] = useState<{ id: string; name: string; assigned: string[] } | null>(null)
   const [selectedMachineIds, setSelectedMachineIds] = useState<string[]>([])
+  const [editModalUser, setEditModalUser] = useState<{ id: string; name: string; department: string } | null>(null)
+  const [editName, setEditName] = useState('')
+  const [editDepartment, setEditDepartment] = useState('')
+  const [isUpdatingProfile, setIsUpdatingProfile] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
 
   // New user form state
@@ -63,7 +73,7 @@ export default function UsersPage() {
     })
   }, [users, search, roleFilter, statusFilter])
 
-  const handleCreateUser = (e: React.FormEvent) => {
+  const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault()
     setActionError(null)
 
@@ -80,7 +90,7 @@ export default function UsersPage() {
       .join('')
       .toUpperCase()
 
-    const result = createUser({
+    const result = await createUser({
       name: newName.trim(),
       email: newEmail.trim(),
       role: newRole,
@@ -99,15 +109,15 @@ export default function UsersPage() {
       setNewDepartment('')
       setNewRole('technician')
     } else {
-      setActionError(result.error ?? 'Failed to create user')
+      setActionError(result.error ?? 'Failed to invite user')
     }
   }
 
-  const handleRoleChangeConfirm = () => {
+  const handleRoleChangeConfirm = async () => {
     if (!roleModalUser) return
     setActionError(null)
 
-    const result = updateUserRole(roleModalUser.id, newSelectedRole)
+    const result = await updateUserRole(roleModalUser.id, newSelectedRole)
     if (result.success) {
       setRoleModalUser(null)
     } else {
@@ -115,15 +125,39 @@ export default function UsersPage() {
     }
   }
 
-  const handleSaveAssignments = () => {
+  const handleSaveAssignments = async () => {
     if (!assignModalUser) return
     setActionError(null)
 
-    const result = assignMachinesToTechnician(assignModalUser.id, selectedMachineIds)
+    const result = await assignMachinesToTechnician(assignModalUser.id, selectedMachineIds)
     if (result.success) {
       setAssignModalUser(null)
     } else {
       setActionError(result.error ?? 'Failed to assign machines')
+    }
+  }
+
+  const handleSaveEditProfile = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editModalUser) return
+    setActionError(null)
+
+    if (!editName.trim()) {
+      setActionError(t('Please fill in all required fields'))
+      return
+    }
+
+    setIsUpdatingProfile(true)
+    const result = await updateUserProfile(editModalUser.id, {
+      name: editName.trim(),
+      department: editDepartment.trim() || 'Plant Operations',
+    })
+    setIsUpdatingProfile(false)
+
+    if (result.success) {
+      setEditModalUser(null)
+    } else {
+      setActionError(result.error ?? 'Failed to update employee details')
     }
   }
 
@@ -382,6 +416,25 @@ export default function UsersPage() {
                                 <button
                                   type="button"
                                   onClick={() => {
+                                    setActionError(null)
+                                    setEditModalUser({
+                                      id: user.id,
+                                      name: user.name,
+                                      department: user.department,
+                                    })
+                                    setEditName(user.name)
+                                    setEditDepartment(user.department)
+                                  }}
+                                  className="btn-ghost px-2 py-1 h-7 text-[11px]"
+                                  title={t('Edit Employee Details')}
+                                >
+                                  <Edit2 className="h-3 w-3 text-sky-400" />
+                                  <span className="hidden sm:inline">{t('Edit')}</span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => {
                                     setRoleModalUser({
                                       id: user.id,
                                       name: user.name,
@@ -392,16 +445,20 @@ export default function UsersPage() {
                                   className="btn-ghost px-2 py-1 h-7 text-[11px]"
                                   title={t('Change Role')}
                                 >
-                                  <Edit2 className="h-3 w-3 text-amber-400" />
+                                  <Shield className="h-3 w-3 text-amber-400" />
                                   <span className="hidden sm:inline">{t('Role')}</span>
                                 </button>
 
                                 {!isSelf && (
                                   <button
                                     type="button"
-                                    onClick={() => {
+                                    onClick={async () => {
+                                      setActionError(null)
                                       const next = user.status === 'active' ? 'deactivated' : 'active'
-                                      setUserStatus(user.id, next)
+                                      const res = await setUserStatus(user.id, next)
+                                      if (!res.success) {
+                                        setActionError(res.error ?? 'Failed to update user status')
+                                      }
                                     }}
                                     className={`btn-ghost px-2 py-1 h-7 text-[11px] ${
                                       user.status === 'active'
@@ -686,6 +743,68 @@ export default function UsersPage() {
                 {t('Save Machine Assignments')}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit User Details Modal */}
+      {editModalUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md rounded-2xl border border-line bg-navy-900 p-6 shadow-2xl animate-scaleUp">
+            <h3 className="text-base font-bold text-ink flex items-center gap-2">
+              <Edit2 className="h-4 w-4 text-sky-400" />
+              {t('Edit Employee Details')}
+            </h3>
+            <p className="mt-1 text-xs text-ink-dim">
+              {t('Update full name and department assignment for this employee.')}
+            </p>
+
+            <form onSubmit={handleSaveEditProfile} className="mt-4 space-y-4">
+              <div>
+                <label className="text-[11px] font-semibold text-ink-dim uppercase tracking-wider">
+                  {t('Full Name')} *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="input mt-1 w-full"
+                  placeholder="e.g. John Doe"
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] font-semibold text-ink-dim uppercase tracking-wider">
+                  {t('Department / Line')}
+                </label>
+                <input
+                  type="text"
+                  value={editDepartment}
+                  onChange={(e) => setEditDepartment(e.target.value)}
+                  className="input mt-1 w-full"
+                  placeholder="e.g. Mechanical Reliability"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-line">
+                <button
+                  type="button"
+                  onClick={() => setEditModalUser(null)}
+                  className="btn-ghost"
+                  disabled={isUpdatingProfile}
+                >
+                  {t('Cancel')}
+                </button>
+                <button
+                  type="submit"
+                  className="btn-primary"
+                  disabled={isUpdatingProfile}
+                >
+                  {isUpdatingProfile ? t('Saving...') : t('Save Changes')}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

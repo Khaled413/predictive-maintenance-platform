@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import {
   Activity,
   AlertTriangle,
@@ -135,7 +135,8 @@ const WALKTHROUGH_STEPS = [
 
 export default function LandingPage() {
   const navigate = useNavigate()
-  const { currentUser } = useAuth()
+  const location = useLocation()
+  const { currentUser, signOutUser } = useAuth()
   const { theme, toggleTheme, language, toggleLanguage, t } = usePreferences()
 
   const [authModalOpen, setAuthModalOpen] = useState(false)
@@ -143,6 +144,19 @@ export default function LandingPage() {
   const [activeStep, setActiveStep] = useState(0)
   const [activeRoleTab, setActiveRoleTab] = useState<'admin' | 'manager' | 'technician'>('manager')
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+
+  const openAuth = (mode: 'signin' | 'reset' | 'request' = 'signin') => {
+    setAuthModalMode(mode)
+    setAuthModalOpen(true)
+    setMobileMenuOpen(false)
+  }
+
+  // Open sign in modal if redirected from a protected route
+  useEffect(() => {
+    if ((location.state as any)?.requireAuth && !currentUser) {
+      openAuth('signin')
+    }
+  }, [location.state, currentUser])
 
   // Auto-cycle interactive walkthrough gently
   useEffect(() => {
@@ -152,14 +166,12 @@ export default function LandingPage() {
     return () => clearInterval(timer)
   }, [])
 
-  const openAuth = (mode: 'signin' | 'reset' | 'request' = 'signin') => {
-    setAuthModalMode(mode)
-    setAuthModalOpen(true)
-    setMobileMenuOpen(false)
-  }
-
   const handleLaunchApp = () => {
-    navigate('/app')
+    if (currentUser && currentUser.status === 'active') {
+      navigate('/app')
+    } else {
+      openAuth('signin')
+    }
   }
 
   const currentWalkthrough = WALKTHROUGH_STEPS[activeStep]
@@ -240,35 +252,33 @@ export default function LandingPage() {
               )}
             </button>
 
-            {currentUser ? (
+            {currentUser && currentUser.status === 'active' ? (
               <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={handleLaunchApp}
                   className="btn-primary text-xs font-bold shadow-lg"
                 >
-                  <span>{t('Launch Platform')}</span>
+                  <span>{t('Go to Workspace')}</span>
                   <ArrowRight className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={signOutUser}
+                  className="rounded-lg border border-line bg-navy-900/80 px-2.5 py-1.5 text-xs font-semibold text-ink-dim hover:text-red-400 hover:border-red-500/40 transition-colors"
+                >
+                  {t('Sign Out')}
                 </button>
               </div>
             ) : (
-              <>
-                <button
-                  type="button"
-                  onClick={() => openAuth('signin')}
-                  className="hidden rounded-lg border border-line bg-navy-800/80 px-3 py-1.5 text-xs font-semibold text-ink hover:bg-navy-700 hover:border-sky-400/40 sm:block transition-all"
-                >
-                  {t('Sign In')}
-                </button>
-                <button
-                  type="button"
-                  onClick={handleLaunchApp}
-                  className="btn-primary text-xs font-bold shadow-lg"
-                >
-                  <Sparkles className="h-3.5 w-3.5 text-amber-300" />
-                  <span>{t('Explore Platform')}</span>
-                </button>
-              </>
+              <button
+                type="button"
+                onClick={() => openAuth('signin')}
+                className="btn-primary text-xs font-bold shadow-lg"
+              >
+                <Shield className="h-3.5 w-3.5 text-sky-300" />
+                <span>{t('Sign In')}</span>
+              </button>
             )}
 
             {/* Mobile Hamburger */}
@@ -329,20 +339,32 @@ export default function LandingPage() {
                 {t('Security & Trust')}
               </a>
               <div className="pt-2 flex flex-col gap-2">
-                <button
-                  type="button"
-                  onClick={() => openAuth('signin')}
-                  className="w-full rounded-lg border border-line bg-navy-800 py-2 text-xs font-bold text-ink"
-                >
-                  {t('Sign In')}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => openAuth('request')}
-                  className="btn-primary w-full justify-center py-2 text-xs font-bold"
-                >
-                  {t('Request Access')}
-                </button>
+                {currentUser && currentUser.status === 'active' ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={handleLaunchApp}
+                      className="btn-primary w-full justify-center py-2 text-xs font-bold"
+                    >
+                      {t('Go to Workspace')}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={signOutUser}
+                      className="w-full rounded-lg border border-line bg-navy-800 py-2 text-xs font-bold text-red-400"
+                    >
+                      {t('Sign Out')}
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => openAuth('signin')}
+                    className="btn-primary w-full justify-center py-2 text-xs font-bold"
+                  >
+                    {t('Sign In')}
+                  </button>
+                )}
               </div>
             </nav>
           </div>
@@ -381,28 +403,34 @@ export default function LandingPage() {
 
             {/* CTAs */}
             <div className="flex flex-wrap items-center gap-3 pt-2">
-              <button
-                type="button"
-                onClick={handleLaunchApp}
-                className="btn-primary px-6 py-3 text-sm font-bold shadow-xl shadow-sky-500/20"
-              >
-                <span>{t('Explore the Platform')}</span>
-                <ArrowRight className="h-4 w-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() => openAuth('signin')}
-                className="rounded-xl border border-line bg-navy-900/90 px-5 py-3 text-sm font-semibold text-ink hover:bg-navy-800 hover:border-sky-400/40 transition-all"
-              >
-                {t('Sign In')}
-              </button>
-              <button
-                type="button"
-                onClick={() => openAuth('request')}
-                className="rounded-xl border border-transparent px-4 py-3 text-xs font-semibold text-sky-400 hover:underline"
-              >
-                {t('Request Facility Access')} →
-              </button>
+              {currentUser && currentUser.status === 'active' ? (
+                <button
+                  type="button"
+                  onClick={handleLaunchApp}
+                  className="btn-primary px-6 py-3 text-sm font-bold shadow-xl shadow-sky-500/20"
+                >
+                  <span>{t('Go to Platform Workspace')}</span>
+                  <ArrowRight className="h-4 w-4" />
+                </button>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => openAuth('signin')}
+                    className="btn-primary px-6 py-3 text-sm font-bold shadow-xl shadow-sky-500/20"
+                  >
+                    <Shield className="h-4 w-4" />
+                    <span>{t('Sign In to Platform')}</span>
+                  </button>
+                  <a
+                    href="#walkthrough"
+                    className="rounded-xl border border-line bg-navy-900/90 px-5 py-3 text-sm font-semibold text-ink hover:bg-navy-800 hover:border-sky-400/40 transition-all inline-flex items-center gap-2"
+                  >
+                    <span>{t('How It Works')}</span>
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </a>
+                </>
+              )}
             </div>
 
             {/* Trust Badges */}
@@ -1077,21 +1105,34 @@ export default function LandingPage() {
             </p>
 
             <div className="flex flex-wrap items-center justify-center gap-3 pt-3">
-              <button
-                type="button"
-                onClick={handleLaunchApp}
-                className="btn-primary px-8 py-3.5 text-sm font-bold shadow-xl shadow-sky-500/25"
-              >
-                <span>{t('Launch Industrial Platform')}</span>
-                <ArrowRight className="h-4 w-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() => openAuth('request')}
-                className="rounded-xl border border-line bg-navy-800/80 px-6 py-3.5 text-sm font-semibold text-ink hover:bg-navy-700 hover:border-sky-400/40 transition-all"
-              >
-                {t('Request Facility Access')}
-              </button>
+              {currentUser && currentUser.status === 'active' ? (
+                <button
+                  type="button"
+                  onClick={handleLaunchApp}
+                  className="btn-primary px-8 py-3.5 text-sm font-bold shadow-xl shadow-sky-500/25"
+                >
+                  <span>{t('Go to Platform Workspace')}</span>
+                  <ArrowRight className="h-4 w-4" />
+                </button>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => openAuth('signin')}
+                    className="btn-primary px-8 py-3.5 text-sm font-bold shadow-xl shadow-sky-500/25"
+                  >
+                    <Shield className="h-4 w-4" />
+                    <span>{t('Sign In to Platform')}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => openAuth('request')}
+                    className="rounded-xl border border-line bg-navy-800/80 px-6 py-3.5 text-sm font-semibold text-ink hover:bg-navy-700 hover:border-sky-400/40 transition-all"
+                  >
+                    {t('Access Policy')}
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>

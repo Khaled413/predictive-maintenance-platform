@@ -31,10 +31,10 @@ function assert(cond: boolean, msg?: string) {
   if (!cond) throw new Error(msg || 'Assertion failed')
 }
 
-// 1. Verify schema file exists and contains essential tables
-test('Verify 20261012_init_schema.sql contains required enterprise tables', () => {
-  const schemaPath = path.resolve(__dirname, '../supabase/migrations/20261012_init_schema.sql')
-  assert(fs.existsSync(schemaPath), 'Migration file must exist')
+// 1. Verify consolidated enterprise schema file exists and contains essential tables
+test('Verify 20261012_consolidated_enterprise_schema.sql contains required enterprise tables', () => {
+  const schemaPath = path.resolve(__dirname, '../supabase/migrations/20261012_consolidated_enterprise_schema.sql')
+  assert(fs.existsSync(schemaPath), 'Consolidated migration file must exist')
   const content = fs.readFileSync(schemaPath, 'utf-8')
 
   const expectedTables = [
@@ -56,7 +56,7 @@ test('Verify 20261012_init_schema.sql contains required enterprise tables', () =
 
 // 2. Verify Row Level Security (RLS) is enabled on all tables
 test('Verify Row Level Security (RLS) is enabled on all tables', () => {
-  const schemaPath = path.resolve(__dirname, '../supabase/migrations/20261012_init_schema.sql')
+  const schemaPath = path.resolve(__dirname, '../supabase/migrations/20261012_consolidated_enterprise_schema.sql')
   const content = fs.readFileSync(schemaPath, 'utf-8')
 
   const rlsTables = [
@@ -78,7 +78,7 @@ test('Verify Row Level Security (RLS) is enabled on all tables', () => {
 
 // 3. Verify security definer functions exist
 test('Verify Security Definier helper functions exist in migration', () => {
-  const schemaPath = path.resolve(__dirname, '../supabase/migrations/20261012_init_schema.sql')
+  const schemaPath = path.resolve(__dirname, '../supabase/migrations/20261012_consolidated_enterprise_schema.sql')
   const content = fs.readFileSync(schemaPath, 'utf-8')
 
   assert(content.includes('FUNCTION public.get_current_user_role()'), 'Must contain get_current_user_role()')
@@ -89,11 +89,10 @@ test('Verify Security Definier helper functions exist in migration', () => {
   assert(content.includes('FUNCTION public.handle_new_user()'), 'Must contain handle_new_user() auth trigger')
 })
 
-// 4. Verify seed data migration contains all permissions and roles
-test('Verify 20261012_seed_data.sql matches TypeScript RBAC catalog', () => {
-  const seedPath = path.resolve(__dirname, '../supabase/migrations/20261012_seed_data.sql')
-  assert(fs.existsSync(seedPath), 'Seed data migration must exist')
-  const content = fs.readFileSync(seedPath, 'utf-8')
+// 4. Verify seed data contains all permissions and roles matching TypeScript RBAC catalog
+test('Verify consolidated schema matches TypeScript RBAC catalog', () => {
+  const schemaPath = path.resolve(__dirname, '../supabase/migrations/20261012_consolidated_enterprise_schema.sql')
+  const content = fs.readFileSync(schemaPath, 'utf-8')
 
   // Check roles
   assert(content.includes("'admin'"), "Must seed 'admin' role")

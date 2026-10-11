@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { Activity, ExternalLink, Factory, Shield, Users, Wrench, X } from 'lucide-react'
+import { Activity, Factory, Shield, Users, Wrench, X } from 'lucide-react'
 import { NAV_ITEMS } from './routes'
 import { useApp } from '../../context/AppContext'
 import { useAuth } from '../../context/AuthContext'
@@ -129,15 +129,6 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
               )}
             </NavLink>
           ))}
-          <div className="pt-2 mt-2 border-t border-line/60">
-            <NavLink
-              to="/"
-              className="group relative flex items-center gap-3 rounded-xl px-3 py-2 text-[12.5px] font-medium text-ink-dim hover:bg-navy-700/60 hover:text-sky-300 transition-all"
-            >
-              <ExternalLink className="h-4 w-4 text-sky-400 group-hover:scale-110 transition-transform" />
-              <span>{t('Public Landing Page')}</span>
-            </NavLink>
-          </div>
         </nav>
 
         {/* Active Role Card */}

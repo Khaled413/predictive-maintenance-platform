@@ -2,9 +2,9 @@ import { useState, useRef, useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import {
   Bell,
-  Check,
   ChevronDown,
   Clock,
+  LogOut,
   Menu,
   RefreshCw,
   Users,
@@ -24,7 +24,7 @@ interface TopHeaderProps {
 
 export default function TopHeader({ onMenu }: TopHeaderProps) {
   const { lastUpdated, refreshTimestamp, notify, machines, alerts } = useApp()
-  const { currentUser, users, switchUser } = useAuth()
+  const { currentUser, signOutUser } = useAuth()
   const { language, t } = usePreferences()
   const location = useLocation()
   const navigate = useNavigate()
@@ -328,49 +328,6 @@ export default function TopHeader({ onMenu }: TopHeaderProps) {
                 </div>
               </div>
 
-              {/* Quick Switcher for RBAC evaluation */}
-              <div>
-                <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-ink-faint">
-                  {t('Switch Active Profile (Testing)')}
-                </p>
-                <div className="space-y-1 max-h-48 overflow-y-auto thin-scroll">
-                  {users.map((u) => {
-                    const isSelected = u.id === currentUser?.id
-                    return (
-                      <button
-                        key={u.id}
-                        type="button"
-                        onClick={() => {
-                          switchUser(u.id)
-                          setProfileOpen(false)
-                        }}
-                        className={`flex w-full items-center justify-between rounded-xl px-2.5 py-1.5 text-xs transition-all ${
-                          isSelected
-                            ? 'bg-sky-500/20 text-sky-300 border border-sky-400/30'
-                            : 'hover:bg-navy-800 text-ink-dim hover:text-ink'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2 truncate">
-                          <span
-                            className={`flex h-5 w-5 shrink-0 items-center justify-center rounded text-[9px] font-bold text-white ${
-                              u.role === 'admin'
-                                ? 'bg-purple-600'
-                                : u.role === 'manager'
-                                  ? 'bg-sky-600'
-                                  : 'bg-emerald-600'
-                            }`}
-                          >
-                            {u.role[0].toUpperCase()}
-                          </span>
-                          <span className="truncate font-medium">{u.name}</span>
-                        </div>
-                        {isSelected && <Check className="h-3.5 w-3.5 text-sky-400 shrink-0" />}
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-
               {/* Quick Links */}
               <div className="mt-2.5 pt-2 border-t border-line space-y-1">
                 {currentUser?.role === 'admin' && (
@@ -396,6 +353,18 @@ export default function TopHeader({ onMenu }: TopHeaderProps) {
                 >
                   <Wrench className="h-3.5 w-3.5 text-ink-faint" />
                   {t('Settings')}
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setProfileOpen(false)
+                    await signOutUser()
+                    navigate('/')
+                  }}
+                  className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-red-400 hover:bg-red-500/10 transition-colors"
+                >
+                  <LogOut className="h-3.5 w-3.5 text-red-400" />
+                  {t('Sign Out')}
                 </button>
               </div>
             </div>
