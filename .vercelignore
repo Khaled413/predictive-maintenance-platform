@@ -1,0 +1,11 @@
+# Exclude large datasets, notebooks, and non-runtime files from Vercel function bundle
+ml/data/
+ml/quality/
+ml/notebooks/
+ml/tests/
+ml/reports/
+ml/.pytest_cache/
+ml/__pycache__/
+.pytest_cache/
+docs/
+scripts/

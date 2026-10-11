@@ -16,10 +16,9 @@
     "ml": {
       "root": "ml",
       "entrypoint": "main:app",
-      "installCommand": "pip install --index-url https://download.pytorch.org/whl/cpu torch==2.8.0 torchvision==0.23.0 && pip install -r requirements.txt -r assistant/requirements.txt",
       "functions": {
         "main.py": {
-          "maxDuration": 300
+          "maxDuration": 60
         }
       }
     }
