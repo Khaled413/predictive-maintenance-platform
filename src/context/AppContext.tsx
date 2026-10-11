@@ -38,9 +38,8 @@ import {
   recommendationForStatus,
   statusForPrediction,
 } from '../utils/predictionThresholds'
+import { notifyFaultTransitions } from '../utils/faultWebhook'
 import type { PredictionInputs, PredictionResponse } from '../types'
-import { useAuth } from './AuthContext'
-import { supabase, isSupabaseConfigured } from '../lib/supabase'
 
 const STORAGE_KEY = 'iap-state-v4'
 
@@ -78,14 +77,7 @@ interface AppContextValue extends PersistedState {
   transitionMaintenance: (
     id: string,
     status: MaintenanceRecord['status'],
-    completion?: Pick<
-      MaintenanceRecord,
-      | 'actualDowntimeHours'
-      | 'actualCost'
-      | 'failureCause'
-      | 'technician'
-      | 'completionNotes'
-    >
+    completion?: Pick<MaintenanceRecord, 'actualDowntimeHours' | 'actualCost' | 'failureCause' | 'technician' | 'completionNotes'>,
   ) => boolean
   deleteMaintenance: (id: string) => void
   setAlertStatus: (id: string, status: Alert['status']) => void
@@ -112,7 +104,7 @@ function loadState(): PersistedState {
         const storedMachineIds = new Set(parsed.machines.map((machine) => machine.id))
         const legacyMachineIds = Array.from(
           { length: 6 },
-          (_, index) => `M-${String(index + 1).padStart(3, '0')}`
+          (_, index) => `M-${String(index + 1).padStart(3, '0')}`,
         )
         const isLegacySixMachineFleet =
           parsed.machines.length === legacyMachineIds.length &&
@@ -123,15 +115,13 @@ function loadState(): PersistedState {
           : []
         const machinesToLoad = [...parsed.machines, ...missingSeedMachines]
         const storedMaintenance = parsed.maintenance ?? SEED_MAINTENANCE
-        const restoredMachineIds = new Set(
-          missingSeedMachines.map((machine) => machine.id)
-        )
+        const restoredMachineIds = new Set(missingSeedMachines.map((machine) => machine.id))
         const maintenanceToLoad = [
           ...storedMaintenance,
           ...SEED_MAINTENANCE.filter(
             (record) =>
               restoredMachineIds.has(record.machineId) &&
-              !storedMaintenance.some((storedRecord) => storedRecord.id === record.id)
+              !storedMaintenance.some((storedRecord) => storedRecord.id === record.id),
           ),
         ]
         const machinesNeedingDemoInputs = machinesToLoad.filter((machine) => {
@@ -139,18 +129,10 @@ function loadState(): PersistedState {
           const hasProvidedInputs =
             machine.predictionInputs?.machine_input_source === 'provided' ||
             machine.predictionInputs?.sensor_input_source === 'provided'
-          return (
-            !hasProvidedInputs &&
-            !hasReusableSimulatedInputs(
-              machine.predictionInputs,
-              machine.id,
-              modelTypeCode
-            )
-          )
+          return !hasProvidedInputs &&
+            !hasReusableSimulatedInputs(machine.predictionInputs, machine.id, modelTypeCode)
         })
-        const demoConditions = balancedConditionCategories(
-          machinesNeedingDemoInputs.length
-        )
+        const demoConditions = balancedConditionCategories(machinesNeedingDemoInputs.length)
         let demoConditionIndex = 0
         return {
           machines: machinesToLoad.map((machine) => {
@@ -161,17 +143,13 @@ function loadState(): PersistedState {
             const hasStoredDemoInputs = hasReusableSimulatedInputs(
               machine.predictionInputs,
               machine.id,
-              modelTypeCode
+              modelTypeCode,
             )
             const predictionInputs = hasProvidedInputs
               ? machine.predictionInputs
               : hasStoredDemoInputs
                 ? machine.predictionInputs
-                : simulateMachineInputs(
-                    machine.id,
-                    machine.type,
-                    demoConditions[demoConditionIndex++]
-                  )
+                : simulateMachineInputs(machine.id, machine.type, demoConditions[demoConditionIndex++])
             return {
               ...machine,
               modelTypeCode,
@@ -238,30 +216,29 @@ function loadState(): PersistedState {
   }
 }
 
-function predictionAlert(machine: Machine, prediction: PredictionResponse): Alert | null {
+function predictionAlert(
+  machine: Machine,
+  prediction: PredictionResponse,
+): Alert | null {
   if (prediction.anomaly_flag !== true && prediction.status === 'Operational') return null
-  const type =
-    prediction.anomaly_flag === true ? 'ML Anomaly Detected' : 'ML Failure Risk'
+  const type = prediction.anomaly_flag === true ? 'ML Anomaly Detected' : 'ML Failure Risk'
   const failureType = prediction.failure_type ?? 'No failure type classified by the model'
-  const maintenanceNote =
-    machine.maintenanceStatus === 'Overdue'
-      ? ' Maintenance is overdue; the model recommendation does not update the maintenance schedule.'
-      : ''
+  const maintenanceNote = machine.maintenanceStatus === 'Overdue'
+    ? ' Maintenance is overdue; the model recommendation does not update the maintenance schedule.'
+    : ''
   return {
     id: `ML-${machine.id}-${prediction.timestamp.replace(/[^0-9]/g, '')}`,
     machineId: machine.id,
     machineName: machine.name,
     severity: prediction.status === 'Critical' ? 'critical' : 'warning',
     type,
-    message:
-      prediction.anomaly_flag === true && prediction.anomaly_score !== null
-        ? `Model anomaly score ${(prediction.anomaly_score * 100).toFixed(1)}%. Failure type: ${failureType}.${maintenanceNote}`
-        : `Model estimates ${(prediction.failure_probability * 100).toFixed(1)}% failure probability. Failure type: ${failureType}.${maintenanceNote}`,
+    message: prediction.anomaly_flag === true && prediction.anomaly_score !== null
+      ? `Model anomaly score ${(prediction.anomaly_score * 100).toFixed(1)}%. Failure type: ${failureType}.${maintenanceNote}`
+      : `Model estimates ${(prediction.failure_probability * 100).toFixed(1)}% failure probability. Failure type: ${failureType}.${maintenanceNote}`,
     timestamp: prediction.timestamp,
     status: 'active',
     recommendedAction: prediction.recommendation,
-    isDemo:
-      prediction.machine_input_source === 'simulated' ||
+    isDemo: prediction.machine_input_source === 'simulated' ||
       prediction.sensor_input_source === 'simulated',
   }
 }
@@ -269,7 +246,7 @@ function predictionAlert(machine: Machine, prediction: PredictionResponse): Aler
 function addPredictionAlert(
   alerts: Alert[],
   machine: Machine,
-  prediction: PredictionResponse
+  prediction: PredictionResponse,
 ): Alert[] {
   const alert = predictionAlert(machine, prediction)
   const previousAlert = alert
@@ -281,23 +258,21 @@ function addPredictionAlert(
     existing.id.startsWith('ML-') &&
     existing.status !== 'resolved'
       ? { ...existing, status: 'resolved' as const }
-      : existing
+      : existing,
   )
   if (!alert) return updatedAlerts
   return [
     {
       ...alert,
-      status:
-        previousAlert && previousAlert.status !== 'resolved'
-          ? previousAlert.status
-          : alert.status,
+      status: previousAlert && previousAlert.status !== 'resolved'
+        ? previousAlert.status
+        : alert.status,
     },
     ...updatedAlerts.filter((existing) => existing.id !== alert.id),
   ]
 }
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
-  const { checkPermission, checkMachineAccess, checkOrderModify, logAudit } = useAuth()
   const [state, setState] = useState<PersistedState>(loadState)
   const [lastUpdated, setLastUpdated] = useState(() => new Date().toISOString())
   const [modelSystemStatus, setModelSystemStatus] = useState(UNAVAILABLE_MODEL_STATUS)
@@ -318,124 +293,112 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     void refreshModelSystemStatus()
   }, [refreshModelSystemStatus])
 
-  const predictMachine = useCallback(
-    async (id: string, inputs: PredictionInputs) => {
-      const requestToken = Symbol(id)
-      predictionRequestTokens.current.set(id, requestToken)
-      setState((s) => ({
-        ...s,
-        machines: s.machines.map((machine) =>
-          machine.id === id
-            ? {
-                ...machine,
-                modelTypeCode: inputs.type,
-                predictionStatus: 'loading',
-                predictionError: undefined,
-                predictionInputs: inputs,
-              }
-            : machine
-        ),
-      }))
+  const predictMachine = useCallback(async (id: string, inputs: PredictionInputs) => {
+    const requestToken = Symbol(id)
+    predictionRequestTokens.current.set(id, requestToken)
+    setState((s) => ({
+      ...s,
+      machines: s.machines.map((machine) =>
+        machine.id === id
+          ? {
+              ...machine,
+              modelTypeCode: inputs.type,
+              predictionStatus: 'loading',
+              predictionError: undefined,
+              predictionInputs: inputs,
+            }
+          : machine,
+      ),
+    }))
 
-      try {
-        const prediction: PredictionResponse = await requestPrediction(
-          inputs,
-          state.thresholds
-        )
-        if (prediction.machine_id !== id)
-          throw new Error('Prediction response machine ID did not match')
-        if (prediction.inputs.type !== inputs.type) {
-          throw new Error('Prediction response model type did not match')
-        }
-        if (
-          prediction.machine_input_source !== inputs.machine_input_source ||
-          prediction.sensor_input_source !== inputs.sensor_input_source
-        ) {
-          throw new Error('Prediction response input sources did not match')
-        }
-        void refreshModelSystemStatus()
-        setState((s) => {
-          if (predictionRequestTokens.current.get(id) !== requestToken) return s
-          const machine = s.machines.find((item) => item.id === id)
-          if (!machine || machine.predictionInputs?.type !== inputs.type) return s
-          const status = statusForPrediction(prediction, s.thresholds)
-          const effectivePrediction: PredictionResponse = {
-            ...prediction,
-            status,
-            recommendation: recommendationForStatus(status),
-          }
-          const history = [
-            ...machine.history,
-            {
-              date: prediction.timestamp,
-              health: prediction.health_score,
-              risk: prediction.failure_probability * 100,
-              ...(prediction.anomaly_score !== null
-                ? { anomalyScore: prediction.anomaly_score * 100 }
-                : {}),
-              ...(prediction.anomaly_flag !== null
-                ? { anomalyFlag: prediction.anomaly_flag }
-                : {}),
-              isDemo:
-                prediction.machine_input_source === 'simulated' ||
-                prediction.sensor_input_source === 'simulated',
-            },
-          ].sort((a, b) => Date.parse(a.date) - Date.parse(b.date))
-          const updatedMachine: Machine = {
-            ...machine,
-            predictionStatus: 'available',
-            predictionError: undefined,
-            prediction: effectivePrediction,
-            predictionInputs: inputs,
-            status: effectivePrediction.status,
-            maintenanceStatus: maintenanceStatusFromPrediction(
-              effectivePrediction.status
-            ),
-            healthScore: effectivePrediction.health_score,
-            failureRisk: effectivePrediction.failure_probability * 100,
-            recommendation: effectivePrediction.recommendation,
-            likelihood: effectivePrediction.failure_type,
-            history,
-          }
-          const alerts = addPredictionAlert(s.alerts, machine, effectivePrediction)
-          return {
-            ...s,
-            machines: s.machines.map((item) => (item.id === id ? updatedMachine : item)),
-            alerts,
-          }
-        })
-        return predictionRequestTokens.current.get(id) === requestToken
-      } catch (error) {
-        const predictionError =
-          error instanceof Error
-            ? error.message
-            : 'Prediction request failed unexpectedly'
-        setState((s) => {
-          if (predictionRequestTokens.current.get(id) !== requestToken) return s
-          return {
-            ...s,
-            machines: s.machines.map((machine) =>
-              machine.id === id
-                ? {
-                    ...machine,
-                    predictionStatus: 'unavailable',
-                    predictionError,
-                    prediction: undefined,
-                    status: null,
-                    healthScore: null,
-                    failureRisk: null,
-                    recommendation: null,
-                    likelihood: null,
-                  }
-                : machine
-            ),
-          }
-        })
-        return false
+    try {
+      const prediction: PredictionResponse = await requestPrediction(inputs, state.thresholds)
+      if (prediction.machine_id !== id) throw new Error('Prediction response machine ID did not match')
+      if (prediction.inputs.type !== inputs.type) {
+        throw new Error('Prediction response model type did not match')
       }
-    },
-    [refreshModelSystemStatus, state.thresholds]
-  )
+      if (
+        prediction.machine_input_source !== inputs.machine_input_source ||
+        prediction.sensor_input_source !== inputs.sensor_input_source
+      ) {
+        throw new Error('Prediction response input sources did not match')
+      }
+      void refreshModelSystemStatus()
+      setState((s) => {
+        if (predictionRequestTokens.current.get(id) !== requestToken) return s
+        const machine = s.machines.find((item) => item.id === id)
+        if (!machine || machine.predictionInputs?.type !== inputs.type) return s
+        const status = statusForPrediction(prediction, s.thresholds)
+        const effectivePrediction: PredictionResponse = {
+          ...prediction,
+          status,
+          recommendation: recommendationForStatus(status),
+        }
+        const history = [
+          ...machine.history,
+          {
+            date: prediction.timestamp,
+            health: prediction.health_score,
+            risk: prediction.failure_probability * 100,
+            ...(prediction.anomaly_score !== null
+              ? { anomalyScore: prediction.anomaly_score * 100 }
+              : {}),
+            ...(prediction.anomaly_flag !== null
+              ? { anomalyFlag: prediction.anomaly_flag }
+              : {}),
+            isDemo: prediction.machine_input_source === 'simulated' ||
+              prediction.sensor_input_source === 'simulated',
+          },
+        ].sort((a, b) => Date.parse(a.date) - Date.parse(b.date))
+        const updatedMachine: Machine = {
+          ...machine,
+          predictionStatus: 'available',
+          predictionError: undefined,
+          prediction: effectivePrediction,
+          predictionInputs: inputs,
+          status: effectivePrediction.status,
+          maintenanceStatus: maintenanceStatusFromPrediction(effectivePrediction.status),
+          healthScore: effectivePrediction.health_score,
+          failureRisk: effectivePrediction.failure_probability * 100,
+          recommendation: effectivePrediction.recommendation,
+          likelihood: effectivePrediction.failure_type,
+          history,
+        }
+        const alerts = addPredictionAlert(s.alerts, machine, effectivePrediction)
+        return {
+          ...s,
+          machines: s.machines.map((item) => (item.id === id ? updatedMachine : item)),
+          alerts,
+        }
+      })
+      return predictionRequestTokens.current.get(id) === requestToken
+    } catch (error) {
+      const predictionError =
+        error instanceof Error ? error.message : 'Prediction request failed unexpectedly'
+      setState((s) => {
+        if (predictionRequestTokens.current.get(id) !== requestToken) return s
+        return {
+          ...s,
+          machines: s.machines.map((machine) =>
+            machine.id === id
+              ? {
+                  ...machine,
+                  predictionStatus: 'unavailable',
+                  predictionError,
+                  prediction: undefined,
+                  status: null,
+                  healthScore: null,
+                  failureRisk: null,
+                  recommendation: null,
+                  likelihood: null,
+                }
+              : machine,
+          ),
+        }
+      })
+      return false
+    }
+  }, [refreshModelSystemStatus, state.thresholds])
 
   useEffect(() => {
     if (startupRequestsStarted.current) return
@@ -451,56 +414,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Sync with Supabase Database if configured
-  useEffect(() => {
-    if (!isSupabaseConfigured || !supabase) return
-    const client = supabase
-
-    const syncFromSupabase = async () => {
-      try {
-        const { data: dbMachines } = await client.from('machines').select('*')
-        if (dbMachines && dbMachines.length > 0) {
-          setState((prev) => {
-            const existingMap = new Map(prev.machines.map((m) => [m.id, m]))
-            const mergedMachines: Machine[] = (dbMachines as any[]).map((dbM: any) => {
-              const existing = existingMap.get(dbM.id)
-              return {
-                id: dbM.id,
-                name: dbM.name,
-                type: dbM.type,
-                status: (dbM.status as any) || existing?.status || 'Operational',
-                healthScore: dbM.health_score !== null ? Number(dbM.health_score) : (existing?.healthScore ?? 95),
-                failureRisk: dbM.failure_risk !== null ? Number(dbM.failure_risk) : (existing?.failureRisk ?? 5),
-                location: dbM.location || existing?.location || 'Plant Floor',
-                manufacturer: dbM.manufacturer || existing?.manufacturer || 'Siemens Industrial',
-                model: dbM.model || existing?.model || 'Series Standard',
-                installationDate: existing?.installationDate || '2023-01-15',
-                lastMaintenance: dbM.last_maintenance || existing?.lastMaintenance || new Date().toISOString(),
-                nextMaintenance: dbM.next_maintenance || existing?.nextMaintenance || new Date().toISOString(),
-                description: existing?.description || `${dbM.name} operational fleet unit`,
-                recommendation: existing?.recommendation || 'Regular inspection schedule',
-                likelihood: existing?.likelihood || 'Low',
-                sensors: (Array.isArray(dbM.sensors) ? dbM.sensors : existing?.sensors) || [],
-                history: existing?.history || [],
-                sensorHistory: existing?.sensorHistory || [],
-                events: existing?.events || [],
-                modelTypeCode: existing?.modelTypeCode || 'M',
-                predictionInputs: existing?.predictionInputs || ({} as any),
-                predictionStatus: existing?.predictionStatus || 'available',
-                maintenanceStatus: existing?.maintenanceStatus || 'Scheduled',
-              } as Machine
-            })
-            return { ...prev, machines: mergedMachines }
-          })
-        }
-      } catch (err) {
-        console.warn('Supabase fleet sync notice:', err)
-      }
-    }
-
-    void syncFromSupabase()
-  }, [])
-
   // Persist to localStorage
   useEffect(() => {
     try {
@@ -509,6 +422,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       // storage unavailable — ignore
     }
   }, [state])
+
+  // Report machines that enter a fault state to the optional n8n webhook
+  useEffect(() => {
+    notifyFaultTransitions(state.machines)
+  }, [state.machines])
 
   const dismissToast = useCallback((id: string) => {
     setToasts((t) => t.filter((x) => x.id !== id))
@@ -520,259 +438,140 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setToasts((t) => [...t.slice(-3), { id, type, title, message }])
       window.setTimeout(() => dismissToast(id), 4200)
     },
-    [dismissToast]
+    [dismissToast],
   )
 
   const refreshTimestamp = useCallback(() => setLastUpdated(new Date().toISOString()), [])
 
-  const addMachine = useCallback(
-    (m: Machine) => {
-      if (!checkPermission('machines.create')) {
-        notify('error', 'Access Denied', 'You do not have permission to create machines.')
-        logAudit('machines.create', 'machine', m.id, 'denied', { name: m.name })
-        return
-      }
-      setState((s) => ({
-        ...s,
-        machines: [...s.machines, m],
-        alerts: m.prediction ? addPredictionAlert(s.alerts, m, m.prediction) : s.alerts,
-      }))
-      logAudit('machines.create', 'machine', m.id, 'allowed', { name: m.name })
+  const addMachine = useCallback((m: Machine) => {
+    setState((s) => ({
+      ...s,
+      machines: [...s.machines, m],
+      alerts: m.prediction ? addPredictionAlert(s.alerts, m, m.prediction) : s.alerts,
+    }))
+  }, [])
 
-      if (isSupabaseConfigured && supabase) {
-        void (supabase as any).from('machines').insert({
-          id: m.id,
-          name: m.name,
-          type: m.type,
-          location: m.location,
-          manufacturer: m.manufacturer,
-          model: m.model,
-          health_score: m.healthScore,
-          failure_risk: m.failureRisk,
-          sensors: m.sensors as any,
-        })
-      }
-    },
-    [checkPermission, logAudit, notify]
-  )
+  const updateMachine = useCallback((id: string, patch: Partial<Machine>) => {
+    setState((s) => ({
+      ...s,
+      machines: s.machines.map((m) => (m.id === id ? { ...m, ...patch } : m)),
+    }))
+  }, [])
 
-  const updateMachine = useCallback(
-    (id: string, patch: Partial<Machine>) => {
-      if (!checkPermission('machines.update')) {
-        notify('error', 'Access Denied', 'You do not have permission to update machine configurations.')
-        logAudit('machines.update', 'machine', id, 'denied', { patch })
-        return
-      }
-      if (!checkMachineAccess(id)) {
-        notify('error', 'Access Denied', 'Machine is outside your operational scope.')
-        logAudit('machines.update', 'machine', id, 'denied', { reason: 'outside_scope' })
-        return
-      }
-      setState((s) => ({
-        ...s,
-        machines: s.machines.map((m) => (m.id === id ? { ...m, ...patch } : m)),
-      }))
-      logAudit('machines.update', 'machine', id, 'allowed', { patchKeys: Object.keys(patch) })
-    },
-    [checkPermission, checkMachineAccess, logAudit, notify]
-  )
+  const deleteMachine = useCallback((id: string) => {
+    predictionRequestTokens.current.delete(id)
+    setState((s) => ({
+      ...s,
+      machines: s.machines.filter((m) => m.id !== id),
+      maintenance: s.maintenance.filter((r) => r.machineId !== id),
+      alerts: s.alerts.filter((a) => a.machineId !== id),
+    }))
+  }, [])
 
-  const deleteMachine = useCallback(
-    (id: string) => {
-      if (!checkPermission('machines.delete')) {
-        notify('error', 'Access Denied', 'You do not have permission to delete machines.')
-        logAudit('machines.delete', 'machine', id, 'denied')
-        return
-      }
-      predictionRequestTokens.current.delete(id)
-      setState((s) => ({
-        ...s,
-        machines: s.machines.filter((m) => m.id !== id),
-        maintenance: s.maintenance.filter((r) => r.machineId !== id),
-        alerts: s.alerts.filter((a) => a.machineId !== id),
-      }))
-      logAudit('machines.delete', 'machine', id, 'allowed')
+  const addMaintenance = useCallback((r: MaintenanceRecord) => {
+    setState((s) => ({
+      ...s,
+      maintenance: [{ ...r, isDemo: r.isDemo ?? false }, ...s.maintenance],
+    }))
+  }, [])
 
-      if (isSupabaseConfigured && supabase) {
-        void supabase.from('machines').delete().eq('id', id)
-      }
-    },
-    [checkPermission, logAudit, notify]
-  )
+  const createMaintenanceFromAlert = useCallback((alertId: string) => {
+    const alert = state.alerts.find((item) => item.id === alertId)
+    if (!alert) return null
+    const existing = state.maintenance.find((record) => record.originAlertId === alertId)
+    if (existing) return existing
+    const machine = state.machines.find((item) => item.id === alert.machineId)
+    if (!machine) return null
+    const priority: MaintenanceRecord['priority'] =
+      alert.severity === 'critical' ? 'High' : alert.severity === 'warning' ? 'Medium' : 'Low'
+    const record: MaintenanceRecord = {
+      id: `MO-${alert.id}`,
+      machineId: machine.id,
+      machineName: machine.name,
+      machineType: machine.type,
+      type: /anomaly/i.test(alert.type) ? 'Inspection' : 'Predictive inspection',
+      reason: alert.message,
+      priority,
+      date: new Date().toISOString(),
+      technician: 'Unassigned',
+      status: 'Scheduled',
+      downtime: '—',
+      cost: null,
+      notes: alert.recommendedAction,
+      maintenanceKind: 'preventive',
+      isDemo: alert.isDemo ?? true,
+      originAlertId: alert.id,
+      predictionSnapshot: machine.prediction
+        ? {
+            failureProbability: machine.prediction.failure_probability,
+            anomalyScore: machine.prediction.anomaly_score,
+            healthScore: machine.prediction.health_score,
+            status: machine.prediction.status,
+            timestamp: machine.prediction.timestamp,
+          }
+        : undefined,
+    }
+    setState((s) => ({
+      ...s,
+      maintenance: s.maintenance.some((item) => item.originAlertId === alertId)
+        ? s.maintenance
+        : [record, ...s.maintenance],
+    }))
+    return record
+  }, [state.alerts, state.maintenance, state.machines])
 
-  const addMaintenance = useCallback(
-    (r: MaintenanceRecord) => {
-      if (!checkPermission('maintenance.create')) {
-        notify('error', 'Access Denied', 'You do not have permission to create maintenance orders.')
-        logAudit('maintenance.create', 'maintenance', r.id, 'denied')
-        return
-      }
-      setState((s) => ({
-        ...s,
-        maintenance: [{ ...r, isDemo: r.isDemo ?? false }, ...s.maintenance],
-      }))
-      logAudit('maintenance.create', 'maintenance', r.id, 'allowed', { machineId: r.machineId })
+  const updateMaintenance = useCallback((id: string, patch: Partial<MaintenanceRecord>) => {
+    setState((s) => ({
+      ...s,
+      maintenance: s.maintenance.map((r) => (r.id === id ? { ...r, ...patch } : r)),
+    }))
+  }, [])
 
-      if (isSupabaseConfigured && supabase) {
-        void (supabase as any).from('maintenance_orders').insert({
-          id: r.id,
-          machine_id: r.machineId,
-          title: r.type,
-          description: r.reason,
-          priority: r.priority,
-          status: r.status,
-          technician_name: r.technician,
-          downtime: r.downtime,
-          cost: r.cost,
-          notes: r.notes,
-        })
-      }
-    },
-    [checkPermission, logAudit, notify]
-  )
-
-  const createMaintenanceFromAlert = useCallback(
-    (alertId: string) => {
-      const alert = state.alerts.find((item) => item.id === alertId)
-      if (!alert) return null
-      const existing = state.maintenance.find(
-        (record) => record.originAlertId === alertId
-      )
-      if (existing) return existing
-      const machine = state.machines.find((item) => item.id === alert.machineId)
-      if (!machine) return null
-      const priority: MaintenanceRecord['priority'] =
-        alert.severity === 'critical'
-          ? 'High'
-          : alert.severity === 'warning'
-            ? 'Medium'
-            : 'Low'
-      const record: MaintenanceRecord = {
-        id: `MO-${alert.id}`,
-        machineId: machine.id,
-        machineName: machine.name,
-        machineType: machine.type,
-        type: /anomaly/i.test(alert.type) ? 'Inspection' : 'Predictive inspection',
-        reason: alert.message,
-        priority,
-        date: new Date().toISOString(),
-        technician: 'Unassigned',
-        status: 'Scheduled',
-        downtime: '—',
-        cost: null,
-        notes: alert.recommendedAction,
-        maintenanceKind: 'preventive',
-        isDemo: alert.isDemo ?? true,
-        originAlertId: alert.id,
-        predictionSnapshot: machine.prediction
+  const transitionMaintenance = useCallback((
+    id: string,
+    status: MaintenanceRecord['status'],
+    completion?: Pick<MaintenanceRecord, 'actualDowntimeHours' | 'actualCost' | 'failureCause' | 'technician' | 'completionNotes'>,
+  ) => {
+    const record = state.maintenance.find((item) => item.id === id)
+    if (!record) return false
+    const allowed: Record<MaintenanceRecord['status'], MaintenanceRecord['status'][]> = {
+      Recommended: ['Scheduled', 'Cancelled'],
+      Scheduled: ['In Progress', 'Cancelled'],
+      'In Progress': ['Completed', 'Cancelled'],
+      Completed: [],
+      Cancelled: [],
+    }
+    if (!allowed[record.status].includes(status)) return false
+    setState((s) => ({
+      ...s,
+      maintenance: s.maintenance.map((item) =>
+        item.id === id
           ? {
-              failureProbability: machine.prediction.failure_probability,
-              anomalyScore: machine.prediction.anomaly_score,
-              healthScore: machine.prediction.health_score,
-              status: machine.prediction.status,
-              timestamp: machine.prediction.timestamp,
+              ...item,
+              status,
+              ...(status === 'Completed' && completion
+                ? {
+                    actualDowntimeHours: completion.actualDowntimeHours,
+                    ...(completion.actualDowntimeHours !== null
+                      ? { downtime: `${completion.actualDowntimeHours}h` }
+                      : {}),
+                    actualCost: completion.actualCost,
+                    failureCause: completion.failureCause,
+                    technician: completion.technician,
+                    completionNotes: completion.completionNotes,
+                    notes: completion.completionNotes,
+                  }
+                : {}),
             }
-          : undefined,
-      }
-      setState((s) => ({
-        ...s,
-        maintenance: s.maintenance.some((item) => item.originAlertId === alertId)
-          ? s.maintenance
-          : [record, ...s.maintenance],
-      }))
-      return record
-    },
-    [state.alerts, state.maintenance, state.machines]
-  )
+          : item,
+      ),
+    }))
+    return true
+  }, [state.maintenance])
 
-  const updateMaintenance = useCallback(
-    (id: string, patch: Partial<MaintenanceRecord>) => {
-      setState((s) => ({
-        ...s,
-        maintenance: s.maintenance.map((r) => (r.id === id ? { ...r, ...patch } : r)),
-      }))
-    },
-    []
-  )
-
-  const transitionMaintenance = useCallback(
-    (
-      id: string,
-      status: MaintenanceRecord['status'],
-      completion?: Pick<
-        MaintenanceRecord,
-        | 'actualDowntimeHours'
-        | 'actualCost'
-        | 'failureCause'
-        | 'technician'
-        | 'completionNotes'
-      >
-    ) => {
-      const record = state.maintenance.find((item) => item.id === id)
-      if (!record) return false
-
-      const requiredPerm = status === 'Completed' ? 'maintenance.complete' : 'maintenance.update'
-      if (!checkPermission(requiredPerm)) {
-        notify('error', 'Access Denied', `You do not have permission to transition this order to ${status}.`)
-        logAudit(requiredPerm, 'maintenance', id, 'denied', { targetStatus: status })
-        return false
-      }
-
-      if (!checkOrderModify(record)) {
-        notify('error', 'Access Denied', 'You can only update maintenance orders assigned to you.')
-        logAudit(requiredPerm, 'maintenance', id, 'denied', { reason: 'not_assigned_to_user', targetStatus: status })
-        return false
-      }
-
-      const allowed: Record<MaintenanceRecord['status'], MaintenanceRecord['status'][]> =
-        {
-          Recommended: ['Scheduled', 'Cancelled'],
-          Scheduled: ['In Progress', 'Cancelled'],
-          'In Progress': ['Completed', 'Cancelled'],
-          Completed: [],
-          Cancelled: [],
-        }
-      if (!allowed[record.status].includes(status)) return false
-      setState((s) => ({
-        ...s,
-        maintenance: s.maintenance.map((item) =>
-          item.id === id
-            ? {
-                ...item,
-                status,
-                ...(status === 'Completed' && completion
-                  ? {
-                      actualDowntimeHours: completion.actualDowntimeHours,
-                      ...(completion.actualDowntimeHours !== null
-                        ? { downtime: `${completion.actualDowntimeHours}h` }
-                        : {}),
-                      actualCost: completion.actualCost,
-                      failureCause: completion.failureCause,
-                      technician: completion.technician,
-                      completionNotes: completion.completionNotes,
-                      notes: completion.completionNotes,
-                    }
-                  : {}),
-              }
-            : item
-        ),
-      }))
-      logAudit(requiredPerm, 'maintenance', id, 'allowed', { fromStatus: record.status, targetStatus: status })
-      return true
-    },
-    [checkPermission, checkOrderModify, logAudit, notify, state.maintenance]
-  )
-
-  const deleteMaintenance = useCallback(
-    (id: string) => {
-      if (!checkPermission('maintenance.update')) {
-        notify('error', 'Access Denied', 'You do not have permission to delete maintenance records.')
-        return
-      }
-      setState((s) => ({ ...s, maintenance: s.maintenance.filter((r) => r.id !== id) }))
-    },
-    [checkPermission, notify]
-  )
+  const deleteMaintenance = useCallback((id: string) => {
+    setState((s) => ({ ...s, maintenance: s.maintenance.filter((r) => r.id !== id) }))
+  }, [])
 
   const setAlertStatus = useCallback((id: string, status: Alert['status']) => {
     setState((s) => ({
@@ -795,7 +594,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       documents: s.documents.some(
         (document) =>
           document.id === d.id ||
-          (!!d.indexedDocumentId && document.indexedDocumentId === d.indexedDocumentId)
+          (!!d.indexedDocumentId && document.indexedDocumentId === d.indexedDocumentId),
       )
         ? s.documents
         : [{ ...d, isDemo: d.isDemo ?? false }, ...s.documents],
@@ -813,15 +612,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }))
   }, [])
 
-  const saveThresholds = useCallback(
-    (t: Thresholds) => {
-      if (!checkPermission('models.manage')) {
-        notify('error', 'Access Denied', 'You do not have permission to modify model thresholds.')
-        logAudit('models.manage', 'settings', 'thresholds', 'denied')
-        return
-      }
-      logAudit('models.manage', 'settings', 'thresholds', 'allowed')
-      setState((s) => {
+  const saveThresholds = useCallback((t: Thresholds) => {
+    setState((s) => {
       const machines = s.machines.map((machine) => {
         if (!machine.prediction) return machine
         const status = statusForPrediction(machine.prediction, t)
@@ -835,28 +627,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         }
       })
       const machineById = new Map(machines.map((machine) => [machine.id, machine]))
-      let alerts = s.alerts
-        .filter((alert) => {
-          if (!alert.id.startsWith('ML-') || alert.status === 'resolved') return true
-          const machine = machineById.get(alert.machineId)
-          return (
-            !machine?.prediction ||
-            machine.prediction.anomaly_flag === true ||
-            machine.prediction.status !== 'Operational'
-          )
-        })
-        .map((alert) => {
-          const machine = machineById.get(alert.machineId)
-          if (!alert.id.startsWith('ML-') || !machine?.prediction) return alert
-          return {
-            ...alert,
-            severity:
-              machine.prediction.status === 'Critical'
-                ? ('critical' as const)
-                : ('warning' as const),
-            recommendedAction: machine.prediction.recommendation,
-          }
-        })
+      let alerts = s.alerts.filter((alert) => {
+        if (!alert.id.startsWith('ML-') || alert.status === 'resolved') return true
+        const machine = machineById.get(alert.machineId)
+        return !machine?.prediction || machine.prediction.anomaly_flag === true ||
+          machine.prediction.status !== 'Operational'
+      }).map((alert) => {
+        const machine = machineById.get(alert.machineId)
+        if (!alert.id.startsWith('ML-') || !machine?.prediction) return alert
+        return {
+          ...alert,
+          severity: machine.prediction.status === 'Critical' ? 'critical' as const : 'warning' as const,
+          recommendedAction: machine.prediction.recommendation,
+        }
+      })
       machines.forEach((machine) => {
         if (machine.prediction) {
           alerts = addPredictionAlert(alerts, machine, machine.prediction)
@@ -864,7 +648,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       })
       return { ...s, machines, alerts, thresholds: t }
     })
-  }, [checkPermission, logAudit, notify])
+  }, [])
 
   const resetDemo = useCallback(() => {
     localStorage.removeItem(STORAGE_KEY)
@@ -897,18 +681,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const regenerateDemoReadings = useCallback(async () => {
     const simulatedMachines = state.machines
-      .filter(
-        (machine) =>
-          machine.predictionInputs?.machine_input_source === 'simulated' &&
-          machine.predictionInputs.sensor_input_source === 'simulated'
+      .filter((machine) =>
+        machine.predictionInputs?.machine_input_source === 'simulated' &&
+        machine.predictionInputs.sensor_input_source === 'simulated',
       )
       .sort((left, right) => left.id.localeCompare(right.id))
     if (!simulatedMachines.length) {
-      notify(
-        'warning',
-        'No demo machines found',
-        'Only simulated machines can generate a new demo scenario.'
-      )
+      notify('warning', 'No demo machines found', 'Only simulated machines can generate a new demo scenario.')
       return
     }
     const demoConditions = balancedConditionCategories(simulatedMachines.length)
@@ -916,7 +695,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       simulatedMachines.map((machine, index) => [
         machine.id,
         simulateMachineInputs(machine.id, machine.type, demoConditions[index]),
-      ])
+      ]),
     )
 
     setState((s) => ({
@@ -944,22 +723,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setLastUpdated(new Date().toISOString())
     const results = await Promise.all(
       [...demoInputs.entries()].map(([machineId, inputs]) =>
-        predictMachine(machineId, inputs)
-      )
+        predictMachine(machineId, inputs),
+      ),
     )
     const failedCount = results.filter((succeeded) => !succeeded).length
     if (failedCount) {
       notify(
         'warning',
         'Demo scenario partially evaluated',
-        `${failedCount} of ${demoInputs.size} model predictions failed. Failed machines show unavailable results.`
+        `${failedCount} of ${demoInputs.size} model predictions failed. Failed machines show unavailable results.`,
       )
       return
     }
     notify(
       'success',
       'New demo predictions ready',
-      `${demoInputs.size} simulated machines were recalculated by the trained models.`
+      `${demoInputs.size} simulated machines were recalculated by the trained models.`,
     )
   }, [notify, predictMachine, state.machines])
 
@@ -1017,7 +796,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       resetDemo,
       regenerateDemoReadings,
       predictMachine,
-    ]
+    ],
   )
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>
