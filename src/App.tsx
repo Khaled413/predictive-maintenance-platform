@@ -1,8 +1,10 @@
 import { lazy } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { AuthProvider } from './context/AuthContext'
 import { AppProvider } from './context/AppContext'
 import { PreferencesProvider } from './context/PreferencesContext'
 import AppLayout from './components/layout/AppLayout'
+import ProtectedRoute from './components/auth/ProtectedRoute'
 
 /**
  * Pages are code-split so the heavy charting bundle (Recharts) is only fetched
@@ -17,28 +19,118 @@ const AssistantPage = lazy(() => import('./pages/AssistantPage'))
 const AlertsPage = lazy(() => import('./pages/AlertsPage'))
 const ReportsPage = lazy(() => import('./pages/ReportsPage'))
 const SettingsPage = lazy(() => import('./pages/SettingsPage'))
+const UsersPage = lazy(() => import('./pages/UsersPage'))
+const AccessDeniedPage = lazy(() => import('./pages/AccessDeniedPage'))
+const LandingPage = lazy(() => import('./pages/LandingPage'))
 
 export default function App() {
   return (
-    <AppProvider>
-      <PreferencesProvider>
-        <BrowserRouter>
-          <Routes>
-            <Route element={<AppLayout />}>
-              <Route path="/" element={<OverviewPage />} />
-              <Route path="/machines" element={<MachinesPage />} />
-              <Route path="/machines/:id" element={<MachineDetailsPage />} />
-              <Route path="/maintenance" element={<MaintenancePage />} />
-              <Route path="/quality" element={<QualityPage />} />
-              <Route path="/assistant" element={<AssistantPage />} />
-              <Route path="/alerts" element={<AlertsPage />} />
-              <Route path="/reports" element={<ReportsPage />} />
-              <Route path="/settings" element={<SettingsPage />} />
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Route>
-          </Routes>
-        </BrowserRouter>
-      </PreferencesProvider>
-    </AppProvider>
+    <AuthProvider>
+      <AppProvider>
+        <PreferencesProvider>
+          <BrowserRouter>
+            <Routes>
+              {/* Public Marketing Landing Page */}
+              <Route path="/" element={<LandingPage />} />
+
+              {/* Authenticated Industrial Platform */}
+              <Route element={<AppLayout />}>
+                <Route
+                  path="/app"
+                  element={
+                    <ProtectedRoute permission="dashboard.view">
+                      <OverviewPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/overview"
+                  element={
+                    <ProtectedRoute permission="dashboard.view">
+                      <OverviewPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/machines"
+                  element={
+                    <ProtectedRoute permission="machines.read">
+                      <MachinesPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/machines/:id"
+                  element={
+                    <ProtectedRoute permission="machines.read">
+                      <MachineDetailsPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/maintenance"
+                  element={
+                    <ProtectedRoute permission="maintenance.read">
+                      <MaintenancePage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/users"
+                  element={
+                    <ProtectedRoute permission="users.read">
+                      <UsersPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/quality"
+                  element={
+                    <ProtectedRoute permission="models.read">
+                      <QualityPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/assistant"
+                  element={
+                    <ProtectedRoute permission="assistant.use">
+                      <AssistantPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/alerts"
+                  element={
+                    <ProtectedRoute permission="alerts.read">
+                      <AlertsPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/reports"
+                  element={
+                    <ProtectedRoute permission="reports.read">
+                      <ReportsPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/settings"
+                  element={
+                    <ProtectedRoute permission="settings.read">
+                      <SettingsPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route path="/access-denied" element={<AccessDeniedPage />} />
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Route>
+            </Routes>
+          </BrowserRouter>
+        </PreferencesProvider>
+      </AppProvider>
+    </AuthProvider>
   )
 }
+

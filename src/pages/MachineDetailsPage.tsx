@@ -36,6 +36,8 @@ import {
 import type { EventType } from '../types'
 import ModelStatusCard from '../components/ui/ModelStatusCard'
 import { usePreferences } from '../context/PreferencesContext'
+import { useAuth } from '../context/AuthContext'
+import AccessDeniedPage from './AccessDeniedPage'
 
 const EVENT_COLORS: Record<EventType, string> = {
   Maintenance: '#38BDF8',
@@ -48,6 +50,7 @@ export default function MachineDetailsPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { t } = usePreferences()
+  const { checkMachineAccess } = useAuth()
   const {
     machines,
     thresholds,
@@ -60,6 +63,15 @@ export default function MachineDetailsPage() {
     notify,
     refreshTimestamp,
   } = useApp()
+
+  if (id && !checkMachineAccess(id)) {
+    return (
+      <AccessDeniedPage
+        requiredPermission="machines.read"
+        resourceName={`Machine ${id} (Operational Fleet Assignment)`}
+      />
+    )
+  }
 
   const machine = machines.find((m) => m.id === id)
 

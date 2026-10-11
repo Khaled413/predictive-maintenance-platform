@@ -22,9 +22,11 @@ import {
   hasProvidedPrediction,
 } from '../utils/operationalMetrics'
 import { usePreferences } from '../context/PreferencesContext'
+import { useAuth } from '../context/AuthContext'
 
 export default function OverviewPage() {
   const { machines, maintenance, regenerateDemoReadings } = useApp()
+  const { checkMachineAccess, checkOrderAccess, currentUser } = useAuth()
   const navigate = useNavigate()
   const { t } = usePreferences()
 
@@ -32,7 +34,16 @@ export default function OverviewPage() {
   const [statusFilter, setStatusFilter] = useState('All')
   const [machineSearch, setMachineSearch] = useState('')
   const [isRegenerating, setIsRegenerating] = useState(false)
-  const machinesWithStatus: Machine[] = machines
+
+  const accessibleMachines = useMemo(
+    () => machines.filter((m) => checkMachineAccess(m.id)),
+    [machines, checkMachineAccess]
+  )
+  const accessibleMaintenance = useMemo(
+    () => maintenance.filter((r) => checkOrderAccess(r)),
+    [maintenance, checkOrderAccess]
+  )
+  const machinesWithStatus: Machine[] = accessibleMachines
 
   const kpis = useMemo(() => {
     const total = machinesWithStatus.length
@@ -52,7 +63,7 @@ export default function OverviewPage() {
       (machine) => machine.status === 'Critical' || machine.status === 'Warning'
     ).length
     const now = Date.now()
-    const isUpcoming = (r: (typeof maintenance)[number]) => {
+    const isUpcoming = (r: (typeof accessibleMaintenance)[number]) => {
       const d = new Date(r.date).getTime()
       return (
         (r.status === 'Scheduled' || r.status === 'Recommended') &&
@@ -60,10 +71,10 @@ export default function OverviewPage() {
         d <= now + 14 * 86_400_000
       )
     }
-    const actualUpcoming = maintenance.filter(
+    const actualUpcoming = accessibleMaintenance.filter(
       (record) => !record.isDemo && isUpcoming(record)
     )
-    const demoUpcoming = maintenance.filter(
+    const demoUpcoming = accessibleMaintenance.filter(
       (record) => record.isDemo && isUpcoming(record)
     )
     const useDemoUpcoming = actualUpcoming.length === 0 && demoUpcoming.length > 0
@@ -74,7 +85,7 @@ export default function OverviewPage() {
             predicted.length
         )
       : null
-    const sampleWorkDurations = maintenance
+    const sampleWorkDurations = accessibleMaintenance
       .filter((record) => record.isDemo && record.status === 'Completed')
       .map((record) => durationHours(record.downtime))
       .filter((value): value is number => value !== null)
@@ -82,7 +93,7 @@ export default function OverviewPage() {
       (sum, value) => sum + value,
       0
     )
-    const actualDowntimeHours = operationalKpis(maintenance).downtimeHours
+    const actualDowntimeHours = operationalKpis(accessibleMaintenance).downtimeHours
     const useDemoDowntime = actualDowntimeHours === null && sampleWorkDurationHours > 0
     return {
       total,
@@ -96,7 +107,7 @@ export default function OverviewPage() {
       downtimeHours: useDemoDowntime ? sampleWorkDurationHours : actualDowntimeHours,
       useDemoDowntime,
     }
-  }, [machinesWithStatus, maintenance])
+  }, [machinesWithStatus, accessibleMaintenance])
 
   const types = useMemo(
     () => ['All', ...Array.from(new Set(machines.map((m) => m.type)))],
@@ -144,9 +155,16 @@ export default function OverviewPage() {
 
         <div className="relative z-10 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="space-y-1.5">
-            <div className="inline-flex items-center gap-2 rounded-full border border-sky-400/35 bg-sky-500/10 px-3 py-1 text-[11px] font-semibold text-sky-300 shadow-sm backdrop-blur-md">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-              <span>{t('AI Fleet Health & Predictive Maintenance')}</span>
+            <div className="inline-flex flex-wrap items-center gap-2">
+              <div className="inline-flex items-center gap-2 rounded-full border border-sky-400/35 bg-sky-500/10 px-3 py-1 text-[11px] font-semibold text-sky-300 shadow-sm backdrop-blur-md">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                <span>{t('AI Fleet Health & Predictive Maintenance')}</span>
+              </div>
+              {currentUser?.role === 'technician' && (
+                <span className="rounded-full border border-sky-400/40 bg-sky-500/20 px-2.5 py-0.5 text-[10px] font-semibold text-sky-200">
+                  {currentUser.name} · {accessibleMachines.length} Assigned Machines
+                </span>
+              )}
             </div>
             <h2 className="text-xl sm:text-2xl font-extrabold tracking-tight text-ink">
               <span className="text-gradient">Industrial Fleet Intelligence</span>

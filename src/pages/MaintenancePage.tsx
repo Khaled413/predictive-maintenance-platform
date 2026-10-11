@@ -9,6 +9,7 @@ import EmptyState from '../components/ui/EmptyState'
 import { cx, formatDate, formatInt } from '../utils/helpers'
 import { maintenanceStatusFromPrediction } from '../utils/predictionThresholds'
 import type { MaintenancePriority, MaintenanceRecord, MaintenanceStatus } from '../types'
+import { useAuth } from '../context/AuthContext'
 
 const TABS: { key: string; label: string }[] = [
   { key: 'Upcoming', label: 'Upcoming' },
@@ -42,6 +43,7 @@ export default function MaintenancePage() {
     notify,
     refreshTimestamp,
   } = useApp()
+  const { checkPermission, checkOrderAccess, checkOrderModify } = useAuth()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
 
@@ -92,8 +94,13 @@ export default function MaintenancePage() {
     setFormOpen(true)
   }
 
+  const accessibleMaintenance = useMemo(
+    () => maintenance.filter((r) => checkOrderAccess(r)),
+    [maintenance, checkOrderAccess]
+  )
+
   const filtered = useMemo(() => {
-    let list = [...maintenance]
+    let list = [...accessibleMaintenance]
     if (tab === 'Upcoming') {
       list = list.filter((r) => r.status === 'Recommended' || r.status === 'Scheduled')
     } else if (tab === 'History') {
@@ -111,19 +118,19 @@ export default function MaintenancePage() {
       )
     }
     return list
-  }, [maintenance, tab, priorityFilter, search])
+  }, [accessibleMaintenance, tab, priorityFilter, search])
 
   const counts = useMemo(
     () => ({
-      Upcoming: maintenance.filter(
+      Upcoming: accessibleMaintenance.filter(
         (r) => r.status === 'Recommended' || r.status === 'Scheduled'
       ).length,
-      Scheduled: maintenance.filter((r) => r.status === 'Scheduled').length,
-      'In Progress': maintenance.filter((r) => r.status === 'In Progress').length,
-      Completed: maintenance.filter((r) => r.status === 'Completed').length,
-      Cancelled: maintenance.filter((r) => r.status === 'Cancelled').length,
+      Scheduled: accessibleMaintenance.filter((r) => r.status === 'Scheduled').length,
+      'In Progress': accessibleMaintenance.filter((r) => r.status === 'In Progress').length,
+      Completed: accessibleMaintenance.filter((r) => r.status === 'Completed').length,
+      Cancelled: accessibleMaintenance.filter((r) => r.status === 'Cancelled').length,
     }),
-    [maintenance]
+    [accessibleMaintenance]
   )
 
   const submitForm = () => {
@@ -295,12 +302,14 @@ export default function MaintenancePage() {
             </button>
           ))}
         </div>
-        <div className="ml-auto">
-          <button type="button" className="btn-primary" onClick={openCreate}>
-            <CalendarPlus className="h-4 w-4" />
-            Schedule Maintenance
-          </button>
-        </div>
+        {checkPermission('maintenance.create') && (
+          <div className="ml-auto">
+            <button type="button" className="btn-primary" onClick={openCreate}>
+              <CalendarPlus className="h-4 w-4" />
+              Schedule Maintenance
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Filters */}
@@ -394,65 +403,75 @@ export default function MaintenancePage() {
                       <MaintenanceRecordStatusBadge status={r.status} />
                     </td>
                     <td className="px-3 py-3">
-                      <div className="flex items-center justify-end gap-1.5">
-                        {r.status === 'Recommended' && (
-                          <button
-                            type="button"
-                            title="Schedule this task"
-                            onClick={() => advance(r, 'Scheduled')}
-                            className="btn-ghost btn-sm"
-                          >
-                            <CalendarPlus className="h-3.5 w-3.5" />
-                            Schedule
-                          </button>
-                        )}
-                        {r.status === 'Scheduled' && (
-                          <button
-                            type="button"
-                            title="Start work"
-                            onClick={() => advance(r, 'In Progress')}
-                            className="btn-ghost btn-sm"
-                          >
-                            <Play className="h-3.5 w-3.5" />
-                            Start
-                          </button>
-                        )}
-                        {r.status === 'In Progress' && (
-                          <button
-                            type="button"
-                            title="Mark as completed"
-                            onClick={() => advance(r, 'Completed')}
-                            className="btn-primary btn-sm"
-                          >
-                            <CheckCheck className="h-3.5 w-3.5" />
-                            Complete
-                          </button>
-                        )}
-                        {['Recommended', 'Scheduled', 'In Progress'].includes(
-                          r.status
-                        ) && (
-                          <button
-                            type="button"
-                            title="Cancel work order"
-                            onClick={() => {
-                              if (window.confirm(`Cancel work order ${r.id}?`))
-                                advance(r, 'Cancelled')
-                            }}
-                            className="btn-ghost btn-sm"
-                          >
-                            <Ban className="h-3.5 w-3.5" />
-                            Cancel
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          title="Edit record"
-                          onClick={() => openEdit(r)}
-                          className="rounded-lg border border-line bg-navy-800/60 p-1.5 text-ink-dim transition-colors hover:border-sky-400/30 hover:text-sky-300"
-                        >
-                          <Pencil className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
+                      {checkOrderModify(r) ? (
+                        <div className="flex items-center justify-end gap-1.5">
+                          {r.status === 'Recommended' && checkPermission('maintenance.update') && (
+                            <button
+                              type="button"
+                              title="Schedule this task"
+                              onClick={() => advance(r, 'Scheduled')}
+                              className="btn-ghost btn-sm"
+                            >
+                              <CalendarPlus className="h-3.5 w-3.5" />
+                              Schedule
+                            </button>
+                          )}
+                          {r.status === 'Scheduled' && checkPermission('maintenance.update') && (
+                            <button
+                              type="button"
+                              title="Start work"
+                              onClick={() => advance(r, 'In Progress')}
+                              className="btn-ghost btn-sm"
+                            >
+                              <Play className="h-3.5 w-3.5" />
+                              Start
+                            </button>
+                          )}
+                          {r.status === 'In Progress' && checkPermission('maintenance.complete') && (
+                            <button
+                              type="button"
+                              title="Mark as completed"
+                              onClick={() => advance(r, 'Completed')}
+                              className="btn-primary btn-sm"
+                            >
+                              <CheckCheck className="h-3.5 w-3.5" />
+                              Complete
+                            </button>
+                          )}
+                          {['Recommended', 'Scheduled', 'In Progress'].includes(
+                            r.status
+                          ) && checkPermission('maintenance.update') && (
+                            <button
+                              type="button"
+                              title="Cancel work order"
+                              onClick={() => {
+                                if (window.confirm(`Cancel work order ${r.id}?`))
+                                  advance(r, 'Cancelled')
+                              }}
+                              className="btn-ghost btn-sm"
+                            >
+                              <Ban className="h-3.5 w-3.5" />
+                              Cancel
+                            </button>
+                          )}
+                          {checkPermission('maintenance.update') && (
+                            <button
+                              type="button"
+                              title="Edit record"
+                              onClick={() => openEdit(r)}
+                              className="rounded-lg border border-line bg-navy-800/60 p-1.5 text-ink-dim transition-colors hover:border-sky-400/30 hover:text-sky-300"
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-end">
+                          <span className="font-mono text-[10px] text-ink-faint italic">
+                            Assignment restricted
+                          </span>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 ))}

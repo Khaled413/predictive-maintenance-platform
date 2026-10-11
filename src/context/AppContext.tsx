@@ -39,6 +39,8 @@ import {
   statusForPrediction,
 } from '../utils/predictionThresholds'
 import type { PredictionInputs, PredictionResponse } from '../types'
+import { useAuth } from './AuthContext'
+import { supabase, isSupabaseConfigured } from '../lib/supabase'
 
 const STORAGE_KEY = 'iap-state-v4'
 
@@ -295,6 +297,7 @@ function addPredictionAlert(
 }
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
+  const { checkPermission, checkMachineAccess, checkOrderModify, logAudit } = useAuth()
   const [state, setState] = useState<PersistedState>(loadState)
   const [lastUpdated, setLastUpdated] = useState(() => new Date().toISOString())
   const [modelSystemStatus, setModelSystemStatus] = useState(UNAVAILABLE_MODEL_STATUS)
@@ -448,6 +451,56 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // Sync with Supabase Database if configured
+  useEffect(() => {
+    if (!isSupabaseConfigured || !supabase) return
+    const client = supabase
+
+    const syncFromSupabase = async () => {
+      try {
+        const { data: dbMachines } = await client.from('machines').select('*')
+        if (dbMachines && dbMachines.length > 0) {
+          setState((prev) => {
+            const existingMap = new Map(prev.machines.map((m) => [m.id, m]))
+            const mergedMachines: Machine[] = (dbMachines as any[]).map((dbM: any) => {
+              const existing = existingMap.get(dbM.id)
+              return {
+                id: dbM.id,
+                name: dbM.name,
+                type: dbM.type,
+                status: (dbM.status as any) || existing?.status || 'Operational',
+                healthScore: dbM.health_score !== null ? Number(dbM.health_score) : (existing?.healthScore ?? 95),
+                failureRisk: dbM.failure_risk !== null ? Number(dbM.failure_risk) : (existing?.failureRisk ?? 5),
+                location: dbM.location || existing?.location || 'Plant Floor',
+                manufacturer: dbM.manufacturer || existing?.manufacturer || 'Siemens Industrial',
+                model: dbM.model || existing?.model || 'Series Standard',
+                installationDate: existing?.installationDate || '2023-01-15',
+                lastMaintenance: dbM.last_maintenance || existing?.lastMaintenance || new Date().toISOString(),
+                nextMaintenance: dbM.next_maintenance || existing?.nextMaintenance || new Date().toISOString(),
+                description: existing?.description || `${dbM.name} operational fleet unit`,
+                recommendation: existing?.recommendation || 'Regular inspection schedule',
+                likelihood: existing?.likelihood || 'Low',
+                sensors: (Array.isArray(dbM.sensors) ? dbM.sensors : existing?.sensors) || [],
+                history: existing?.history || [],
+                sensorHistory: existing?.sensorHistory || [],
+                events: existing?.events || [],
+                modelTypeCode: existing?.modelTypeCode || 'M',
+                predictionInputs: existing?.predictionInputs || ({} as any),
+                predictionStatus: existing?.predictionStatus || 'available',
+                maintenanceStatus: existing?.maintenanceStatus || 'Scheduled',
+              } as Machine
+            })
+            return { ...prev, machines: mergedMachines }
+          })
+        }
+      } catch (err) {
+        console.warn('Supabase fleet sync notice:', err)
+      }
+    }
+
+    void syncFromSupabase()
+  }, [])
+
   // Persist to localStorage
   useEffect(() => {
     try {
@@ -472,37 +525,111 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const refreshTimestamp = useCallback(() => setLastUpdated(new Date().toISOString()), [])
 
-  const addMachine = useCallback((m: Machine) => {
-    setState((s) => ({
-      ...s,
-      machines: [...s.machines, m],
-      alerts: m.prediction ? addPredictionAlert(s.alerts, m, m.prediction) : s.alerts,
-    }))
-  }, [])
+  const addMachine = useCallback(
+    (m: Machine) => {
+      if (!checkPermission('machines.create')) {
+        notify('error', 'Access Denied', 'You do not have permission to create machines.')
+        logAudit('machines.create', 'machine', m.id, 'denied', { name: m.name })
+        return
+      }
+      setState((s) => ({
+        ...s,
+        machines: [...s.machines, m],
+        alerts: m.prediction ? addPredictionAlert(s.alerts, m, m.prediction) : s.alerts,
+      }))
+      logAudit('machines.create', 'machine', m.id, 'allowed', { name: m.name })
 
-  const updateMachine = useCallback((id: string, patch: Partial<Machine>) => {
-    setState((s) => ({
-      ...s,
-      machines: s.machines.map((m) => (m.id === id ? { ...m, ...patch } : m)),
-    }))
-  }, [])
+      if (isSupabaseConfigured && supabase) {
+        void (supabase as any).from('machines').insert({
+          id: m.id,
+          name: m.name,
+          type: m.type,
+          location: m.location,
+          manufacturer: m.manufacturer,
+          model: m.model,
+          health_score: m.healthScore,
+          failure_risk: m.failureRisk,
+          sensors: m.sensors as any,
+        })
+      }
+    },
+    [checkPermission, logAudit, notify]
+  )
 
-  const deleteMachine = useCallback((id: string) => {
-    predictionRequestTokens.current.delete(id)
-    setState((s) => ({
-      ...s,
-      machines: s.machines.filter((m) => m.id !== id),
-      maintenance: s.maintenance.filter((r) => r.machineId !== id),
-      alerts: s.alerts.filter((a) => a.machineId !== id),
-    }))
-  }, [])
+  const updateMachine = useCallback(
+    (id: string, patch: Partial<Machine>) => {
+      if (!checkPermission('machines.update')) {
+        notify('error', 'Access Denied', 'You do not have permission to update machine configurations.')
+        logAudit('machines.update', 'machine', id, 'denied', { patch })
+        return
+      }
+      if (!checkMachineAccess(id)) {
+        notify('error', 'Access Denied', 'Machine is outside your operational scope.')
+        logAudit('machines.update', 'machine', id, 'denied', { reason: 'outside_scope' })
+        return
+      }
+      setState((s) => ({
+        ...s,
+        machines: s.machines.map((m) => (m.id === id ? { ...m, ...patch } : m)),
+      }))
+      logAudit('machines.update', 'machine', id, 'allowed', { patchKeys: Object.keys(patch) })
+    },
+    [checkPermission, checkMachineAccess, logAudit, notify]
+  )
 
-  const addMaintenance = useCallback((r: MaintenanceRecord) => {
-    setState((s) => ({
-      ...s,
-      maintenance: [{ ...r, isDemo: r.isDemo ?? false }, ...s.maintenance],
-    }))
-  }, [])
+  const deleteMachine = useCallback(
+    (id: string) => {
+      if (!checkPermission('machines.delete')) {
+        notify('error', 'Access Denied', 'You do not have permission to delete machines.')
+        logAudit('machines.delete', 'machine', id, 'denied')
+        return
+      }
+      predictionRequestTokens.current.delete(id)
+      setState((s) => ({
+        ...s,
+        machines: s.machines.filter((m) => m.id !== id),
+        maintenance: s.maintenance.filter((r) => r.machineId !== id),
+        alerts: s.alerts.filter((a) => a.machineId !== id),
+      }))
+      logAudit('machines.delete', 'machine', id, 'allowed')
+
+      if (isSupabaseConfigured && supabase) {
+        void supabase.from('machines').delete().eq('id', id)
+      }
+    },
+    [checkPermission, logAudit, notify]
+  )
+
+  const addMaintenance = useCallback(
+    (r: MaintenanceRecord) => {
+      if (!checkPermission('maintenance.create')) {
+        notify('error', 'Access Denied', 'You do not have permission to create maintenance orders.')
+        logAudit('maintenance.create', 'maintenance', r.id, 'denied')
+        return
+      }
+      setState((s) => ({
+        ...s,
+        maintenance: [{ ...r, isDemo: r.isDemo ?? false }, ...s.maintenance],
+      }))
+      logAudit('maintenance.create', 'maintenance', r.id, 'allowed', { machineId: r.machineId })
+
+      if (isSupabaseConfigured && supabase) {
+        void (supabase as any).from('maintenance_orders').insert({
+          id: r.id,
+          machine_id: r.machineId,
+          title: r.type,
+          description: r.reason,
+          priority: r.priority,
+          status: r.status,
+          technician_name: r.technician,
+          downtime: r.downtime,
+          cost: r.cost,
+          notes: r.notes,
+        })
+      }
+    },
+    [checkPermission, logAudit, notify]
+  )
 
   const createMaintenanceFromAlert = useCallback(
     (alertId: string) => {
@@ -583,6 +710,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     ) => {
       const record = state.maintenance.find((item) => item.id === id)
       if (!record) return false
+
+      const requiredPerm = status === 'Completed' ? 'maintenance.complete' : 'maintenance.update'
+      if (!checkPermission(requiredPerm)) {
+        notify('error', 'Access Denied', `You do not have permission to transition this order to ${status}.`)
+        logAudit(requiredPerm, 'maintenance', id, 'denied', { targetStatus: status })
+        return false
+      }
+
+      if (!checkOrderModify(record)) {
+        notify('error', 'Access Denied', 'You can only update maintenance orders assigned to you.')
+        logAudit(requiredPerm, 'maintenance', id, 'denied', { reason: 'not_assigned_to_user', targetStatus: status })
+        return false
+      }
+
       const allowed: Record<MaintenanceRecord['status'], MaintenanceRecord['status'][]> =
         {
           Recommended: ['Scheduled', 'Cancelled'],
@@ -616,14 +757,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             : item
         ),
       }))
+      logAudit(requiredPerm, 'maintenance', id, 'allowed', { fromStatus: record.status, targetStatus: status })
       return true
     },
-    [state.maintenance]
+    [checkPermission, checkOrderModify, logAudit, notify, state.maintenance]
   )
 
-  const deleteMaintenance = useCallback((id: string) => {
-    setState((s) => ({ ...s, maintenance: s.maintenance.filter((r) => r.id !== id) }))
-  }, [])
+  const deleteMaintenance = useCallback(
+    (id: string) => {
+      if (!checkPermission('maintenance.update')) {
+        notify('error', 'Access Denied', 'You do not have permission to delete maintenance records.')
+        return
+      }
+      setState((s) => ({ ...s, maintenance: s.maintenance.filter((r) => r.id !== id) }))
+    },
+    [checkPermission, notify]
+  )
 
   const setAlertStatus = useCallback((id: string, status: Alert['status']) => {
     setState((s) => ({
@@ -664,8 +813,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }))
   }, [])
 
-  const saveThresholds = useCallback((t: Thresholds) => {
-    setState((s) => {
+  const saveThresholds = useCallback(
+    (t: Thresholds) => {
+      if (!checkPermission('models.manage')) {
+        notify('error', 'Access Denied', 'You do not have permission to modify model thresholds.')
+        logAudit('models.manage', 'settings', 'thresholds', 'denied')
+        return
+      }
+      logAudit('models.manage', 'settings', 'thresholds', 'allowed')
+      setState((s) => {
       const machines = s.machines.map((machine) => {
         if (!machine.prediction) return machine
         const status = statusForPrediction(machine.prediction, t)
@@ -708,7 +864,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       })
       return { ...s, machines, alerts, thresholds: t }
     })
-  }, [])
+  }, [checkPermission, logAudit, notify])
 
   const resetDemo = useCallback(() => {
     localStorage.removeItem(STORAGE_KEY)

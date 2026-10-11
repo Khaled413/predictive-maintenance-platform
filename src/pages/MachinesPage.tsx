@@ -11,9 +11,11 @@ import EmptyState from '../components/ui/EmptyState'
 import { cx, healthTone } from '../utils/helpers'
 import { formatDate } from '../utils/helpers'
 import type { Machine } from '../types'
+import { useAuth } from '../context/AuthContext'
 
 export default function MachinesPage() {
   const { machines, thresholds, deleteMachine, notify, refreshTimestamp } = useApp()
+  const { checkPermission, checkMachineAccess, currentUser } = useAuth()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
 
@@ -35,14 +37,18 @@ export default function MachinesPage() {
     }
   }, [searchParams, setSearchParams])
 
-  const derived = machines
+  const accessibleMachines = useMemo(
+    () => machines.filter((m) => checkMachineAccess(m.id)),
+    [machines, checkMachineAccess]
+  )
+  const derived = accessibleMachines
   const types = useMemo(
-    () => ['All', ...Array.from(new Set(machines.map((m) => m.type)))],
-    [machines]
+    () => ['All', ...Array.from(new Set(derived.map((m) => m.type)))],
+    [derived]
   )
   const maintStatuses = useMemo(
-    () => ['All', ...Array.from(new Set(machines.map((m) => m.maintenanceStatus)))],
-    [machines]
+    () => ['All', ...Array.from(new Set(derived.map((m) => m.maintenanceStatus)))],
+    [derived]
   )
 
   const filtered = derived.filter((m) => {
@@ -84,7 +90,7 @@ export default function MachinesPage() {
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <span className="chip border-line/60 bg-navy-800/80 font-mono text-[11px] font-semibold text-ink">
-            Total · {machines.length}
+            {currentUser?.role === 'technician' ? 'Assigned' : 'Fleet Total'} · {derived.length}
           </span>
           <span className="chip border-emerald-400/35 bg-gradient-to-r from-emerald-500/15 to-teal-500/10 text-emerald-300 font-semibold shadow-sm">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
@@ -99,12 +105,14 @@ export default function MachinesPage() {
             {summary.Critical} Critical
           </span>
         </div>
-        <div className="ml-auto">
-          <button type="button" className="btn-primary" onClick={() => setAddOpen(true)}>
-            <Plus className="h-4 w-4" />
-            Add Machine
-          </button>
-        </div>
+        {checkPermission('machines.create') && (
+          <div className="ml-auto">
+            <button type="button" className="btn-primary" onClick={() => setAddOpen(true)}>
+              <Plus className="h-4 w-4" />
+              Add Machine
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Filters */}
@@ -332,14 +340,16 @@ export default function MachinesPage() {
                           >
                             <Eye className="h-4 w-4" />
                           </button>
-                          <button
-                            type="button"
-                            title="Remove machine"
-                            onClick={() => setDeleteTarget(m)}
-                            className="rounded-lg p-1.5 text-ink-dim transition-colors hover:bg-red-500/15 hover:text-red-300"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
+                          {checkPermission('machines.delete') && (
+                            <button
+                              type="button"
+                              title="Remove machine"
+                              onClick={() => setDeleteTarget(m)}
+                              className="rounded-lg p-1.5 text-ink-dim transition-colors hover:bg-red-500/15 hover:text-red-300"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>

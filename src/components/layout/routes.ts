@@ -6,30 +6,42 @@ import {
   LayoutDashboard,
   ScanLine,
   Settings,
+  Users,
   Wrench,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
+import type { Permission } from '../../types/auth'
 
 export interface NavItem {
   path: string
   label: string
   icon: LucideIcon
   end?: boolean
+  requiredPermission?: Permission
 }
 
 export const NAV_ITEMS: NavItem[] = [
-  { path: '/', label: 'Overview', icon: LayoutDashboard, end: true },
-  { path: '/machines', label: 'Machines', icon: Factory },
-  { path: '/maintenance', label: 'Maintenance', icon: Wrench },
-  { path: '/quality', label: 'Quality Inspection', icon: ScanLine },
-  { path: '/assistant', label: 'AI Assistant', icon: Bot },
-  { path: '/alerts', label: 'Alerts', icon: BellRing },
-  { path: '/reports', label: 'Reports', icon: BarChart3 },
-  { path: '/settings', label: 'Settings', icon: Settings },
+  { path: '/app', label: 'Overview', icon: LayoutDashboard, end: true, requiredPermission: 'dashboard.view' },
+  { path: '/machines', label: 'Machines', icon: Factory, requiredPermission: 'machines.read' },
+  { path: '/maintenance', label: 'Maintenance', icon: Wrench, requiredPermission: 'maintenance.read' },
+  { path: '/users', label: 'Users & RBAC', icon: Users, requiredPermission: 'users.read' },
+  { path: '/quality', label: 'Quality Inspection', icon: ScanLine, requiredPermission: 'models.read' },
+  { path: '/assistant', label: 'AI Assistant', icon: Bot, requiredPermission: 'assistant.use' },
+  { path: '/alerts', label: 'Alerts', icon: BellRing, requiredPermission: 'alerts.read' },
+  { path: '/reports', label: 'Reports', icon: BarChart3, requiredPermission: 'reports.read' },
+  { path: '/settings', label: 'Settings', icon: Settings, requiredPermission: 'settings.read' },
 ]
 
 export const PAGE_META: Record<string, { title: string; subtitle: string }> = {
   '/': {
+    title: 'Overview',
+    subtitle: 'Real-time fleet health and predictive maintenance summary',
+  },
+  '/app': {
+    title: 'Overview',
+    subtitle: 'Real-time fleet health and predictive maintenance summary',
+  },
+  '/overview': {
     title: 'Overview',
     subtitle: 'Real-time fleet health and predictive maintenance summary',
   },
@@ -40,6 +52,10 @@ export const PAGE_META: Record<string, { title: string; subtitle: string }> = {
   '/maintenance': {
     title: 'Maintenance',
     subtitle: 'Plan, track and complete maintenance work orders',
+  },
+  '/users': {
+    title: 'User Management & RBAC',
+    subtitle: 'Manage platform users, roles, machine authorizations, and security audit trail',
   },
   '/quality': {
     title: 'AI Quality Inspection',

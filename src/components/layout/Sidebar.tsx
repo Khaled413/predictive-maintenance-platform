@@ -1,7 +1,8 @@
 import { NavLink } from 'react-router-dom'
-import { Activity, Factory, X } from 'lucide-react'
+import { Activity, ExternalLink, Factory, Shield, Users, Wrench, X } from 'lucide-react'
 import { NAV_ITEMS } from './routes'
 import { useApp } from '../../context/AppContext'
+import { useAuth } from '../../context/AuthContext'
 import { cx } from '../../utils/helpers'
 import { usePreferences } from '../../context/PreferencesContext'
 
@@ -12,10 +13,16 @@ interface SidebarProps {
 
 export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
   const { alerts } = useApp()
+  const { currentUser, checkPermission } = useAuth()
   const { t } = usePreferences()
   const criticalActive = alerts.filter(
     (a) => a.severity === 'critical' && a.status === 'active'
   ).length
+
+  const visibleNavItems = NAV_ITEMS.filter((item) => {
+    if (!item.requiredPermission) return true
+    return checkPermission(item.requiredPermission)
+  })
 
   return (
     <>
@@ -73,7 +80,7 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
           <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-faint">
             {t('Main')}
           </p>
-          {NAV_ITEMS.map((item) => (
+          {visibleNavItems.map((item) => (
             <NavLink
               key={item.path}
               to={item.path}
@@ -122,7 +129,53 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
               )}
             </NavLink>
           ))}
+          <div className="pt-2 mt-2 border-t border-line/60">
+            <NavLink
+              to="/"
+              className="group relative flex items-center gap-3 rounded-xl px-3 py-2 text-[12.5px] font-medium text-ink-dim hover:bg-navy-700/60 hover:text-sky-300 transition-all"
+            >
+              <ExternalLink className="h-4 w-4 text-sky-400 group-hover:scale-110 transition-transform" />
+              <span>{t('Public Landing Page')}</span>
+            </NavLink>
+          </div>
         </nav>
+
+        {/* Active Role Card */}
+        <div className="px-3 pt-1">
+          <div className="flex items-center gap-2.5 rounded-xl border border-line/60 bg-navy-800/60 p-2.5">
+            <span
+              className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${
+                currentUser?.role === 'admin'
+                  ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
+                  : currentUser?.role === 'manager'
+                    ? 'bg-sky-500/20 text-sky-300 border border-sky-500/30'
+                    : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+              }`}
+            >
+              {currentUser?.role === 'admin' ? (
+                <Shield className="h-3.5 w-3.5" />
+              ) : currentUser?.role === 'manager' ? (
+                <Users className="h-3.5 w-3.5" />
+              ) : (
+                <Wrench className="h-3.5 w-3.5" />
+              )}
+            </span>
+            <div className="min-w-0 flex-1 leading-tight">
+              <p className="truncate text-[11px] font-bold text-ink">
+                {currentUser?.name}
+              </p>
+              <p className="truncate text-[9.5px] font-semibold text-sky-300 uppercase tracking-wider">
+                {t(
+                  currentUser?.role === 'admin'
+                    ? 'Admin'
+                    : currentUser?.role === 'manager'
+                      ? 'Maintenance Manager'
+                      : 'Technician'
+                )}
+              </p>
+            </div>
+          </div>
+        </div>
 
         {/* Bottom promo */}
         <div className="p-3">

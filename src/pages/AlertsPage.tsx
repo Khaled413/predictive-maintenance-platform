@@ -14,6 +14,7 @@ import { SeverityBadge } from '../components/ui/Badges'
 import EmptyState from '../components/ui/EmptyState'
 import { cx, severityClasses, timeAgo } from '../utils/helpers'
 import type { Severity } from '../types'
+import { useAuth } from '../context/AuthContext'
 
 const SEVERITY_ICON: Record<Severity, React.ComponentType<{ className?: string }>> = {
   critical: AlertOctagon,
@@ -39,23 +40,29 @@ export default function AlertsPage() {
     notify,
     refreshTimestamp,
   } = useApp()
+  const { checkPermission, checkMachineAccess, currentUser } = useAuth()
   const navigate = useNavigate()
 
   const [filter, setFilter] = useState<Severity | 'all'>('all')
   const [resolvedHidden, setResolvedHidden] = useState(true)
 
+  const accessibleAlerts = useMemo(
+    () => alerts.filter((a) => checkMachineAccess(a.machineId)),
+    [alerts, checkMachineAccess]
+  )
+
   const counts = useMemo((): Record<Severity | 'all', number> => {
-    const bySeverity = (s: Severity) => alerts.filter((a) => a.severity === s).length
+    const bySeverity = (s: Severity) => accessibleAlerts.filter((a) => a.severity === s).length
     return {
-      all: alerts.length,
+      all: accessibleAlerts.length,
       critical: bySeverity('critical'),
       warning: bySeverity('warning'),
       info: bySeverity('info'),
       success: bySeverity('success'),
     }
-  }, [alerts])
+  }, [accessibleAlerts])
 
-  const list = alerts
+  const list = accessibleAlerts
     .filter((a) => filter === 'all' || a.severity === filter)
     .filter((a) => !resolvedHidden || a.status !== 'resolved')
     .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
@@ -202,7 +209,7 @@ export default function AlertsPage() {
                     </div>
                   </div>
                   <div className="flex shrink-0 flex-col items-end gap-2">
-                    {a.status === 'active' && (
+                    {a.status === 'active' && checkPermission('alerts.update') && (
                       <button
                         type="button"
                         className="btn-ghost btn-sm"
@@ -211,7 +218,7 @@ export default function AlertsPage() {
                           notify(
                             'info',
                             'Alert acknowledged',
-                            `${a.id} acknowledged by Eng. Khaled.`
+                            `${a.id} acknowledged by ${currentUser?.name ?? 'current user'}.`
                           )
                         }}
                       >
@@ -220,6 +227,7 @@ export default function AlertsPage() {
                       </button>
                     )}
                     {a.status !== 'resolved' &&
+                      checkPermission('maintenance.create') &&
                       (() => {
                         const existingOrder = maintenance.find(
                           (record) => record.originAlertId === a.id
