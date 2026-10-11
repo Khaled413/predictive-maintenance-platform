@@ -34,6 +34,9 @@ export default defineConfig(({ mode }) => {
         },
       },
     },
+    esbuild: {
+      drop: ['console', 'debugger'],
+    },
     build: {
       // Keep the vendor libraries in stable, cacheable chunks.
       rollupOptions: {
@@ -47,12 +50,6 @@ export default defineConfig(({ mode }) => {
       },
       chunkSizeWarningLimit: 700,
       sourcemap: false,
-      minify: 'terser',
-      terserOptions: {
-        compress: {
-          drop_console: true,
-        },
-      },
     },
   }
 })
