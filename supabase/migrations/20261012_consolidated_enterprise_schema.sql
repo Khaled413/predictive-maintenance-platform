@@ -487,6 +487,14 @@ DECLARE
 BEGIN
     v_pw_hash := crypt('FactoryTest2026!', gen_salt('bf'));
 
+    -- Ensure NO NULL string tokens exist in auth.users (prevents GoTrue "Database error querying schema")
+    UPDATE auth.users
+    SET
+        confirmation_token = COALESCE(confirmation_token, ''),
+        recovery_token = COALESCE(recovery_token, ''),
+        email_change = COALESCE(email_change, ''),
+        email_change_token_new = COALESCE(email_change_token_new, '');
+
     -- 1. Connect existing admin user (admin@factory.com) to profiles table
     SELECT id INTO v_admin_id FROM auth.users WHERE email = 'admin@factory.com' LIMIT 1;
     IF v_admin_id IS NOT NULL THEN
@@ -499,15 +507,26 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM auth.users WHERE email = 'manager@factory.com') THEN
         INSERT INTO auth.users (
             instance_id, id, aud, role, email, encrypted_password,
-            email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
+            email_confirmed_at, raw_app_meta_data, raw_user_meta_data,
+            confirmation_token, recovery_token, email_change, email_change_token_new,
+            created_at, updated_at
         ) VALUES (
             '00000000-0000-0000-0000-000000000000', v_mgr_id, 'authenticated', 'authenticated',
             'manager@factory.com', v_pw_hash, now(),
             '{"provider":"email","providers":["email"]}'::jsonb,
-            '{"full_name":"Karim Mansour","role":"manager"}'::jsonb, now(), now()
+            '{"full_name":"Karim Mansour","role":"manager"}'::jsonb,
+            '', '', '', '',
+            now(), now()
         );
     ELSE
         SELECT id INTO v_mgr_id FROM auth.users WHERE email = 'manager@factory.com';
+        UPDATE auth.users
+        SET encrypted_password = v_pw_hash,
+            confirmation_token = COALESCE(confirmation_token, ''),
+            recovery_token = COALESCE(recovery_token, ''),
+            email_change = COALESCE(email_change, ''),
+            email_change_token_new = COALESCE(email_change_token_new, '')
+        WHERE id = v_mgr_id;
     END IF;
 
     INSERT INTO public.profiles (id, full_name, email, role_id, account_status, avatar_initials, department)
@@ -518,15 +537,26 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM auth.users WHERE email = 'tech1@factory.com') THEN
         INSERT INTO auth.users (
             instance_id, id, aud, role, email, encrypted_password,
-            email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
+            email_confirmed_at, raw_app_meta_data, raw_user_meta_data,
+            confirmation_token, recovery_token, email_change, email_change_token_new,
+            created_at, updated_at
         ) VALUES (
             '00000000-0000-0000-0000-000000000000', v_t1_id, 'authenticated', 'authenticated',
             'tech1@factory.com', v_pw_hash, now(),
             '{"provider":"email","providers":["email"]}'::jsonb,
-            '{"full_name":"Ahmed Hassan","role":"technician"}'::jsonb, now(), now()
+            '{"full_name":"Ahmed Hassan","role":"technician"}'::jsonb,
+            '', '', '', '',
+            now(), now()
         );
     ELSE
         SELECT id INTO v_t1_id FROM auth.users WHERE email = 'tech1@factory.com';
+        UPDATE auth.users
+        SET encrypted_password = v_pw_hash,
+            confirmation_token = COALESCE(confirmation_token, ''),
+            recovery_token = COALESCE(recovery_token, ''),
+            email_change = COALESCE(email_change, ''),
+            email_change_token_new = COALESCE(email_change_token_new, '')
+        WHERE id = v_t1_id;
     END IF;
 
     INSERT INTO public.profiles (id, full_name, email, role_id, account_status, avatar_initials, department)
@@ -541,15 +571,26 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM auth.users WHERE email = 'tech2@factory.com') THEN
         INSERT INTO auth.users (
             instance_id, id, aud, role, email, encrypted_password,
-            email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
+            email_confirmed_at, raw_app_meta_data, raw_user_meta_data,
+            confirmation_token, recovery_token, email_change, email_change_token_new,
+            created_at, updated_at
         ) VALUES (
             '00000000-0000-0000-0000-000000000000', v_t2_id, 'authenticated', 'authenticated',
             'tech2@factory.com', v_pw_hash, now(),
             '{"provider":"email","providers":["email"]}'::jsonb,
-            '{"full_name":"Sara Nabil","role":"technician"}'::jsonb, now(), now()
+            '{"full_name":"Sara Nabil","role":"technician"}'::jsonb,
+            '', '', '', '',
+            now(), now()
         );
     ELSE
         SELECT id INTO v_t2_id FROM auth.users WHERE email = 'tech2@factory.com';
+        UPDATE auth.users
+        SET encrypted_password = v_pw_hash,
+            confirmation_token = COALESCE(confirmation_token, ''),
+            recovery_token = COALESCE(recovery_token, ''),
+            email_change = COALESCE(email_change, ''),
+            email_change_token_new = COALESCE(email_change_token_new, '')
+        WHERE id = v_t2_id;
     END IF;
 
     INSERT INTO public.profiles (id, full_name, email, role_id, account_status, avatar_initials, department)
@@ -564,15 +605,26 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM auth.users WHERE email = 'tech3@factory.com') THEN
         INSERT INTO auth.users (
             instance_id, id, aud, role, email, encrypted_password,
-            email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
+            email_confirmed_at, raw_app_meta_data, raw_user_meta_data,
+            confirmation_token, recovery_token, email_change, email_change_token_new,
+            created_at, updated_at
         ) VALUES (
             '00000000-0000-0000-0000-000000000000', v_t3_id, 'authenticated', 'authenticated',
             'tech3@factory.com', v_pw_hash, now(),
             '{"provider":"email","providers":["email"]}'::jsonb,
-            '{"full_name":"Omar Farouk","role":"technician"}'::jsonb, now(), now()
+            '{"full_name":"Omar Farouk","role":"technician"}'::jsonb,
+            '', '', '', '',
+            now(), now()
         );
     ELSE
         SELECT id INTO v_t3_id FROM auth.users WHERE email = 'tech3@factory.com';
+        UPDATE auth.users
+        SET encrypted_password = v_pw_hash,
+            confirmation_token = COALESCE(confirmation_token, ''),
+            recovery_token = COALESCE(recovery_token, ''),
+            email_change = COALESCE(email_change, ''),
+            email_change_token_new = COALESCE(email_change_token_new, '')
+        WHERE id = v_t3_id;
     END IF;
 
     INSERT INTO public.profiles (id, full_name, email, role_id, account_status, avatar_initials, department)
@@ -587,15 +639,26 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM auth.users WHERE email = 'tech4@factory.com') THEN
         INSERT INTO auth.users (
             instance_id, id, aud, role, email, encrypted_password,
-            email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
+            email_confirmed_at, raw_app_meta_data, raw_user_meta_data,
+            confirmation_token, recovery_token, email_change, email_change_token_new,
+            created_at, updated_at
         ) VALUES (
             '00000000-0000-0000-0000-000000000000', v_t4_id, 'authenticated', 'authenticated',
             'tech4@factory.com', v_pw_hash, now(),
             '{"provider":"email","providers":["email"]}'::jsonb,
-            '{"full_name":"Mahmoud Tarek","role":"technician"}'::jsonb, now(), now()
+            '{"full_name":"Mahmoud Tarek","role":"technician"}'::jsonb,
+            '', '', '', '',
+            now(), now()
         );
     ELSE
         SELECT id INTO v_t4_id FROM auth.users WHERE email = 'tech4@factory.com';
+        UPDATE auth.users
+        SET encrypted_password = v_pw_hash,
+            confirmation_token = COALESCE(confirmation_token, ''),
+            recovery_token = COALESCE(recovery_token, ''),
+            email_change = COALESCE(email_change, ''),
+            email_change_token_new = COALESCE(email_change_token_new, '')
+        WHERE id = v_t4_id;
     END IF;
 
     INSERT INTO public.profiles (id, full_name, email, role_id, account_status, avatar_initials, department)
@@ -606,7 +669,7 @@ BEGIN
     VALUES ('M-008', v_t4_id, 'active'), ('M-012', v_t4_id, 'active')
     ON CONFLICT DO NOTHING;
 
-    -- Safe attempt to seed auth.identities for password login
+    -- Ensure identities exist for password login
     BEGIN
         INSERT INTO auth.identities (id, user_id, identity_data, provider, provider_id, last_sign_in_at, created_at, updated_at)
         VALUES
@@ -619,5 +682,13 @@ BEGIN
     EXCEPTION WHEN OTHERS THEN
         NULL;
     END;
+
+    -- Final ensure all token strings are non-NULL
+    UPDATE auth.users
+    SET
+        confirmation_token = COALESCE(confirmation_token, ''),
+        recovery_token = COALESCE(recovery_token, ''),
+        email_change = COALESCE(email_change, ''),
+        email_change_token_new = COALESCE(email_change_token_new, '');
 
 END $$;
