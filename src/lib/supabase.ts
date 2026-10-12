@@ -315,30 +315,20 @@ export interface Database {
   }
 }
 
-const getEnv = (key: string): string => {
-  try {
-    if (typeof import.meta !== 'undefined' && (import.meta as any).env && (import.meta as any).env[key]) {
-      return (import.meta as any).env[key]
-    }
-  } catch {
-    // ignore
-  }
-  try {
-    const proc = (globalThis as any).process
-    if (proc && proc.env && proc.env[key]) {
-      return proc.env[key]
-    }
-  } catch {
-    // ignore
-  }
-  return ''
-}
+const procEnv = (globalThis as any)?.process?.env
 
-const supabaseUrl = getEnv('VITE_SUPABASE_URL') || getEnv('SUPABASE_URL')
-const supabaseAnonKey =
-  getEnv('VITE_SUPABASE_ANON_KEY') ||
-  getEnv('VITE_SUPABASE_PUBLISHABLE_KEY') ||
-  getEnv('SUPABASE_ANON_KEY')
+const supabaseUrl: string =
+  (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_URL) ||
+  procEnv?.VITE_SUPABASE_URL ||
+  procEnv?.SUPABASE_URL ||
+  'https://tdlaaykvhuyecjupqoau.supabase.co'
+
+const supabaseAnonKey: string =
+  (typeof import.meta !== 'undefined' &&
+    (import.meta.env?.VITE_SUPABASE_ANON_KEY || import.meta.env?.VITE_SUPABASE_PUBLISHABLE_KEY)) ||
+  procEnv?.VITE_SUPABASE_ANON_KEY ||
+  procEnv?.SUPABASE_ANON_KEY ||
+  'sb_publishable_eyUw9szBPSLfytfpgMLSKQ_zHTBTeNY'
 
 export const isSupabaseConfigured = Boolean(
   supabaseUrl &&
