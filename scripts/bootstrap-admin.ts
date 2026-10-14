@@ -59,7 +59,7 @@ async function bootstrapAdmin() {
 
   // Check if user already exists
   const { data: userList } = await supabase.auth.admin.listUsers()
-  const existingUser = userList?.users.find((u) => u.email === email)
+  const existingUser = userList?.users?.find((u: { email?: string; id: string }) => u.email === email)
 
   let userId: string
 

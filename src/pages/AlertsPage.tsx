@@ -15,6 +15,7 @@ import EmptyState from '../components/ui/EmptyState'
 import { cx, severityClasses, timeAgo } from '../utils/helpers'
 import type { Severity } from '../types'
 import { useAuth } from '../context/AuthContext'
+import { usePreferences } from '../context/PreferencesContext'
 
 const SEVERITY_ICON: Record<Severity, React.ComponentType<{ className?: string }>> = {
   critical: AlertOctagon,
@@ -41,6 +42,7 @@ export default function AlertsPage() {
     refreshTimestamp,
   } = useApp()
   const { checkPermission, checkMachineAccess, currentUser } = useAuth()
+  const { t } = usePreferences()
   const navigate = useNavigate()
 
   const [filter, setFilter] = useState<Severity | 'all'>('all')
@@ -83,7 +85,7 @@ export default function AlertsPage() {
                   : 'text-ink-dim hover:bg-navy-800 hover:text-ink'
               )}
             >
-              {f === 'all' ? 'All' : f.charAt(0).toUpperCase() + f.slice(1)}
+              {f === 'all' ? t('All') : t(f.charAt(0).toUpperCase() + f.slice(1))}
               <span
                 className={cx(
                   'rounded-md bg-navy-700/80 px-1.5 font-mono text-[9.5px]',
@@ -102,13 +104,13 @@ export default function AlertsPage() {
             onChange={(e) => setResolvedHidden(e.target.checked)}
             className="h-3.5 w-3.5 accent-sky-500"
           />
-          Hide resolved alerts
+          {t('Hide resolved alerts')}
         </label>
       </div>
       {list.length === 0 ? (
         <EmptyState
-          title="No alerts in this view"
-          message="All clear — no alerts match the selected filters."
+          title={t('No alerts in this view')}
+          message={t('All clear — no alerts match the selected filters.')}
         />
       ) : (
         <div className="space-y-3">
@@ -151,26 +153,26 @@ export default function AlertsPage() {
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-[12.5px] font-bold text-ink">{a.type}</span>
+                      <span className="text-[12.5px] font-bold text-ink">{t(a.type)}</span>
                       <SeverityBadge severity={a.severity} />
                       {a.isDemo && (
                         <span className="chip border-amber-400/20 text-amber-300">
-                          DEMO INPUTS
+                          {t('DEMO INPUTS')}
                         </span>
                       )}
                       <span className="chip">
                         {a.status === 'active'
-                          ? '● Active'
+                          ? t('● Active')
                           : a.status === 'acknowledged'
-                            ? 'Acknowledged'
-                            : 'Resolved'}
+                            ? t('Acknowledged')
+                            : t('Resolved')}
                       </span>
                       <span className="ml-auto font-mono text-[10.5px] text-ink-faint">
                         {timeAgo(a.timestamp)}
                       </span>
                     </div>
                     <p className="mt-1.5 text-[12.5px] leading-relaxed text-ink-dim">
-                      {a.message}
+                      {t(a.message)}
                     </p>
                     <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px]">
                       <button
@@ -183,7 +185,7 @@ export default function AlertsPage() {
                         {quality ? (
                           <>
                             <Eye className="h-3 w-3" />
-                            Open Quality Inspection
+                            {t('Open Quality Inspection')}
                           </>
                         ) : (
                           <>
@@ -202,9 +204,9 @@ export default function AlertsPage() {
                       <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-sky-300" />
                       <p className="text-[11.5px] leading-relaxed text-ink-dim">
                         <span className="font-semibold text-sky-300/90">
-                          Recommended action:{' '}
+                          {t('Recommended action:')}{' '}
                         </span>
-                        {a.recommendedAction}
+                        {t(a.recommendedAction)}
                       </p>
                     </div>
                   </div>
@@ -217,13 +219,13 @@ export default function AlertsPage() {
                           setAlertStatus(a.id, 'acknowledged')
                           notify(
                             'info',
-                            'Alert acknowledged',
-                            `${a.id} acknowledged by ${currentUser?.name ?? 'current user'}.`
+                            t('Alert acknowledged'),
+                            `${a.id} ${t('acknowledged by')} ${currentUser?.name ?? 'current user'}.`
                           )
                         }}
                       >
                         <Eye className="h-3.5 w-3.5" />
-                        Acknowledge
+                        {t('Acknowledge')}
                       </button>
                     )}
                     {a.status !== 'resolved' &&
@@ -241,8 +243,8 @@ export default function AlertsPage() {
                               if (!record) {
                                 notify(
                                   'warning',
-                                  'Work order not created',
-                                  'The alert machine is no longer available in the fleet.'
+                                  t('Work order not created'),
+                                  t('The alert machine is no longer available in the fleet.')
                                 )
                                 return
                               }
@@ -251,8 +253,8 @@ export default function AlertsPage() {
                               notify(
                                 'success',
                                 existingOrder
-                                  ? 'Work order already exists'
-                                  : 'Work order created',
+                                  ? t('Work order already exists')
+                                  : t('Work order created'),
                                 `${record.id} · ${record.machineId}`
                               )
                               refreshTimestamp()
@@ -262,7 +264,7 @@ export default function AlertsPage() {
                             }}
                           >
                             <CalendarPlus className="h-3.5 w-3.5" />
-                            {existingOrder ? 'Open Work Order' : 'Create Work Order'}
+                            {existingOrder ? t('Open Work Order') : t('Create Work Order')}
                           </button>
                         )
                       })()}
@@ -274,14 +276,14 @@ export default function AlertsPage() {
                           setAlertStatus(a.id, 'resolved')
                           notify(
                             'success',
-                            'Alert resolved',
+                            t('Alert resolved'),
                             `${a.id} marked as resolved.`
                           )
                           refreshTimestamp()
                         }}
                       >
                         <CheckCheck className="h-3.5 w-3.5" />
-                        Resolve
+                        {t('Resolve')}
                       </button>
                     )}
                   </div>

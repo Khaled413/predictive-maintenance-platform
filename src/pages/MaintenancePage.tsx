@@ -1,6 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { CalendarPlus, CheckCheck, Hammer, Pencil, Play, Search, Ban } from 'lucide-react'
+import {
+  CalendarPlus,
+  CheckCheck,
+  Hammer,
+  Pencil,
+  Play,
+  Search,
+  Ban,
+  Image as ImageIcon,
+  X,
+} from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { PriorityBadge, MaintenanceRecordStatusBadge } from '../components/ui/Badges'
 import { SelectInput, TextInput, Field } from '../components/ui/Field'
@@ -10,6 +20,7 @@ import { cx, formatDate, formatInt } from '../utils/helpers'
 import { maintenanceStatusFromPrediction } from '../utils/predictionThresholds'
 import type { MaintenancePriority, MaintenanceRecord, MaintenanceStatus } from '../types'
 import { useAuth } from '../context/AuthContext'
+import { usePreferences } from '../context/PreferencesContext'
 
 const TABS: { key: string; label: string }[] = [
   { key: 'Upcoming', label: 'Upcoming' },
@@ -30,6 +41,7 @@ const EMPTY_FORM = {
   downtime: '',
   cost: '',
   notes: '',
+  attachments: [] as Array<{ id: string; url: string; name: string; timestamp: string }>,
 }
 
 export default function MaintenancePage() {
@@ -44,6 +56,7 @@ export default function MaintenancePage() {
     refreshTimestamp,
   } = useApp()
   const { checkPermission, checkOrderAccess, checkOrderModify } = useAuth()
+  const { t } = usePreferences()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
 
@@ -60,11 +73,47 @@ export default function MaintenancePage() {
     failureCause: '',
     technician: '',
     notes: '',
+    attachments: [] as Array<{ id: string; url: string; name: string; timestamp: string }>,
   })
+  const [previewImage, setPreviewImage] = useState<{ url: string; title: string } | null>(null)
+
+  const handlePhotoUpload = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    target: 'form' | 'completion'
+  ) => {
+    const files = e.target.files
+    if (!files || files.length === 0) return
+
+    Array.from(files).forEach((file) => {
+      const reader = new FileReader()
+      reader.onload = (event) => {
+        const url = event.target?.result as string
+        if (!url) return
+        const newAttachment = {
+          id: `att-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+          url,
+          name: file.name,
+          timestamp: new Date().toISOString(),
+        }
+        if (target === 'form') {
+          setForm((prev) => ({
+            ...prev,
+            attachments: [...prev.attachments, newAttachment],
+          }))
+        } else {
+          setCompletion((prev) => ({
+            ...prev,
+            attachments: [...prev.attachments, newAttachment],
+          }))
+        }
+      }
+      reader.readAsDataURL(file)
+    })
+  }
 
   const openCreate = useCallback(() => {
     setEditId(null)
-    setForm({ ...EMPTY_FORM, machineId: machines[0]?.id ?? '' })
+    setForm({ ...EMPTY_FORM, machineId: machines[0]?.id ?? '', attachments: [] })
     setFormOpen(true)
   }, [machines])
 
@@ -90,6 +139,7 @@ export default function MaintenancePage() {
       downtime: r.downtime,
       cost: r.cost === null ? '' : String(r.cost),
       notes: r.notes,
+      attachments: r.attachments ?? [],
     })
     setFormOpen(true)
   }
@@ -171,6 +221,7 @@ export default function MaintenancePage() {
       cost: estimatedCost,
       notes: form.notes,
       maintenanceKind: form.maintenanceKind || undefined,
+      attachments: form.attachments.length > 0 ? form.attachments : undefined,
     }
     if (editId) {
       updateMaintenance(editId, rec)
@@ -195,6 +246,7 @@ export default function MaintenancePage() {
         failureCause: '',
         technician: r.technician === 'Unassigned' ? '' : r.technician,
         notes: '',
+        attachments: [],
       })
       return
     }
@@ -238,6 +290,7 @@ export default function MaintenancePage() {
       failureCause: completion.failureCause.trim() || undefined,
       technician: completion.technician.trim() || completionTarget.technician,
       completionNotes: completion.notes.trim() || undefined,
+      attachments: completion.attachments.length > 0 ? completion.attachments : undefined,
     })
     if (!changed) {
       notify(
@@ -268,36 +321,37 @@ export default function MaintenancePage() {
   return (
     <div className="space-y-5">
       <div className="rounded-xl border border-sky-400/25 bg-gradient-to-r from-sky-500/10 via-indigo-500/5 to-transparent px-4 py-3 text-[11px] leading-relaxed text-ink-faint shadow-sm backdrop-blur-md">
-        Work orders are stored in this browser only; demo example records are labeled and
-        excluded from actual downtime and cost KPIs. This is not a connected CMMS.
+        {t(
+          'Work orders are stored in this browser only; demo example records are labeled and excluded from actual downtime and cost KPIs. This is not a connected CMMS.'
+        )}
       </div>
       {/* Tabs */}
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex rounded-xl border border-line bg-navy-900/60 p-1">
-          {TABS.map((t) => (
+          {TABS.map((tabItem) => (
             <button
-              key={t.key}
+              key={tabItem.key}
               type="button"
-              onClick={() => setTab(t.key)}
+              onClick={() => setTab(tabItem.key)}
               className={cx(
                 'flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-semibold transition-all duration-200',
-                tab === t.key
+                tab === tabItem.key
                   ? 'border border-sky-400/30 bg-gradient-to-r from-sky-500/20 via-blue-500/15 to-indigo-500/20 text-sky-300 shadow-sm'
                   : 'text-ink-dim hover:bg-navy-800/80 hover:text-ink'
               )}
             >
-              {t.label}
+              {t(tabItem.label)}
               <span
                 className={cx(
                   'rounded-md px-1.5 font-mono text-[9.5px]',
-                  tab === t.key
+                  tab === tabItem.key
                     ? 'bg-sky-500/25 text-sky-200 font-bold'
                     : 'bg-navy-700/80 text-ink-faint'
                 )}
               >
-                {t.key === 'Upcoming'
+                {tabItem.key === 'Upcoming'
                   ? counts.Upcoming
-                  : (counts[t.key as keyof typeof counts] ?? 0)}
+                  : (counts[tabItem.key as keyof typeof counts] ?? 0)}
               </span>
             </button>
           ))}
@@ -306,7 +360,7 @@ export default function MaintenancePage() {
           <div className="ml-auto">
             <button type="button" className="btn-primary" onClick={openCreate}>
               <CalendarPlus className="h-4 w-4" />
-              Schedule Maintenance
+              {t('Schedule Maintenance')}
             </button>
           </div>
         )}
@@ -317,7 +371,7 @@ export default function MaintenancePage() {
         <div className="relative min-w-0 flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-faint" />
           <TextInput
-            placeholder="Search by machine, type, reason or technician…"
+            placeholder={t('Search by machine, type, reason or technician…')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9"
@@ -330,18 +384,20 @@ export default function MaintenancePage() {
         >
           {['All', 'High', 'Medium', 'Low'].map((p) => (
             <option key={p} value={p}>
-              {p === 'All' ? 'Priority: All' : p}
+              {p === 'All' ? `${t('Priority')}: ${t('All')}` : t(p)}
             </option>
           ))}
         </SelectInput>
         <span className="shrink-0 rounded-lg border border-line bg-navy-800/60 px-2.5 py-1.5 font-mono text-[11px] text-ink-dim">
-          {filtered.length} records
+          {filtered.length} {t('records')}
         </span>
       </div>
       {filtered.length === 0 ? (
         <EmptyState
-          title={`No ${tab.toLowerCase()} maintenance records`}
-          message="Schedule maintenance work to keep your machines healthy and production running."
+          title={`${t('No')} ${t(tab)} ${t('maintenance records')}`}
+          message={t(
+            'Schedule maintenance work to keep your machines healthy and production running.'
+          )}
         />
       ) : (
         <div className="panel overflow-hidden">
@@ -349,15 +405,15 @@ export default function MaintenancePage() {
             <table className="w-full min-w-[1080px] border-collapse text-left">
               <thead>
                 <tr className="border-b border-line bg-navy-900/60 text-[9.5px] font-semibold uppercase tracking-wider text-ink-faint">
-                  <th className="px-3 py-3">Machine</th>
-                  <th className="px-3 py-3">Type / Reason</th>
-                  <th className="px-3 py-3">Priority</th>
-                  <th className="px-3 py-3">Date</th>
-                  <th className="px-3 py-3">Technician</th>
-                  <th className="px-3 py-3">Downtime</th>
-                  <th className="px-3 py-3">Cost</th>
-                  <th className="px-3 py-3">Status</th>
-                  <th className="px-3 py-3 text-right">Actions</th>
+                  <th className="px-3 py-3">{t('Machine')}</th>
+                  <th className="px-3 py-3">{t('Type / Reason')}</th>
+                  <th className="px-3 py-3">{t('Priority')}</th>
+                  <th className="px-3 py-3">{t('Date')}</th>
+                  <th className="px-3 py-3">{t('Technician')}</th>
+                  <th className="px-3 py-3">{t('Downtime')}</th>
+                  <th className="px-3 py-3">{t('Cost')}</th>
+                  <th className="px-3 py-3">{t('Status')}</th>
+                  <th className="px-3 py-3 text-right">{t('Actions')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -383,6 +439,27 @@ export default function MaintenancePage() {
                     <td className="px-3 py-3">
                       <p className="text-[11.5px] font-semibold text-ink">{r.type}</p>
                       <p className="truncate text-[10px] text-ink-faint">{r.reason}</p>
+                      {r.attachments && r.attachments.length > 0 && (
+                        <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                          {r.attachments.map((att, idx) => (
+                            <button
+                              key={att.id || idx}
+                              type="button"
+                              onClick={() =>
+                                setPreviewImage({
+                                  url: att.url,
+                                  title: `${r.id} · ${att.name}`,
+                                })
+                              }
+                              className="inline-flex items-center gap-1 rounded-md border border-sky-400/30 bg-sky-500/10 px-1.5 py-0.5 text-[10px] font-medium text-sky-300 hover:bg-sky-500/20 transition-colors"
+                              title="View visual evidence photo"
+                            >
+                              <ImageIcon className="h-3 w-3" />
+                              <span className="truncate max-w-[80px]">{att.name}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </td>
                     <td className="px-3 py-3">
                       <PriorityBadge priority={r.priority} />
@@ -604,6 +681,42 @@ export default function MaintenancePage() {
               placeholder="Work scope, parts needed, safety notes…"
             />
           </Field>
+          <Field label="Initial Condition Photos / Visual Evidence" className="sm:col-span-2">
+            <div className="space-y-2">
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={(e) => handlePhotoUpload(e, 'form')}
+                className="text-xs text-ink-dim file:mr-2 file:rounded-lg file:border-0 file:bg-sky-500/20 file:px-2.5 file:py-1 file:text-xs file:font-semibold file:text-sky-300 hover:file:bg-sky-500/30"
+              />
+              {form.attachments.length > 0 && (
+                <div className="flex flex-wrap gap-2 pt-1">
+                  {form.attachments.map((att, i) => (
+                    <div
+                      key={att.id}
+                      className="group relative h-14 w-14 overflow-hidden rounded-lg border border-sky-400/30 bg-navy-950/60"
+                    >
+                      <img src={att.url} alt={att.name} className="h-full w-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setForm((prev) => ({
+                            ...prev,
+                            attachments: prev.attachments.filter((_, idx) => idx !== i),
+                          }))
+                        }
+                        className="absolute right-0.5 top-0.5 rounded-full bg-red-600/80 p-0.5 text-white opacity-0 transition-opacity group-hover:opacity-100"
+                        title="Remove photo"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </Field>
         </div>
       </Modal>
       <Modal
@@ -680,8 +793,62 @@ export default function MaintenancePage() {
               placeholder="Work performed and parts used"
             />
           </Field>
+          <Field label="Repair Evidence Photos (After repair)" className="sm:col-span-2">
+            <div className="space-y-2">
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={(e) => handlePhotoUpload(e, 'completion')}
+                className="text-xs text-ink-dim file:mr-2 file:rounded-lg file:border-0 file:bg-emerald-500/20 file:px-2.5 file:py-1 file:text-xs file:font-semibold file:text-emerald-300 hover:file:bg-emerald-500/30"
+              />
+              {completion.attachments.length > 0 && (
+                <div className="flex flex-wrap gap-2 pt-1">
+                  {completion.attachments.map((att, i) => (
+                    <div
+                      key={att.id}
+                      className="group relative h-14 w-14 overflow-hidden rounded-lg border border-emerald-400/30 bg-navy-950/60"
+                    >
+                      <img src={att.url} alt={att.name} className="h-full w-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setCompletion((prev) => ({
+                            ...prev,
+                            attachments: prev.attachments.filter((_, idx) => idx !== i),
+                          }))
+                        }
+                        className="absolute right-0.5 top-0.5 rounded-full bg-red-600/80 p-0.5 text-white opacity-0 transition-opacity group-hover:opacity-100"
+                        title="Remove photo"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </Field>
         </div>
       </Modal>
+
+      {/* Visual Evidence Lightbox Preview Modal */}
+      {previewImage && (
+        <Modal
+          open={true}
+          onClose={() => setPreviewImage(null)}
+          title={previewImage.title}
+          size="lg"
+        >
+          <div className="flex justify-center p-3 bg-navy-950/90 rounded-2xl overflow-hidden border border-line">
+            <img
+              src={previewImage.url}
+              alt={previewImage.title}
+              className="max-h-[65vh] max-w-full rounded-xl object-contain shadow-2xl"
+            />
+          </div>
+        </Modal>
+      )}
     </div>
   )
 }

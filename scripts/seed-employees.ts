@@ -107,7 +107,12 @@ async function seedEmployees() {
     process.exit(1)
   }
 
-  const existingByEmail = new Map(userList.users.map((u) => [u.email?.toLowerCase(), u]))
+  const existingByEmail = new Map<string, { id: string; email?: string }>()
+  userList?.users?.forEach((u: { id: string; email?: string }) => {
+    if (u.email) {
+      existingByEmail.set(u.email.toLowerCase(), u)
+    }
+  })
 
   for (const emp of TEST_EMPLOYEES) {
     console.log(`Processing: ${emp.fullName} (${emp.email}) [${emp.role}]...`)

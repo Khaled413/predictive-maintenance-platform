@@ -19,6 +19,7 @@ import EmptyState from '../components/ui/EmptyState'
 import KpiCard from '../components/ui/KpiCard'
 import { formatDateTime, cx } from '../utils/helpers'
 import type { Inspection } from '../types'
+import { usePreferences } from '../context/PreferencesContext'
 
 type QualityResult = QualityInspectionResponse & {
   id: string
@@ -43,6 +44,7 @@ function isPatchCoreRecord(inspection: Inspection) {
 
 export default function QualityPage() {
   const { inspections, addInspection, notify, refreshTimestamp } = useApp()
+  const { t } = usePreferences()
   const [modelStatus, setModelStatus] = useState<QualityModelStatus | null>(null)
   const [statusError, setStatusError] = useState<string | null>(null)
   const [result, setResult] = useState<QualityResult | null>(null)
@@ -173,40 +175,40 @@ export default function QualityPage() {
         <div className="min-w-0">
           <p className="font-semibold">
             {modelStatus?.model_available
-              ? `PatchCore available · ${modelStatus.checkpoint}`
-              : 'PatchCore is not ready'}
+              ? `${t('PatchCore available ·')} ${modelStatus.checkpoint}`
+              : t('PatchCore is not ready')}
           </p>
           <p className="mt-0.5">
             {modelStatus?.model_available
-              ? 'This model detects visual anomalies and highlights regions; it does not identify defect names or certify product quality.'
+              ? t('This model detects visual anomalies and highlights regions; it does not identify defect names or certify product quality.')
               : (modelStatus?.message ??
                 statusError ??
-                'Checking model and checkpoint availability…')}
+                t('Checking model and checkpoint availability…'))}
           </p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 gap-3 min-[400px]:grid-cols-2 sm:grid-cols-4">
         <KpiCard
-          label="PatchCore Inspections"
+          label={t('PatchCore Inspections')}
           value={patchCoreInspections.length}
           icon={<ScanLine className="h-4 w-4" />}
           tone="blue"
         />
         <KpiCard
-          label="Normal"
+          label={t('Normal')}
           value={normalCount}
           icon={<CheckCircle2 className="h-4 w-4" />}
           tone="gray"
         />
         <KpiCard
-          label="Anomalous"
+          label={t('Anomalous')}
           value={anomalyCount}
           icon={<XCircle className="h-4 w-4" />}
           tone="gray"
         />
         <KpiCard
-          label="Anomaly Rate"
+          label={t('Anomaly Rate')}
           value={`${anomalyRate}%`}
           icon={<Activity className="h-4 w-4" />}
           tone="gray"
@@ -216,13 +218,13 @@ export default function QualityPage() {
       <div className="grid gap-4 lg:grid-cols-2">
         <Panel className="overflow-hidden">
           <PanelHeader
-            title="Visual Quality Inspection"
-            subtitle="Upload a product photo for PatchCore anomaly detection"
+            title={t('Visual Quality Inspection')}
+            subtitle={t('Upload a product photo for PatchCore anomaly detection')}
             right={
               running ? (
                 <span className="inline-flex items-center gap-1.5 text-[11px] text-sky-300">
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  Analyzing…
+                  {t('Analyzing…')}
                 </span>
               ) : undefined
             }
@@ -230,16 +232,14 @@ export default function QualityPage() {
           <div className="px-4 py-5 sm:px-5">
             <UploadZone
               accept=".jpg,.jpeg,.png,.webp"
-              label="Upload Product Image"
-              hint={`JPEG, PNG, or WEBP · Maximum ${imageSizeLimit}`}
+              label={t('Upload Product Image')}
+              hint={`${t('JPEG, PNG, or WEBP · Maximum ')}${imageSizeLimit}`}
               onFile={(file) => void handleFile(file)}
               icon={<ScanLine className="h-6 w-6" />}
             />
             {!modelStatus?.model_available && (
               <p className="mt-3 text-center text-[11px] text-ink-faint">
-                You can select an image now. Inspection runs when the PatchCore checkpoint
-                and API are available; if not, the backend will show the exact setup
-                error.
+                {t('A trained PatchCore checkpoint is required before images can be inspected.')}
               </p>
             )}
             {requestError && (
@@ -268,7 +268,7 @@ export default function QualityPage() {
         {result ? (
           <Panel className="overflow-hidden">
             <PanelHeader
-              title="PatchCore Result"
+              title={t('PatchCore Result')}
               subtitle={`${result.prediction_source} · ${formatDateTime(result.timestamp)}`}
               right={
                 <span
@@ -284,7 +284,7 @@ export default function QualityPage() {
                   ) : (
                     <XCircle className="h-4 w-4" />
                   )}
-                  {result.label}
+                  {result.label === 'NORMAL' ? t('Normal') : t('Anomalous')}
                 </span>
               }
             />
@@ -298,16 +298,14 @@ export default function QualityPage() {
               </div>
               <div className="rounded-xl border border-line bg-navy-900/50 px-3 py-2">
                 <p className="text-[9.5px] font-semibold uppercase tracking-wider text-ink-faint">
-                  Anomaly score
+                  {t('Anomaly score')}
                 </p>
                 <p className="mt-0.5 font-mono text-[14px] font-semibold text-ink">
                   {result.score.toFixed(4)}
                 </p>
               </div>
               <p className="text-[10px] leading-relaxed text-ink-faint">
-                The score and heatmap are PatchCore outputs. Anomaly scores are not
-                confidence percentages; validate the model and decision threshold using
-                representative production images before operational use.
+                {t('The score and heatmap are PatchCore outputs. Anomaly scores are not confidence percentages; validate the model and decision threshold using representative production images before operational use.')}
               </p>
             </div>
           </Panel>
@@ -317,12 +315,12 @@ export default function QualityPage() {
               <ScanLine className="h-8 w-8 text-ink-faint" />
             </div>
             <p className="mt-4 text-[14px] font-semibold text-ink">
-              No inspection result
+              {t('No inspection result')}
             </p>
             <p className="mt-1 max-w-sm text-[12px] leading-relaxed text-ink-faint">
               {modelStatus?.model_available
-                ? 'Upload an image to see the PatchCore classification, anomaly score, and heatmap.'
-                : 'A trained PatchCore checkpoint is required before images can be inspected.'}
+                ? t('Upload an image to see the PatchCore classification, anomaly score, and heatmap.')
+                : t('A trained PatchCore checkpoint is required before images can be inspected.')}
             </p>
           </Panel>
         )}
@@ -330,26 +328,26 @@ export default function QualityPage() {
 
       <div className="panel overflow-hidden">
         <PanelHeader
-          title="PatchCore Inspection History"
-          subtitle={`${visibleInspections.length} real model results · demo records excluded`}
+          title={t('PatchCore Inspection History')}
+          subtitle={`${visibleInspections.length} ${t('real model results · demo records excluded')}`}
           right={
             <select
-              aria-label="Filter inspection results"
+              aria-label={t('Filter by defect status')}
               value={filter}
               onChange={(event) => setFilter(event.target.value as typeof filter)}
               className="input w-auto min-w-32"
             >
-              <option value="all">All results</option>
-              <option value="NORMAL">Normal</option>
-              <option value="ANOMALOUS">Anomalous</option>
+              <option value="all">{t('All results')}</option>
+              <option value="NORMAL">{t('Normal')}</option>
+              <option value="ANOMALOUS">{t('Anomalous')}</option>
             </select>
           }
         />
         {visibleInspections.length === 0 ? (
           <div className="px-6 py-10">
             <EmptyState
-              title="No PatchCore inspection records"
-              message="Results from the demo inspection data are excluded. Run PatchCore on an image to create the first real model record."
+              title={t('No PatchCore inspection records')}
+              message={t('Results from the demo inspection data are excluded. Run PatchCore on an image to create the first real model record.')}
             />
           </div>
         ) : (
@@ -357,11 +355,11 @@ export default function QualityPage() {
             <table className="w-full min-w-[680px] border-collapse text-left">
               <thead>
                 <tr className="border-b border-line bg-navy-900/60 text-[9.5px] font-semibold uppercase tracking-wider text-ink-faint">
-                  <th className="px-3 py-3">Image</th>
-                  <th className="px-3 py-3">Timestamp</th>
-                  <th className="px-3 py-3">Result</th>
-                  <th className="px-3 py-3">Anomaly score</th>
-                  <th className="px-3 py-3">Model</th>
+                  <th className="px-3 py-3">{t('Image')}</th>
+                  <th className="px-3 py-3">{t('Timestamp')}</th>
+                  <th className="px-3 py-3">{t('Result')}</th>
+                  <th className="px-3 py-3">{t('Anomaly score')}</th>
+                  <th className="px-3 py-3">{t('Model')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -374,7 +372,7 @@ export default function QualityPage() {
                       {formatDateTime(inspection.timestamp)}
                     </td>
                     <td className="px-3 py-2.5 text-[11px] text-ink-dim">
-                      {inspection.result === 'PASS' ? 'NORMAL' : 'ANOMALOUS'}
+                      {inspection.result === 'PASS' ? t('Normal') : t('Anomalous')}
                     </td>
                     <td className="px-3 py-2.5 font-mono text-[11px] text-ink-dim">
                       {inspection.anomalyScore?.toFixed(4)}

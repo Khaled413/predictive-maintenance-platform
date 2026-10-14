@@ -28,6 +28,7 @@ import {
   Layers,
   Timer,
   Wrench,
+  ClipboardCheck,
 } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import KpiCard from '../components/ui/KpiCard'
@@ -42,6 +43,10 @@ import {
 } from '../utils/operationalMetrics'
 import Panel, { PanelHeader } from '../components/ui/Panel'
 import { usePreferences } from '../context/PreferencesContext'
+import {
+  generatePlantReliabilityReport,
+  generateShiftHandoverReport,
+} from '../utils/reportPdfGenerator'
 
 type RangeKey = '7d' | '30d' | '3m' | 'custom'
 type SectionKey = 'overview' | 'health' | 'risk' | 'downtime' | 'maintenance' | 'quality'
@@ -72,8 +77,8 @@ const RISK_BANDS = [
 ]
 
 export default function ReportsPage() {
-  const { machines, maintenance, inspections, notify } = useApp()
-  const { t } = usePreferences()
+  const { machines, maintenance, inspections, alerts, notify } = useApp()
+  const { t, language } = usePreferences()
 
   const [range, setRange] = useState<RangeKey>('30d')
   const [section, setSection] = useState<SectionKey>('overview')
@@ -481,15 +486,48 @@ export default function ReportsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scopedMachines, start, end, dataMode])
 
-  const exportReport = (kind: 'PDF' | 'Excel' | 'CSV') => {
-    if (kind !== 'CSV') {
+  const exportReport = (kind: 'PDF' | 'Excel' | 'CSV' | 'ShiftPDF') => {
+    if (kind === 'PDF') {
+      generatePlantReliabilityReport({
+        machines: scopedMachines,
+        maintenance,
+        kpis: {
+          totalMachines: scopedMachines.length,
+          atRiskMachines: scopedMachines.filter(
+            (m) => m.status === 'Critical' || m.status === 'Warning'
+          ).length,
+          avgHealth: kpis.avgHealth,
+          downtimeHours: kpis.downtime,
+          workOrdersCount: kpis.workOrders,
+        },
+        rangeLabel,
+        language,
+      })
       notify(
-        'warning',
-        `${kind} export unavailable`,
-        'Only CSV export is implemented; no file was created.'
+        'success',
+        t('Plant Reliability Report Generated'),
+        `${rangeLabel} · ${scopedMachines.length} ${t('machines')}`
       )
       return
     }
+
+    if (kind === 'ShiftPDF') {
+      generateShiftHandoverReport({
+        machines: scopedMachines,
+        alerts,
+        maintenance,
+        supervisorName: 'Ahmed H. (Shift Lead)',
+        shiftName: 'Shift A (08:00 - 16:00)',
+        language,
+      })
+      notify(
+        'success',
+        t('Shift Handover Report Generated'),
+        t('Print certificate preview loaded')
+      )
+      return
+    }
+
     const fields = [
       'Data Mode',
       'Machine ID',
@@ -701,11 +739,21 @@ export default function ReportsPage() {
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
+            className="btn-ghost btn-sm text-cyan-300 border-cyan-400/30 hover:bg-cyan-500/10"
+            onClick={() => exportReport('ShiftPDF')}
+            title={t('Official Shift Handover Certificate with Signatures')}
+          >
+            <ClipboardCheck className="h-3.5 w-3.5 text-cyan-400" />
+            <span>{t('Shift Handover PDF')}</span>
+          </button>
+          <button
+            type="button"
             className="btn-ghost btn-sm"
             onClick={() => exportReport('PDF')}
+            title={t('Executive Plant Reliability & MTBF/MTTR Report')}
           >
-            <FileText className="h-3.5 w-3.5" />
-            Export PDF
+            <FileText className="h-3.5 w-3.5 text-indigo-400" />
+            <span>{t('Reliability PDF')}</span>
           </button>
           <button
             type="button"
@@ -713,7 +761,7 @@ export default function ReportsPage() {
             onClick={() => exportReport('Excel')}
           >
             <FileSpreadsheet className="h-3.5 w-3.5" />
-            Export Excel
+            <span>{t('Export Excel')}</span>
           </button>
           <button
             type="button"
@@ -721,7 +769,7 @@ export default function ReportsPage() {
             onClick={() => exportReport('CSV')}
           >
             <Download className="h-3.5 w-3.5" />
-            Export CSV
+            <span>{t('Export CSV')}</span>
           </button>
         </div>
       </div>

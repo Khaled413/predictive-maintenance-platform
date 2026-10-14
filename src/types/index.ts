@@ -153,6 +153,12 @@ export interface MaintenanceRecord {
   completionNotes?: string
   maintenanceKind?: 'preventive' | 'corrective'
   isDemo?: boolean
+  attachments?: Array<{
+    id: string
+    url: string
+    name: string
+    timestamp: string
+  }>
 }
 
 export interface Alert {

@@ -42,6 +42,7 @@ import type { PredictionInputs, PredictionResponse } from '../types'
 import { useAuth } from './AuthContext'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
 import { notifyFaultTransitions } from '../utils/faultWebhook'
+import { playCriticalAlarm, playWarningBeep, playSuccessChime } from '../utils/audioAlerts'
 
 const STORAGE_KEY = 'iap-state-v4'
 
@@ -68,6 +69,9 @@ interface AppContextValue extends PersistedState {
   lastUpdated: string
   modelSystemStatus: ModelSystemStatus
   toasts: ToastMsg[]
+  isRealtimeConnected: boolean
+  audioMuted: boolean
+  setAudioMuted: (muted: boolean) => void
   notify: (type: ToastMsg['type'], title: string, message?: string) => void
   dismissToast: (id: string) => void
   addMachine: (m: Machine) => void
@@ -86,6 +90,7 @@ interface AppContextValue extends PersistedState {
       | 'failureCause'
       | 'technician'
       | 'completionNotes'
+      | 'attachments'
     >
   ) => boolean
   deleteMaintenance: (id: string) => void
@@ -303,6 +308,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [lastUpdated, setLastUpdated] = useState(() => new Date().toISOString())
   const [modelSystemStatus, setModelSystemStatus] = useState(UNAVAILABLE_MODEL_STATUS)
   const [toasts, setToasts] = useState<ToastMsg[]>([])
+  const [isRealtimeConnected, setIsRealtimeConnected] = useState(false)
+  const [audioMuted, setAudioMutedState] = useState(() => {
+    try {
+      return localStorage.getItem('iap-audio-muted') === 'true'
+    } catch {
+      return false
+    }
+  })
+  const audioMutedRef = useRef(audioMuted)
+  const setAudioMuted = useCallback((muted: boolean) => {
+    setAudioMutedState(muted)
+    audioMutedRef.current = muted
+    try {
+      localStorage.setItem('iap-audio-muted', String(muted))
+    } catch {
+      // ignore
+    }
+  }, [])
   const startupRequestsStarted = useRef(false)
   const predictionRequestTokens = useRef(new Map<string, symbol>())
 
@@ -531,6 +554,162 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const refreshTimestamp = useCallback(() => setLastUpdated(new Date().toISOString()), [])
 
+  // Supabase Realtime Telemetry Subscription with Web Audio alerts
+  useEffect(() => {
+    if (!isSupabaseConfigured || !supabase) {
+      setIsRealtimeConnected(true)
+      return
+    }
+    const client = supabase
+
+    const channel = client
+      .channel('factory-realtime-telemetry')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'machines' },
+        (payload: any) => {
+          const newMachine = payload.new
+          if (!newMachine?.id) return
+          setState((prev) => ({
+            ...prev,
+            machines: prev.machines.map((m) =>
+              m.id === newMachine.id
+                ? {
+                    ...m,
+                    name: newMachine.name || m.name,
+                    status: (newMachine.status as any) || m.status,
+                    healthScore:
+                      newMachine.health_score !== null
+                        ? Number(newMachine.health_score)
+                        : m.healthScore,
+                    failureRisk:
+                      newMachine.failure_risk !== null
+                        ? Number(newMachine.failure_risk)
+                        : m.failureRisk,
+                    sensors: Array.isArray(newMachine.sensors)
+                      ? newMachine.sensors
+                      : m.sensors,
+                  }
+                : m
+            ),
+          }))
+
+          if (newMachine.status === 'Critical') {
+            if (!audioMutedRef.current) playCriticalAlarm()
+            notify(
+              'error',
+              '🚨 Realtime Machine Alert',
+              `${newMachine.name || newMachine.id} entered Critical condition!`
+            )
+          } else if (newMachine.status === 'Warning') {
+            if (!audioMutedRef.current) playWarningBeep()
+            notify(
+              'warning',
+              '⚠️ Machine Health Degraded',
+              `${newMachine.name || newMachine.id} is now in Warning condition.`
+            )
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'alerts' },
+        (payload: any) => {
+          const newAlert = payload.new
+          if (!newAlert?.id) return
+          if (payload.eventType === 'INSERT') {
+            setState((prev) => {
+              if (prev.alerts.some((a) => a.id === newAlert.id)) return prev
+              const mapped: Alert = {
+                id: newAlert.id,
+                machineId: newAlert.machine_id,
+                machineName: newAlert.machine_id,
+                severity: newAlert.severity || 'warning',
+                type: newAlert.type || 'Telemetry Fault',
+                message: newAlert.message || 'Realtime alert triggered',
+                timestamp: newAlert.timestamp || new Date().toISOString(),
+                status: newAlert.status || 'active',
+                recommendedAction:
+                  newAlert.recommended_action || 'Inspect machine immediately',
+                isDemo: false,
+              }
+              return {
+                ...prev,
+                alerts: [mapped, ...prev.alerts],
+              }
+            })
+            if (newAlert.severity === 'critical') {
+              if (!audioMutedRef.current) playCriticalAlarm()
+              notify(
+                'error',
+                'CRITICAL Realtime Alert',
+                newAlert.message || `Critical issue detected on ${newAlert.machine_id}`
+              )
+            } else {
+              if (!audioMutedRef.current) playWarningBeep()
+              notify(
+                'warning',
+                'Realtime Alert',
+                newAlert.message || `Warning alert on ${newAlert.machine_id}`
+              )
+            }
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'maintenance_orders' },
+        (payload: any) => {
+          const newOrder = payload.new
+          if (!newOrder?.id) return
+          if (payload.eventType === 'INSERT') {
+            setState((prev) => {
+              if (prev.maintenance.some((m) => m.id === newOrder.id)) return prev
+              const mapped: MaintenanceRecord = {
+                id: newOrder.id,
+                machineId: newOrder.machine_id,
+                machineName: newOrder.machine_id,
+                machineType: 'Industrial Unit',
+                type: newOrder.type || 'Preventive',
+                reason: newOrder.reason || 'Work order generated',
+                priority: newOrder.priority || 'Medium',
+                date: newOrder.date || new Date().toISOString(),
+                technician: newOrder.technician || 'Ahmed H.',
+                status: newOrder.status || 'Scheduled',
+                downtime: newOrder.actual_downtime_hours
+                  ? `${newOrder.actual_downtime_hours}h`
+                  : '—',
+                cost: newOrder.actual_cost ? Number(newOrder.actual_cost) : null,
+                notes: newOrder.notes || '',
+                isDemo: false,
+              }
+              return {
+                ...prev,
+                maintenance: [mapped, ...prev.maintenance],
+              }
+            })
+            if (!audioMutedRef.current) playSuccessChime()
+            notify(
+              'info',
+              'New Work Order Dispatched',
+              `Order ${newOrder.id} received in realtime.`
+            )
+          }
+        }
+      )
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          setIsRealtimeConnected(true)
+        } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
+          setIsRealtimeConnected(false)
+        }
+      })
+
+    return () => {
+      void client.removeChannel(channel)
+    }
+  }, [notify])
+
   const addMachine = useCallback(
     (m: Machine) => {
       if (!checkPermission('machines.create')) {
@@ -712,6 +891,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         | 'failureCause'
         | 'technician'
         | 'completionNotes'
+        | 'attachments'
       >
     ) => {
       const record = state.maintenance.find((item) => item.id === id)
@@ -746,6 +926,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             ? {
                 ...item,
                 status,
+                attachments: completion?.attachments
+                  ? [...(item.attachments ?? []), ...completion.attachments]
+                  : item.attachments,
                 ...(status === 'Completed' && completion
                   ? {
                       actualDowntimeHours: completion.actualDowntimeHours,
@@ -975,6 +1158,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       lastUpdated,
       modelSystemStatus,
       toasts,
+      isRealtimeConnected,
+      audioMuted,
+      setAudioMuted,
       notify,
       dismissToast,
       addMachine,
@@ -1002,6 +1188,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       lastUpdated,
       modelSystemStatus,
       toasts,
+      isRealtimeConnected,
+      audioMuted,
+      setAudioMuted,
       notify,
       dismissToast,
       addMachine,

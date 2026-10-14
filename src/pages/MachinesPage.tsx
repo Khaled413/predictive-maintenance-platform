@@ -12,10 +12,12 @@ import { cx, healthTone } from '../utils/helpers'
 import { formatDate } from '../utils/helpers'
 import type { Machine } from '../types'
 import { useAuth } from '../context/AuthContext'
+import { usePreferences } from '../context/PreferencesContext'
 
 export default function MachinesPage() {
   const { machines, thresholds, deleteMachine, notify, refreshTimestamp } = useApp()
   const { checkPermission, checkMachineAccess, currentUser } = useAuth()
+  const { t } = usePreferences()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
 
@@ -164,8 +166,8 @@ export default function MachinesPage() {
       </div>
       {filtered.length === 0 ? (
         <EmptyState
-          title="No machines found"
-          message="Adjust the filters or add a new machine to the fleet."
+          title={t('No machines found')}
+          message={t('Adjust the filters or add a new machine to the fleet.')}
           action={
             <button
               type="button"
@@ -173,7 +175,7 @@ export default function MachinesPage() {
               onClick={() => setAddOpen(true)}
             >
               <Plus className="h-3.5 w-3.5" />
-              Add Machine
+              {t('Add Machine')}
             </button>
           }
         />
@@ -183,13 +185,13 @@ export default function MachinesPage() {
             <table className="w-full min-w-[900px] border-collapse text-left">
               <thead>
                 <tr className="border-b border-line bg-navy-900/60 text-[10px] font-semibold uppercase tracking-wider text-ink-faint">
-                  <th className="px-4 py-3">Machine</th>
-                  <th className="px-3 py-3">Model Status</th>
-                  <th className="px-3 py-3">Model Health</th>
-                  <th className="px-3 py-3">Failure Risk</th>
-                  <th className="px-3 py-3">Last Maintenance</th>
-                  <th className="px-3 py-3">Next Maintenance</th>
-                  <th className="px-3 py-3 text-right">Actions</th>
+                  <th className="px-4 py-3">{t('Machine')}</th>
+                  <th className="px-3 py-3">{t('Model Status')}</th>
+                  <th className="px-3 py-3">{t('Model Health')}</th>
+                  <th className="px-3 py-3">{t('Failure Risk')}</th>
+                  <th className="px-3 py-3">{t('Last Maintenance')}</th>
+                  <th className="px-3 py-3">{t('Next Maintenance')}</th>
+                  <th className="px-3 py-3 text-right">{t('Actions')}</th>
                 </tr>
               </thead>
               <tbody>

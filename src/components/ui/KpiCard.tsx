@@ -1,5 +1,6 @@
 import React from 'react'
 import { cx } from '../../utils/helpers'
+import { usePreferences } from '../../context/PreferencesContext'
 
 const TONES: Record<string, string> = {
   blue: 'bg-gradient-to-br from-cyan-500/20 via-sky-500/20 to-blue-600/25 text-cyan-300 ring-1 ring-sky-400/30 shadow-sm',
@@ -39,6 +40,7 @@ export default function KpiCard({
   sub?: string
   onClick?: () => void
 }) {
+  const { t } = usePreferences()
   const Comp = onClick ? 'button' : 'div'
   return (
     <Comp
@@ -57,7 +59,7 @@ export default function KpiCard({
       <div className="relative flex items-start justify-between gap-2 z-10">
         <div className="min-w-0">
           <p className="text-[10.5px] font-semibold uppercase tracking-wider text-ink-faint">
-            {label}
+            {t(label)}
           </p>
           <p className="mt-1.5 font-mono text-[23px] font-bold leading-none tracking-tight text-ink group-hover:text-white transition-colors">
             {value}
@@ -65,10 +67,10 @@ export default function KpiCard({
           {delta && (
             <p className="mt-1.5 text-[11px] font-medium text-emerald-300 flex items-center gap-1">
               <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400" />
-              {delta}
+              {t(delta)}
             </p>
           )}
-          {sub && !delta && <p className="mt-1.5 text-[11px] text-ink-faint">{sub}</p>}
+          {sub && !delta && <p className="mt-1.5 text-[11px] text-ink-faint">{t(sub)}</p>}
         </div>
         <div
           className={cx(

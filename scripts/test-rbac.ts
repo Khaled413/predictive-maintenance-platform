@@ -11,6 +11,7 @@ import {
   canManageUser,
 } from '../src/utils/rbac'
 import type { AuthUser, Permission } from '../src/types/auth'
+import type { Machine, MaintenanceRecord } from '../src/types'
 
 // Mock user records matching types/auth.ts
 const adminUser: AuthUser = {
@@ -152,34 +153,55 @@ test('Scenario 3: Technician cannot manage users or roles', () => {
 test('Scenario 4: Technician can access an assigned machine', () => {
   assert(canAccessMachine(techA, 'M-001'), 'Tech A must access assigned M-001')
   assert(canAccessMachine(techA, 'M-002'), 'Tech A must access assigned M-002')
-  assert(canAccessMachine(techA, { id: 'M-003' } as any), 'Tech A must access assigned M-003 object')
+  assert(canAccessMachine(techA, { id: 'M-003' } as unknown as Machine), 'Tech A must access assigned M-003 object')
 })
 
 // Scenario 5: A Technician cannot access an unassigned machine.
 test('Scenario 5: Technician cannot access an unassigned machine', () => {
   assert(!canAccessMachine(techA, 'M-004'), 'Tech A must NOT access unassigned M-004')
   assert(!canAccessMachine(techA, 'M-005'), 'Tech A must NOT access unassigned M-005')
-  assert(!canAccessMachine(techA, { id: 'M-006' } as any), 'Tech A must NOT access unassigned M-006 object')
+  assert(!canAccessMachine(techA, { id: 'M-006' } as unknown as Machine), 'Tech A must NOT access unassigned M-006 object')
   assert(canAccessMachine(managerUser, 'M-004'), 'Manager should access fleet machine M-004')
   assert(canAccessMachine(adminUser, 'M-004'), 'Admin should access fleet machine M-004')
 })
 
 // Scenario 6: A Technician cannot update another technician maintenance order unless explicitly authorized.
 test('Scenario 6: Technician cannot update another technician maintenance order', () => {
-  const orderTechA: any = {
+  const orderTechA: MaintenanceRecord = {
     id: 'MO-101',
     machineId: 'M-001',
+    machineName: 'CNC Machine 1',
+    machineType: 'CNC',
+    type: 'Repair',
+    reason: 'Vibration',
+    priority: 'High',
+    date: '2026-10-12',
     technician: 'Ahmed Hassan',
     status: 'Scheduled',
+    downtime: '1h',
+    cost: null,
+    notes: '',
+    maintenanceKind: 'corrective',
   }
-  const orderTechB: any = {
+  const orderTechB: MaintenanceRecord = {
     id: 'MO-102',
     machineId: 'M-004',
+    machineName: 'Hydraulic Press 4',
+    machineType: 'Press',
+    type: 'Inspection',
+    reason: 'Routine',
+    priority: 'Medium',
+    date: '2026-10-12',
     technician: 'Omar Tarek',
     status: 'Scheduled',
+    downtime: '30m',
+    cost: null,
+    notes: '',
+    maintenanceKind: 'preventive',
   }
 
   assert(canModifyMaintenanceOrder(techA, orderTechA), 'Tech A should be able to update own order')
+  assert(canModifyMaintenanceOrder(techB, orderTechB), 'Tech B should be able to update own order')
   assert(!canModifyMaintenanceOrder(techA, orderTechB), 'Tech A must NOT be able to update Tech B order')
   assert(canModifyMaintenanceOrder(managerUser, orderTechB), 'Manager should be able to update any order in fleet')
   assert(canModifyMaintenanceOrder(adminUser, orderTechB), 'Admin should be able to update any order in fleet')
@@ -197,14 +219,14 @@ test('Scenario 8: Unauthenticated user cannot access protected operations', () =
   assert(!hasPermission(null, 'dashboard.view'), 'null user denied dashboard.view')
   assert(!hasPermission(undefined, 'machines.read'), 'undefined user denied machines.read')
   assert(!canAccessMachine(null, 'M-001'), 'null user denied canAccessMachine')
-  assert(!canModifyMaintenanceOrder(null, { id: 'MO-1', machineId: 'M-001' } as any), 'null user denied canModifyMaintenanceOrder')
+  assert(!canModifyMaintenanceOrder(null, { id: 'MO-1', machineId: 'M-001' } as unknown as MaintenanceRecord), 'null user denied canModifyMaintenanceOrder')
 })
 
 // Scenario 9: Missing or invalid authorization data fails safely.
 test('Scenario 9: Missing or invalid authorization data fails safely', () => {
-  const malformedUser1: any = { id: 'bad-1', role: 'unknown_role', status: 'active' }
-  const malformedUser2: any = { id: 'bad-2', role: null, status: 'active' }
-  const malformedUser3: any = { id: 'bad-3' } // no role or status
+  const malformedUser1 = { id: 'bad-1', role: 'unknown_role', status: 'active' } as unknown as AuthUser
+  const malformedUser2 = { id: 'bad-2', role: null, status: 'active' } as unknown as AuthUser
+  const malformedUser3 = { id: 'bad-3' } as unknown as AuthUser // no role or status
 
   assert(!hasPermission(malformedUser1, 'dashboard.view'), 'Unknown role fails safely')
   assert(!hasPermission(malformedUser2, 'machines.read'), 'Null role fails safely')

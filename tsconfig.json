@@ -28,8 +28,9 @@
       "@types/*": ["src/types/*"],
       "@utils/*": ["src/utils/*"],
       "@data/*": ["src/data/*"]
-    }
+    },
+    "types": ["node", "vite/client"]
   },
-  "include": ["src"],
+  "include": ["src", "scripts"],
   "exclude": ["node_modules", "dist"]
 }

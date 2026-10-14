@@ -4,10 +4,14 @@ import {
   Bell,
   ChevronDown,
   Clock,
+  Languages,
   LogOut,
   Menu,
+  QrCode,
   RefreshCw,
   Users,
+  Volume2,
+  VolumeX,
   Wrench,
   Zap,
 } from 'lucide-react'
@@ -17,18 +21,29 @@ import { useAuth } from '../../context/AuthContext'
 import { formatDateTime, cx } from '../../utils/helpers'
 import type { MachineStatus } from '../../types'
 import { usePreferences } from '../../context/PreferencesContext'
+import QrScannerModal from '../ui/QrScannerModal'
 
 interface TopHeaderProps {
   onMenu: () => void
 }
 
 export default function TopHeader({ onMenu }: TopHeaderProps) {
-  const { lastUpdated, refreshTimestamp, notify, machines, alerts } = useApp()
+  const {
+    lastUpdated,
+    refreshTimestamp,
+    notify,
+    machines,
+    alerts,
+    isRealtimeConnected,
+    audioMuted,
+    setAudioMuted,
+  } = useApp()
   const { currentUser, signOutUser } = useAuth()
-  const { language, t } = usePreferences()
+  const { language, toggleLanguage, t } = usePreferences()
   const location = useLocation()
   const navigate = useNavigate()
   const [profileOpen, setProfileOpen] = useState(false)
+  const [qrScannerOpen, setQrScannerOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -117,7 +132,7 @@ export default function TopHeader({ onMenu }: TopHeaderProps) {
             boxShadow: '0 0 12px -3px rgba(251, 191, 36, 0.25)',
           }}
         >
-          DEMO MODE · simulated inputs / model outputs
+          {t('DEMO MODE · simulated inputs / model outputs')}
         </span>
         <span
           className="top-header-demo rounded-md px-1.5 py-1 text-[8px] font-bold text-amber-300 sm:hidden"
@@ -127,11 +142,11 @@ export default function TopHeader({ onMenu }: TopHeaderProps) {
             border: '1px solid rgba(251, 191, 36, 0.35)',
           }}
         >
-          DEMO
+          {t('DEMO')}
         </span>
         <div className="hidden items-center gap-1.5 rounded-lg border border-line bg-navy-800/60 px-2.5 py-1.5 text-[11px] font-medium text-ink-dim xl:flex">
           <Zap className="h-3.5 w-3.5 text-sky-400" />
-          <span className="text-gradient font-semibold">Predict · Prevent · Optimize</span>
+          <span className="text-gradient font-semibold">{t('Predict · Prevent · Optimize')}</span>
         </div>
 
         <div className="hidden items-center gap-2 rounded-lg border border-line bg-navy-800/60 px-3 py-1.5 md:flex">
@@ -205,6 +220,92 @@ export default function TopHeader({ onMenu }: TopHeaderProps) {
             </p>
           </div>
         </div>
+
+        {/* Realtime Live Pulse */}
+        <div
+          className={cx(
+            'hidden items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[11px] font-medium lg:flex transition-all shadow-sm',
+            isRealtimeConnected
+              ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
+              : 'border-amber-500/30 bg-amber-500/10 text-amber-300'
+          )}
+          title={
+            isRealtimeConnected
+              ? 'Supabase WebSocket Realtime Telemetry Connected'
+              : 'Supabase Realtime Reconnecting...'
+          }
+        >
+          <span className="relative flex h-2 w-2">
+            {isRealtimeConnected && (
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+            )}
+            <span
+              className={cx(
+                'relative inline-flex h-2 w-2 rounded-full',
+                isRealtimeConnected ? 'bg-emerald-400' : 'bg-amber-400'
+              )}
+            />
+          </span>
+          <span className="font-semibold text-[10.5px]">
+            {isRealtimeConnected
+              ? language === 'ar'
+                ? 'البث الحي متصل'
+                : 'Realtime Live'
+              : language === 'ar'
+                ? 'جارٍ الاتصال'
+                : 'Reconnecting'}
+          </span>
+        </div>
+
+        {/* Audio Alarms Mute Toggle */}
+        <button
+          type="button"
+          onClick={() => {
+            const next = !audioMuted
+            setAudioMuted(next)
+            notify(
+              'info',
+              next ? 'Audio Sirens Muted' : 'Audio Sirens Unmuted',
+              next
+                ? 'Sound alarms are now muted.'
+                : 'Critical and warning sirens are now active.'
+            )
+          }}
+          className="rounded-lg border border-line bg-navy-800/60 p-2 text-ink-dim transition-all hover:border-sky-400/40 hover:text-ink hover:scale-105 active:scale-95"
+          title={audioMuted ? t('Unmute factory audio alarms') : t('Mute factory audio alarms')}
+          aria-label="Toggle audio alerts"
+        >
+          {audioMuted ? (
+            <VolumeX className="h-4 w-4 text-amber-400" />
+          ) : (
+            <Volume2 className="h-4 w-4 text-sky-400" />
+          )}
+        </button>
+
+        {/* QR Scanner Trigger */}
+        <button
+          type="button"
+          onClick={() => setQrScannerOpen(true)}
+          className="rounded-lg border border-line bg-navy-800/60 p-2 text-ink-dim transition-all hover:border-sky-400/40 hover:text-ink hover:scale-105 active:scale-95"
+          title={t('Scan machine QR code')}
+          aria-label="Scan machine QR code"
+        >
+          <QrCode className="h-4 w-4 text-cyan-400" />
+        </button>
+
+        {/* Quick Language Toggle */}
+        <button
+          type="button"
+          onClick={toggleLanguage}
+          className="flex items-center gap-1.5 rounded-lg border border-sky-400/30 bg-sky-500/10 px-2.5 py-1.5 text-xs font-semibold text-sky-300 transition-all hover:bg-sky-500/20 hover:scale-105 active:scale-95 shadow-sm"
+          title={language === 'en' ? t('Switch to Arabic') : t('Switch to English')}
+          aria-label={language === 'en' ? t('Switch to Arabic') : t('Switch to English')}
+        >
+          <Languages className="h-4 w-4 text-sky-400" />
+          <span className="font-mono text-[11px] font-bold tracking-wide">
+            {language === 'en' ? 'عربي' : 'EN'}
+          </span>
+        </button>
 
         <button
           type="button"
@@ -371,6 +472,7 @@ export default function TopHeader({ onMenu }: TopHeaderProps) {
           )}
         </div>
       </div>
+      <QrScannerModal isOpen={qrScannerOpen} onClose={() => setQrScannerOpen(false)} />
     </header>
   )
 }

@@ -1,6 +1,7 @@
-import React, { useMemo } from 'react'
+import React, { useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, CalendarPlus, History, MapPin, Wrench } from 'lucide-react'
+import { ArrowLeft, CalendarPlus, History, MapPin, QrCode, Wrench } from 'lucide-react'
+import QrCodeModal from '../components/ui/QrCodeModal'
 import {
   Area,
   AreaChart,
@@ -64,14 +65,7 @@ export default function MachineDetailsPage() {
     refreshTimestamp,
   } = useApp()
 
-  if (id && !checkMachineAccess(id)) {
-    return (
-      <AccessDeniedPage
-        requiredPermission="machines.read"
-        resourceName={`Machine ${id} (Operational Fleet Assignment)`}
-      />
-    )
-  }
+  const hasMachineAccess = !id || checkMachineAccess(id)
 
   const machine = machines.find((m) => m.id === id)
 
@@ -137,12 +131,22 @@ export default function MachineDetailsPage() {
   }, [machine])
 
   const [scheduleOpen, setScheduleOpen] = React.useState(false)
+  const [qrModalOpen, setQrModalOpen] = useState(false)
   const [plan, setPlan] = React.useState({
     type: '',
     date: new Date(Date.now() + 2 * 86_400_000).toISOString().slice(0, 10),
     technician: 'Ahmed H.',
     notes: '',
   })
+
+  if (id && !hasMachineAccess) {
+    return (
+      <AccessDeniedPage
+        requiredPermission="machines.read"
+        resourceName={`Machine ${id} (Operational Fleet Assignment)`}
+      />
+    )
+  }
 
   if (!machine) {
     return (
@@ -248,6 +252,15 @@ export default function MachineDetailsPage() {
           </p>
         </div>
         <div className="ml-auto flex items-center gap-2.5">
+          <button
+            type="button"
+            className="btn-ghost flex items-center gap-1.5"
+            onClick={() => setQrModalOpen(true)}
+            title="Generate Equipment QR Tag"
+          >
+            <QrCode className="h-4 w-4 text-cyan-400" />
+            <span>{t('Equipment QR Tag')}</span>
+          </button>
           <button
             type="button"
             className="btn-ghost"
@@ -930,6 +943,12 @@ export default function MachineDetailsPage() {
           </Field>
         </div>
       </Modal>
+
+      <QrCodeModal
+        machine={machine}
+        isOpen={qrModalOpen}
+        onClose={() => setQrModalOpen(false)}
+      />
     </div>
   )
 }

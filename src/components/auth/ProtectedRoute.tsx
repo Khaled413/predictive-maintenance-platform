@@ -30,7 +30,32 @@ export default function ProtectedRoute({
     logSecurityEvent,
   } = useAuth()
 
-  // 1. Initializing authentication state
+  // 1. Evaluate granular role permissions unconditionally at top
+  let isAuthorized = true
+  let requiredTag = ''
+
+  if (permission) {
+    isAuthorized = checkPermission(permission)
+    requiredTag = permission
+  } else if (permissions && permissions.length > 0) {
+    isAuthorized = requireAll
+      ? checkAllPermissions(permissions)
+      : checkAnyPermission(permissions)
+    requiredTag = permissions.join(', ')
+  }
+
+  useEffect(() => {
+    if (!isLoading && isConfigured && currentUser && !isAuthorized) {
+      logSecurityEvent({
+        action: 'route.access_denied',
+        resourceType: 'route',
+        outcome: 'DENY',
+        details: `Access to ${location.pathname} denied. Required: [${requiredTag}]. User: ${currentUser.email} (${currentUser.role}).`,
+      })
+    }
+  }, [isLoading, isConfigured, isAuthorized, requiredTag, currentUser, location.pathname, logSecurityEvent])
+
+  // 2. Initializing authentication state
   if (isLoading) {
     return (
       <div className="flex min-h-[80vh] items-center justify-center bg-navy-950 text-ink">
@@ -47,7 +72,7 @@ export default function ProtectedRoute({
     )
   }
 
-  // 2. Fail closed if Supabase is unconfigured
+  // 3. Fail closed if Supabase is unconfigured
   if (!isConfigured) {
     return (
       <div className="flex min-h-[80vh] items-center justify-center bg-navy-950 p-6 text-center text-ink">
@@ -63,12 +88,12 @@ export default function ProtectedRoute({
     )
   }
 
-  // 3. Unauthenticated visitors are redirected to public landing page
+  // 4. Unauthenticated visitors are redirected to public landing page
   if (!currentUser) {
     return <Navigate to="/" state={{ from: location.pathname, requireAuth: true }} replace />
   }
 
-  // 4. Deactivated accounts are prohibited immediately
+  // 5. Deactivated accounts are prohibited immediately
   if (currentUser.status === 'deactivated') {
     return (
       <AccessDeniedPage
@@ -77,31 +102,7 @@ export default function ProtectedRoute({
     )
   }
 
-  // 5. Evaluate granular role permissions
-  let isAuthorized = true
-  let requiredTag = ''
-
-  if (permission) {
-    isAuthorized = checkPermission(permission)
-    requiredTag = permission
-  } else if (permissions && permissions.length > 0) {
-    isAuthorized = requireAll
-      ? checkAllPermissions(permissions)
-      : checkAnyPermission(permissions)
-    requiredTag = permissions.join(', ')
-  }
-
-  useEffect(() => {
-    if (!isAuthorized && currentUser) {
-      logSecurityEvent({
-        action: 'route.access_denied',
-        resourceType: 'route',
-        outcome: 'DENY',
-        details: `Access to ${location.pathname} denied. Required: [${requiredTag}]. User: ${currentUser.email} (${currentUser.role}).`,
-      })
-    }
-  }, [isAuthorized, requiredTag, currentUser, location.pathname, logSecurityEvent])
-
+  // 6. Granular permission boundary
   if (!isAuthorized) {
     return <AccessDeniedPage requiredPermission={requiredTag} />
   }

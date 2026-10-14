@@ -16,52 +16,70 @@ interface PreferencesContextValue {
 }
 
 const PreferencesContext = createContext<PreferencesContextValue | null>(null)
-const localizedTerms = Object.entries(translations)
-  .sort(([left], [right]) => right.length - left.length)
-  .map(([source, target]) => ({
-    source,
-    target,
-    pattern: new RegExp(
-      `(^|[^A-Za-z])${source.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?=$|[^A-Za-z])`,
-      'gi'
-    ),
-  }))
+
+// Build reverse dictionary (Arabic -> English) for clean bi-directional switching
+const reverseTranslations: Record<string, string> = {}
+for (const [en, ar] of Object.entries(translations)) {
+  if (ar && typeof ar === 'string') {
+    reverseTranslations[ar.trim()] = en.trim()
+  }
+}
 
 function localizeText(value: string, language: Language): string {
-  if (language === 'en') return value
-
   const trimmed = value.trim()
+  if (!trimmed) return value
+
   if (/^[\w .-]+\.(?:pdf|docx|txt|csv|xlsx)$/i.test(trimmed)) return value
-  if (trimmed === 'Min') return value.replace(trimmed, 'الحد الأدنى')
 
-  const exact = translations[trimmed]
-  const relativeTime = trimmed.match(/^(\d+)(s|m|h|d|mo) ago$/)
-  if (relativeTime) {
-    const unit: Record<string, string> = {
-      s: 'ثانية',
-      m: 'دقيقة',
-      h: 'ساعة',
-      d: 'يوم',
-      mo: 'شهر',
+  if (language === 'ar') {
+    if (trimmed === 'Min') return value.replace(trimmed, 'الحد الأدنى')
+
+    const exact = translations[trimmed]
+    if (exact) return value.replace(trimmed, exact)
+
+    const relativeTime = trimmed.match(/^(\d+)(s|m|h|d|mo) ago$/)
+    if (relativeTime) {
+      const unit: Record<string, string> = {
+        s: 'ثانية',
+        m: 'دقيقة',
+        h: 'ساعة',
+        d: 'يوم',
+        mo: 'شهر',
+      }
+      return value.replace(trimmed, `${relativeTime[1]} ${unit[relativeTime[2]]} مضت`)
     }
-    return value.replace(trimmed, `${relativeTime[1]} ${unit[relativeTime[2]]} مضت`)
+
+    const localized = value
+      .replace(/\b(\d+(?:[.,]\d+)?)\s*hrs?\b/gi, '$1 ساعة')
+      .replace(/\b(\d+(?:[.,]\d+)?)\s*h\b/gi, '$1 ساعة')
+      .replace(/\b(\d+(?:[.,]\d+)?)\s*MB\b/gi, '$1 ميجابايت')
+      .replace(/\b(\d+)\s+saved\b/gi, '$1 محادثات محفوظة')
+      .replace(/\b(\d+(?:[.,]\d+)?)%\s*now\b/gi, '$1% الآن')
+    return localized
+  } else {
+    // English mode: restore English from reverse dictionary
+    const exactEn = reverseTranslations[trimmed]
+    if (exactEn) return value.replace(trimmed, exactEn)
+
+    const arRelative = trimmed.match(/^(\d+)\s*(ثانية|دقيقة|ساعة|يوم|شهر)\s*مضت$/)
+    if (arRelative) {
+      const unitEn: Record<string, string> = {
+        ثانية: 's',
+        دقيقة: 'm',
+        ساعة: 'h',
+        يوم: 'd',
+        شهر: 'mo',
+      }
+      return value.replace(trimmed, `${arRelative[1]}${unitEn[arRelative[2]] || 'm'} ago`)
+    }
+
+    const enText = value
+      .replace(/(\d+(?:[.,]\d+)?)\s*ساعة/g, '$1 hrs')
+      .replace(/(\d+(?:[.,]\d+)?)\s*ميجابايت/g, '$1 MB')
+      .replace(/(\d+)\s*محادثات محفوظة/g, '$1 saved')
+      .replace(/(\d+(?:[.,]\d+)?)%\s*الآن/g, '$1% now')
+    return enText
   }
-
-  let localized = exact
-    ? value.replace(trimmed, exact)
-    : localizedTerms.reduce(
-        (text, { pattern, target }) =>
-          text.replace(pattern, (_match, prefix: string) => `${prefix}${target}`),
-        value
-      )
-
-  localized = localized
-    .replace(/\b(\d+(?:[.,]\d+)?)\s*hrs?\b/gi, '$1 ساعة')
-    .replace(/\b(\d+(?:[.,]\d+)?)\s*h\b/gi, '$1 ساعة')
-    .replace(/\b(\d+(?:[.,]\d+)?)\s*MB\b/gi, '$1 ميجابايت')
-    .replace(/\b(\d+)\s+saved\b/gi, '$1 محادثات محفوظة')
-    .replace(/\b(\d+(?:[.,]\d+)?)%\s*now\b/gi, '$1% الآن')
-  return localized
 }
 
 function getInitialLanguage(): Language {
@@ -127,8 +145,8 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
           const parent = node.parentElement
           if (
             parent &&
-            !parent.closest('code,[data-no-translate]') &&
-            !['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEXTAREA'].includes(parent.tagName)
+            !parent.closest('code,pre,textarea,input,[data-no-translate],.chat-capsule,[contenteditable]') &&
+            !['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEXTAREA', 'INPUT'].includes(parent.tagName)
           ) {
             textNodes.push(node as Text)
           }
@@ -136,17 +154,31 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
 
         textNodes.forEach((textNode) => {
           const current = textNode.nodeValue ?? ''
+          if (!current.trim()) return
+
           const previousTarget = renderedText.get(textNode)
-          const source = originalText.get(textNode)
-          const latestSource =
+          let source = originalText.get(textNode)
+
+          if (
             source === undefined ||
             (previousTarget !== undefined && current !== previousTarget)
-              ? current
-              : source
-          originalText.set(textNode, latestSource)
-          const target = localizeText(latestSource, language)
+          ) {
+            const trimmed = current.trim()
+            if (language === 'ar') {
+              // If initialized in Arabic, check if this is an Arabic translation of an English key
+              const canonicalEn = reverseTranslations[trimmed]
+              source = canonicalEn ? current.replace(trimmed, canonicalEn) : current
+            } else {
+              source = current
+            }
+            originalText.set(textNode, source)
+          }
+
+          const target = localizeText(source, language)
           renderedText.set(textNode, target)
-          if (textNode.nodeValue !== target) textNode.nodeValue = target
+          if (textNode.nodeValue !== target) {
+            textNode.nodeValue = target
+          }
         })
 
         document.querySelectorAll<HTMLElement>('*').forEach((element) => {
@@ -156,16 +188,23 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
           const rendered = renderedAttributes.get(element)!
           attributes.forEach((attribute) => {
             const value = element.getAttribute(attribute)
-            if (value === null) return
+            if (value === null || !value.trim()) return
             const previousTarget = rendered.get(attribute)
-            const source = stored.get(attribute)
-            const latestSource =
+            let source = stored.get(attribute)
+            if (
               source === undefined ||
               (previousTarget !== undefined && value !== previousTarget)
-                ? value
-                : source
-            stored.set(attribute, latestSource)
-            const target = localizeText(latestSource, language)
+            ) {
+              const trimmed = value.trim()
+              if (language === 'ar') {
+                const canonicalEn = reverseTranslations[trimmed]
+                source = canonicalEn ? value.replace(trimmed, canonicalEn) : value
+              } else {
+                source = value
+              }
+              stored.set(attribute, source)
+            }
+            const target = localizeText(source, language)
             rendered.set(attribute, target)
             if (value !== target) element.setAttribute(attribute, target)
           })
@@ -185,8 +224,6 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
       attributeFilter: attributes,
     })
     return () => observer.disconnect()
-    // The WeakMaps are stable (empty-dep memos); they are listed so the
-    // translation observer effect declares every value it reads.
   }, [language, originalText, renderedText, originalAttributes, renderedAttributes])
 
   const value = useMemo<PreferencesContextValue>(
@@ -199,7 +236,15 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
         setThemeState((current) => (current === 'dark' ? 'light' : 'dark')),
       setLanguage: (next) => setLanguageState(next),
       setTheme: (next) => setThemeState(next),
-      t: (key) => (language === 'ar' ? (translations[key] ?? key) : key),
+      t: (key) => {
+        if (!key) return ''
+        const trimmed = key.trim()
+        if (language === 'ar') {
+          return translations[trimmed] ?? translations[key] ?? key
+        } else {
+          return reverseTranslations[trimmed] ?? reverseTranslations[key] ?? key
+        }
+      },
     }),
     [language, theme]
   )
@@ -215,3 +260,4 @@ export function usePreferences(): PreferencesContextValue {
   if (!ctx) throw new Error('usePreferences must be used within PreferencesProvider')
   return ctx
 }
+

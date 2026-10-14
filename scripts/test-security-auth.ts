@@ -10,13 +10,13 @@
  */
 
 import {
-  ROLE_PERMISSIONS,
   hasPermission,
   canAccessMachine,
   canModifyMaintenanceOrder,
   canManageUser,
 } from '../src/utils/rbac'
 import type { AuthUser } from '../src/types/auth'
+import type { MaintenanceRecord } from '../src/types'
 import { createClient } from '@supabase/supabase-js'
 
 console.log('='.repeat(70))
@@ -143,11 +143,21 @@ test('Security 4: Technician cannot modify maintenance orders belonging to other
     lastLoginAt: '2026-01-01',
   }
 
-  const orderOnDifferentMachine: any = {
+  const orderOnDifferentMachine: MaintenanceRecord = {
     id: 'MO-99',
     machineId: 'M-006', // Not assigned to Tech A
+    machineName: 'Turbine 6',
+    machineType: 'Turbine',
+    type: 'Repair',
+    reason: 'Vibration',
+    priority: 'High',
+    date: '2026-10-12',
     technician: 'Technician Bassem',
     status: 'In Progress',
+    downtime: '1h',
+    cost: null,
+    notes: '',
+    maintenanceKind: 'corrective',
   }
 
   assert(
@@ -199,7 +209,7 @@ test('Security 6: Administrator cannot demote or deactivate their own active acc
 
   const result = canManageUser(admin, admin)
   assert(!result.allowed, 'Admin must not be allowed to change their own role or deactivate self')
-  assert(result.reason?.includes('own active account'), 'Must state cannot modify own active account')
+  assert(Boolean(result.reason?.includes('own active account')), 'Must state cannot modify own active account')
 })
 
 // 7. Live Supabase Authentication & RLS boundary test
