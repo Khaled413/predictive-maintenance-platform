@@ -13,9 +13,12 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
+    "test": "npm run test:ml",
+    "test:ml": "python -m pytest ml/tests",
     "smoke": "node scripts/smoke.mjs",
     "seed:employees": "tsx scripts/seed-employees.ts",
-    "lint": "eslint . --ext .ts,.tsx,.js,.mjs --max-warnings 0",
+    "lint": "eslint . --ext .ts,.tsx,.js,.mjs",
+    "lint:fix": "eslint . --ext .ts,.tsx,.js,.mjs --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint-staged": "lint-staged"

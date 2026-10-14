@@ -1,5 +1,20 @@
 # Predictive Maintenance Platform
 
+<div align="center">
+
+[![CI](https://github.com/Khaled413/predictive-maintenance-platform/actions/workflows/ci.yml/badge.svg)](https://github.com/Khaled413/predictive-maintenance-platform/actions)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.5-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![React](https://img.shields.io/badge/React-18.3-61DAFB?logo=react&logoColor=black)](https://react.dev/)
+[![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.4-38B2AC?logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
+[![Supabase](https://img.shields.io/badge/Supabase-Auth%20%26%20DB-3ECF8E?logo=supabase&logoColor=white)](https://supabase.com/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+
+**Enterprise-grade industrial machine health dashboard combining real-time predictive ML inference, multilingual RAG assistant, role-based access control, and automated fault alert workflows.**
+
+</div>
+
 ## Industrial AI Platform — Machine Health & Maintenance Dashboard
 
 <img width="1536" height="1024" alt="image" src="https://github.com/user-attachments/assets/ce1375ef-3cef-417f-b5dd-d0e13b002723" />
@@ -34,7 +49,9 @@ a Python inference service for predictive maintenance.
 | `/reports`      | Analytics from eligible prediction and work-order records; CSV export                         |
 | `/quality`      | Explicitly simulated image-inspection demo                                                    |
 | `/assistant`    | RAG assistant for indexed documents, current model outputs, and work orders                   |
+| `/users`        | Enterprise user management, employee directory, and RBAC permission enforcement               |
 | `/settings`     | Display thresholds, preferences, and local data management                                    |
+| `/landing`      | Public landing page highlighting platform features and enterprise capabilities                |
 
 ## How predictions work
 
@@ -152,10 +169,14 @@ operational decisions on real equipment.
 
 ## Technology
 
-- **Frontend:** React 18, TypeScript, Vite 5, Tailwind CSS, Recharts
-- **Inference API:** Python, FastAPI, scikit-learn, pandas, NumPy, joblib
-- **Deployment:** Vercel multi-service configuration
-- **State:** Browser `localStorage` for demo application state
+- **Frontend:** React 18, TypeScript, Vite 5, Tailwind CSS, Recharts, Lucide Icons
+- **Inference API:** Python 3.11, FastAPI, scikit-learn, pandas, NumPy, joblib
+- **AI Assistant & RAG:** Qdrant Vector Store, Hugging Face Transformers (`multilingual-e5-large`), Groq LLM API
+- **Database & Auth:** Supabase (PostgreSQL, Row Level Security, RBAC permissions, Audit Logging)
+- **Workflow Automation:** n8n Webhook alerts for critical telemetry faults
+- **CI / CD & Tooling:** GitHub Actions, ESLint, Prettier, TypeScript strict checks, Pytest
+- **Deployment:** Vercel multi-service configuration (Vite SPA + Python Serverless API)
+- **State:** React Context API + Browser `localStorage` fallback for offline demo state
 
 The serialized anomaly pipeline is version-sensitive. Both training and
 inference dependencies pin `scikit-learn` to **1.7.1**; keep this version
@@ -255,38 +276,54 @@ provisioned for its service; no checkpoint is included in the repository.
 
 ## Development checks
 
-```powershell
-npm run build
+Run the full local validation suite:
+
+```bash
+# Frontend code style, type safety, and linting
+npm run format:check
+npm run lint
 npm run typecheck
+npm run build
+
+# Python ML and assistant test suite (56 tests)
+npm run test
+# Or directly with pytest:
+python -m pytest ml/tests -v
+
+# Local runtime endpoint smoke test
 npm run smoke
-```
-
-Run the Python inference-service tests from the repository root:
-
-```powershell
-Push-Location ml
-python -m unittest discover -s tests -v
-Pop-Location
 ```
 
 ## Repository layout
 
 ```text
+.github/
+  workflows/ci.yml    Automated GitHub Actions CI/CD test and build pipeline
+  ISSUE_TEMPLATE/     Standardized bug report and feature request templates
+  dependabot.yml      Automated npm and pip security updates
+integrations/
+  n8n/                Automated fault notification webhook workflows & docs
 ml/
   app/                FastAPI routes, schemas, inference, and decision logic
-  models/             Trained model artifacts and metadata
-  tests/              Inference API and model-service tests
-  main.py             Vercel/FastAPI entry point
-public/               Static frontend assets
-scripts/              Local development and smoke-test scripts
+  assistant/          Multilingual RAG engine, document indexing, voice TTS/STT
+  quality/            PatchCore visual inspection model pipeline
+  models/             Trained production model artifacts (.joblib) & metadata
+  tests/              Comprehensive pytest test suite
+  main.py             ASGI FastAPI service entry point
+scripts/              Database seeding, RBAC testing, dev runner, and smoke tests
 src/
-  components/         Shared layout, machine, and UI components
-  context/            Application and preference state
-  data/               Seed demo data and prediction API client
-  pages/              Route-level screens
-  types/              Shared TypeScript models
-  utils/              Formatting, simulation, and application helpers
-docs/assets/          Project documentation artwork
+  components/         Layout, machine cards, modals, and reusable UI elements
+  context/            Application state, authentication, and user preferences
+  data/               API clients, mock fleet fallback, and inspection helpers
+  i18n/               Bilingual Arabic/English translations & RTL support
+  lib/                Supabase client and enterprise schema bindings
+  pages/              Main route views (Overview, Machines, Alerts, Assistant, etc.)
+  types/              TypeScript interfaces for machines, users, RBAC, and telemetry
+  utils/              Fault webhooks, audio alerts, PDF reports, and math helpers
+supabase/
+  migrations/         Consolidated PostgreSQL enterprise schema, RLS, and RBAC
+  functions/          Edge functions (e.g. invite-user)
+docs/assets/          Architecture diagrams and visual assets
 ```
 
 ## License

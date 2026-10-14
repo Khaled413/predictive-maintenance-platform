@@ -53,7 +53,15 @@ export default function ProtectedRoute({
         details: `Access to ${location.pathname} denied. Required: [${requiredTag}]. User: ${currentUser.email} (${currentUser.role}).`,
       })
     }
-  }, [isLoading, isConfigured, isAuthorized, requiredTag, currentUser, location.pathname, logSecurityEvent])
+  }, [
+    isLoading,
+    isConfigured,
+    isAuthorized,
+    requiredTag,
+    currentUser,
+    location.pathname,
+    logSecurityEvent,
+  ])
 
   // 2. Initializing authentication state
   if (isLoading) {
@@ -78,7 +86,9 @@ export default function ProtectedRoute({
       <div className="flex min-h-[80vh] items-center justify-center bg-navy-950 p-6 text-center text-ink">
         <div className="max-w-md rounded-2xl border border-red-500/40 bg-navy-900/90 p-8 shadow-2xl backdrop-blur-xl">
           <ShieldAlert className="mx-auto h-12 w-12 text-red-400" />
-          <h2 className="mt-4 text-lg font-bold text-ink">Security Alert: Auth Unconfigured</h2>
+          <h2 className="mt-4 text-lg font-bold text-ink">
+            Security Alert: Auth Unconfigured
+          </h2>
           <p className="mt-2 text-xs text-ink-dim leading-relaxed">
             {configError ||
               'Supabase authentication credentials are required to access operational fleet telemetry.'}
@@ -90,15 +100,15 @@ export default function ProtectedRoute({
 
   // 4. Unauthenticated visitors are redirected to public landing page
   if (!currentUser) {
-    return <Navigate to="/" state={{ from: location.pathname, requireAuth: true }} replace />
+    return (
+      <Navigate to="/" state={{ from: location.pathname, requireAuth: true }} replace />
+    )
   }
 
   // 5. Deactivated accounts are prohibited immediately
   if (currentUser.status === 'deactivated') {
     return (
-      <AccessDeniedPage
-        reason="Your account has been deactivated by the plant administrator."
-      />
+      <AccessDeniedPage reason="Your account has been deactivated by the plant administrator." />
     )
   }
 

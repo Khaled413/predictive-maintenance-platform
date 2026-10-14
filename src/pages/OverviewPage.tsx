@@ -117,7 +117,8 @@ export default function OverviewPage() {
     const hourlyDowntimeLossRate = 1250 // $1,250 / hour industrial benchmark
     const criticalAvoided = Math.max(
       1,
-      machines.filter((m) => m.status === 'Critical' || (m.failureRisk ?? 0) > 70).length * 2
+      machines.filter((m) => m.status === 'Critical' || (m.failureRisk ?? 0) > 70)
+        .length * 2
     )
     const hoursAvoided = Number((criticalAvoided * 4.5).toFixed(1))
     const grossCostAvoided = hoursAvoided * hourlyDowntimeLossRate
@@ -194,7 +195,8 @@ export default function OverviewPage() {
               </div>
               {currentUser?.role === 'technician' && (
                 <span className="rounded-full border border-sky-400/40 bg-sky-500/20 px-2.5 py-0.5 text-[10px] font-semibold text-sky-200">
-                  {currentUser.name} · {accessibleMachines.length} {t('Assigned Machines')}
+                  {currentUser.name} · {accessibleMachines.length}{' '}
+                  {t('Assigned Machines')}
                 </span>
               )}
             </div>
@@ -211,18 +213,24 @@ export default function OverviewPage() {
           <div className="flex flex-wrap items-center gap-2 self-start md:self-center">
             <div className="flex items-center gap-1.5 rounded-xl border border-emerald-400/30 bg-gradient-to-r from-emerald-500/15 to-teal-500/10 px-3 py-2 text-xs font-semibold text-emerald-300 shadow-sm">
               <span className="h-2 w-2 rounded-full bg-emerald-400" />
-              <span>{operationalCount} {t('Operational')}</span>
+              <span>
+                {operationalCount} {t('Operational')}
+              </span>
             </div>
             {warningCount > 0 && (
               <div className="flex items-center gap-1.5 rounded-xl border border-amber-400/30 bg-gradient-to-r from-amber-500/15 to-orange-500/10 px-3 py-2 text-xs font-semibold text-amber-300 shadow-sm">
                 <span className="h-2 w-2 rounded-full bg-amber-400" />
-                <span>{warningCount} {t('Warning')}</span>
+                <span>
+                  {warningCount} {t('Warning')}
+                </span>
               </div>
             )}
             {criticalCount > 0 && (
               <div className="flex items-center gap-1.5 rounded-xl border border-red-400/35 bg-gradient-to-r from-red-500/20 to-rose-500/15 px-3 py-2 text-xs font-semibold text-red-300 shadow-sm">
                 <span className="h-2 w-2 rounded-full bg-red-400" />
-                <span>{criticalCount} {t('Critical')}</span>
+                <span>
+                  {criticalCount} {t('Critical')}
+                </span>
               </div>
             )}
           </div>

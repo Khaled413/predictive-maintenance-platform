@@ -221,7 +221,9 @@ export default function QrCodeModal({ machine, isOpen, onClose }: QrCodeModalPro
               <span className="block text-[10px] font-extrabold uppercase tracking-widest text-sky-700">
                 INDUSTRIAL ASSET TAG
               </span>
-              <span className="font-mono text-lg font-black text-slate-900">{machine.id}</span>
+              <span className="font-mono text-lg font-black text-slate-900">
+                {machine.id}
+              </span>
               <span className="block text-xs font-semibold text-slate-600 truncate">
                 {machine.name}
               </span>

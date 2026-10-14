@@ -73,9 +73,16 @@ export default function MaintenancePage() {
     failureCause: '',
     technician: '',
     notes: '',
-    attachments: [] as Array<{ id: string; url: string; name: string; timestamp: string }>,
+    attachments: [] as Array<{
+      id: string
+      url: string
+      name: string
+      timestamp: string
+    }>,
   })
-  const [previewImage, setPreviewImage] = useState<{ url: string; title: string } | null>(null)
+  const [previewImage, setPreviewImage] = useState<{ url: string; title: string } | null>(
+    null
+  )
 
   const handlePhotoUpload = (
     e: React.ChangeEvent<HTMLInputElement>,
@@ -176,7 +183,8 @@ export default function MaintenancePage() {
         (r) => r.status === 'Recommended' || r.status === 'Scheduled'
       ).length,
       Scheduled: accessibleMaintenance.filter((r) => r.status === 'Scheduled').length,
-      'In Progress': accessibleMaintenance.filter((r) => r.status === 'In Progress').length,
+      'In Progress': accessibleMaintenance.filter((r) => r.status === 'In Progress')
+        .length,
       Completed: accessibleMaintenance.filter((r) => r.status === 'Completed').length,
       Cancelled: accessibleMaintenance.filter((r) => r.status === 'Cancelled').length,
     }),
@@ -482,55 +490,59 @@ export default function MaintenancePage() {
                     <td className="px-3 py-3">
                       {checkOrderModify(r) ? (
                         <div className="flex items-center justify-end gap-1.5">
-                          {r.status === 'Recommended' && checkPermission('maintenance.update') && (
-                            <button
-                              type="button"
-                              title="Schedule this task"
-                              onClick={() => advance(r, 'Scheduled')}
-                              className="btn-ghost btn-sm"
-                            >
-                              <CalendarPlus className="h-3.5 w-3.5" />
-                              Schedule
-                            </button>
-                          )}
-                          {r.status === 'Scheduled' && checkPermission('maintenance.update') && (
-                            <button
-                              type="button"
-                              title="Start work"
-                              onClick={() => advance(r, 'In Progress')}
-                              className="btn-ghost btn-sm"
-                            >
-                              <Play className="h-3.5 w-3.5" />
-                              Start
-                            </button>
-                          )}
-                          {r.status === 'In Progress' && checkPermission('maintenance.complete') && (
-                            <button
-                              type="button"
-                              title="Mark as completed"
-                              onClick={() => advance(r, 'Completed')}
-                              className="btn-primary btn-sm"
-                            >
-                              <CheckCheck className="h-3.5 w-3.5" />
-                              Complete
-                            </button>
-                          )}
+                          {r.status === 'Recommended' &&
+                            checkPermission('maintenance.update') && (
+                              <button
+                                type="button"
+                                title="Schedule this task"
+                                onClick={() => advance(r, 'Scheduled')}
+                                className="btn-ghost btn-sm"
+                              >
+                                <CalendarPlus className="h-3.5 w-3.5" />
+                                Schedule
+                              </button>
+                            )}
+                          {r.status === 'Scheduled' &&
+                            checkPermission('maintenance.update') && (
+                              <button
+                                type="button"
+                                title="Start work"
+                                onClick={() => advance(r, 'In Progress')}
+                                className="btn-ghost btn-sm"
+                              >
+                                <Play className="h-3.5 w-3.5" />
+                                Start
+                              </button>
+                            )}
+                          {r.status === 'In Progress' &&
+                            checkPermission('maintenance.complete') && (
+                              <button
+                                type="button"
+                                title="Mark as completed"
+                                onClick={() => advance(r, 'Completed')}
+                                className="btn-primary btn-sm"
+                              >
+                                <CheckCheck className="h-3.5 w-3.5" />
+                                Complete
+                              </button>
+                            )}
                           {['Recommended', 'Scheduled', 'In Progress'].includes(
                             r.status
-                          ) && checkPermission('maintenance.update') && (
-                            <button
-                              type="button"
-                              title="Cancel work order"
-                              onClick={() => {
-                                if (window.confirm(`Cancel work order ${r.id}?`))
-                                  advance(r, 'Cancelled')
-                              }}
-                              className="btn-ghost btn-sm"
-                            >
-                              <Ban className="h-3.5 w-3.5" />
-                              Cancel
-                            </button>
-                          )}
+                          ) &&
+                            checkPermission('maintenance.update') && (
+                              <button
+                                type="button"
+                                title="Cancel work order"
+                                onClick={() => {
+                                  if (window.confirm(`Cancel work order ${r.id}?`))
+                                    advance(r, 'Cancelled')
+                                }}
+                                className="btn-ghost btn-sm"
+                              >
+                                <Ban className="h-3.5 w-3.5" />
+                                Cancel
+                              </button>
+                            )}
                           {checkPermission('maintenance.update') && (
                             <button
                               type="button"
@@ -681,7 +693,10 @@ export default function MaintenancePage() {
               placeholder="Work scope, parts needed, safety notes…"
             />
           </Field>
-          <Field label="Initial Condition Photos / Visual Evidence" className="sm:col-span-2">
+          <Field
+            label="Initial Condition Photos / Visual Evidence"
+            className="sm:col-span-2"
+          >
             <div className="space-y-2">
               <input
                 type="file"
@@ -697,7 +712,11 @@ export default function MaintenancePage() {
                       key={att.id}
                       className="group relative h-14 w-14 overflow-hidden rounded-lg border border-sky-400/30 bg-navy-950/60"
                     >
-                      <img src={att.url} alt={att.name} className="h-full w-full object-cover" />
+                      <img
+                        src={att.url}
+                        alt={att.name}
+                        className="h-full w-full object-cover"
+                      />
                       <button
                         type="button"
                         onClick={() =>
@@ -809,7 +828,11 @@ export default function MaintenancePage() {
                       key={att.id}
                       className="group relative h-14 w-14 overflow-hidden rounded-lg border border-emerald-400/30 bg-navy-950/60"
                     >
-                      <img src={att.url} alt={att.name} className="h-full w-full object-cover" />
+                      <img
+                        src={att.url}
+                        alt={att.name}
+                        className="h-full w-full object-cover"
+                      />
                       <button
                         type="button"
                         onClick={() =>

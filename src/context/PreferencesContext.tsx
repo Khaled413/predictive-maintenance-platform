@@ -145,7 +145,9 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
           const parent = node.parentElement
           if (
             parent &&
-            !parent.closest('code,pre,textarea,input,[data-no-translate],.chat-capsule,[contenteditable]') &&
+            !parent.closest(
+              'code,pre,textarea,input,[data-no-translate],.chat-capsule,[contenteditable]'
+            ) &&
             !['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEXTAREA', 'INPUT'].includes(parent.tagName)
           ) {
             textNodes.push(node as Text)
@@ -260,4 +262,3 @@ export function usePreferences(): PreferencesContextValue {
   if (!ctx) throw new Error('usePreferences must be used within PreferencesProvider')
   return ctx
 }
-

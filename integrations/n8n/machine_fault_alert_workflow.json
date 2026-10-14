@@ -10,10 +10,7 @@
       },
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
-      "position": [
-        0,
-        0
-      ],
+      "position": [0, 0],
       "id": "22fda432-e363-4251-b9b1-4df817850465",
       "name": "Webhook",
       "webhookId": "2965e612-10ca-4d28-aeab-06c7dee75762"
@@ -24,10 +21,7 @@
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        208,
-        0
-      ],
+      "position": [208, 0],
       "id": "75cd902e-204c-4737-b3b4-24c3c6078e8c",
       "name": "Code in JavaScript",
       "notes": "Extract & Pick Engineer"
@@ -60,10 +54,7 @@
       },
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
-      "position": [
-        416,
-        0
-      ],
+      "position": [416, 0],
       "id": "1e780865-d0f0-4a97-87cb-fed789593624",
       "name": "If"
     },
@@ -77,10 +68,7 @@
       },
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
-      "position": [
-        624,
-        -96
-      ],
+      "position": [624, -96],
       "id": "599063fc-cc8c-452d-a729-9fd4950ff19c",
       "name": "Send a text message",
       "webhookId": "998a395f-4878-4d56-83db-0585816dac4f",
@@ -99,10 +87,7 @@
       },
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
-      "position": [
-        832,
-        -96
-      ],
+      "position": [832, -96],
       "id": "edcc7cbb-b581-4fb6-9ab1-c618de12377d",
       "name": "Respond to Webhook"
     },
@@ -114,10 +99,7 @@
       },
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
-      "position": [
-        624,
-        96
-      ],
+      "position": [624, 96],
       "id": "4ea189a9-4620-43b4-af92-6ea49b3ff0e3",
       "name": "Respond to Webhook1"
     }

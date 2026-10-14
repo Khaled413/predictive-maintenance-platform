@@ -21,15 +21,56 @@ export interface NavItem {
 }
 
 export const NAV_ITEMS: NavItem[] = [
-  { path: '/app', label: 'Overview', icon: LayoutDashboard, end: true, requiredPermission: 'dashboard.view' },
-  { path: '/machines', label: 'Machines', icon: Factory, requiredPermission: 'machines.read' },
-  { path: '/maintenance', label: 'Maintenance', icon: Wrench, requiredPermission: 'maintenance.read' },
-  { path: '/users', label: 'Users & RBAC', icon: Users, requiredPermission: 'users.read' },
-  { path: '/quality', label: 'Quality Inspection', icon: ScanLine, requiredPermission: 'models.read' },
-  { path: '/assistant', label: 'AI Assistant', icon: Bot, requiredPermission: 'assistant.use' },
+  {
+    path: '/app',
+    label: 'Overview',
+    icon: LayoutDashboard,
+    end: true,
+    requiredPermission: 'dashboard.view',
+  },
+  {
+    path: '/machines',
+    label: 'Machines',
+    icon: Factory,
+    requiredPermission: 'machines.read',
+  },
+  {
+    path: '/maintenance',
+    label: 'Maintenance',
+    icon: Wrench,
+    requiredPermission: 'maintenance.read',
+  },
+  {
+    path: '/users',
+    label: 'Users & RBAC',
+    icon: Users,
+    requiredPermission: 'users.read',
+  },
+  {
+    path: '/quality',
+    label: 'Quality Inspection',
+    icon: ScanLine,
+    requiredPermission: 'models.read',
+  },
+  {
+    path: '/assistant',
+    label: 'AI Assistant',
+    icon: Bot,
+    requiredPermission: 'assistant.use',
+  },
   { path: '/alerts', label: 'Alerts', icon: BellRing, requiredPermission: 'alerts.read' },
-  { path: '/reports', label: 'Reports', icon: BarChart3, requiredPermission: 'reports.read' },
-  { path: '/settings', label: 'Settings', icon: Settings, requiredPermission: 'settings.read' },
+  {
+    path: '/reports',
+    label: 'Reports',
+    icon: BarChart3,
+    requiredPermission: 'reports.read',
+  },
+  {
+    path: '/settings',
+    label: 'Settings',
+    icon: Settings,
+    requiredPermission: 'settings.read',
+  },
 ]
 
 export const PAGE_META: Record<string, { title: string; subtitle: string }> = {
@@ -55,7 +96,8 @@ export const PAGE_META: Record<string, { title: string; subtitle: string }> = {
   },
   '/users': {
     title: 'User Management & RBAC',
-    subtitle: 'Manage platform users, roles, machine authorizations, and security audit trail',
+    subtitle:
+      'Manage platform users, roles, machine authorizations, and security audit trail',
   },
   '/quality': {
     title: 'AI Quality Inspection',

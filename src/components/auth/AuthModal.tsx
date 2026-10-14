@@ -30,10 +30,7 @@ export default function AuthModal({
 }: AuthModalProps) {
   const navigate = useNavigate()
   const { t } = usePreferences()
-  const {
-    signInWithEmail,
-    requestPasswordReset,
-  } = useAuth()
+  const { signInWithEmail, requestPasswordReset } = useAuth()
 
   const [mode, setMode] = useState<'signin' | 'reset' | 'request'>(initialMode)
   const [email, setEmail] = useState('')
@@ -60,7 +57,9 @@ export default function AuthModal({
           if (onSuccess) onSuccess()
         }, 600)
       } else {
-        setError(res.error || 'Invalid credentials. Please verify your email and password.')
+        setError(
+          res.error || 'Invalid credentials. Please verify your email and password.'
+        )
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Sign in failed')
@@ -159,7 +158,9 @@ export default function AuthModal({
         {mode === 'signin' && (
           <form onSubmit={handleSignIn} className="mt-4 space-y-4">
             <div>
-              <label className="mb-1 block text-xs font-semibold text-ink-dim">{t('Email')}</label>
+              <label className="mb-1 block text-xs font-semibold text-ink-dim">
+                {t('Email')}
+              </label>
               <div className="relative">
                 <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-faint" />
                 <input
@@ -175,7 +176,9 @@ export default function AuthModal({
 
             <div>
               <div className="mb-1 flex items-center justify-between">
-                <label className="text-xs font-semibold text-ink-dim">{t('Password')}</label>
+                <label className="text-xs font-semibold text-ink-dim">
+                  {t('Password')}
+                </label>
                 <button
                   type="button"
                   onClick={() => {

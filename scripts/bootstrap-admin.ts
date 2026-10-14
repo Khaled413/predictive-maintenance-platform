@@ -33,11 +33,15 @@ async function bootstrapAdmin() {
   console.log('='.repeat(70))
 
   if (!supabaseUrl || !serviceRoleKey) {
-    console.error('Error: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables are required.')
+    console.error(
+      'Error: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables are required.'
+    )
     console.log('\nExample execution:')
     console.log('  $env:SUPABASE_URL="https://your-project.supabase.co"')
     console.log('  $env:SUPABASE_SERVICE_ROLE_KEY="your-service-role-key"')
-    console.log('  npx tsx scripts/bootstrap-admin.ts --email=admin@factory.com --name="Eng. Khaled" --password="StrongPassword123!"\n')
+    console.log(
+      '  npx tsx scripts/bootstrap-admin.ts --email=admin@factory.com --name="Eng. Khaled" --password="StrongPassword123!"\n'
+    )
     process.exit(1)
   }
 
@@ -59,17 +63,22 @@ async function bootstrapAdmin() {
 
   // Check if user already exists
   const { data: userList } = await supabase.auth.admin.listUsers()
-  const existingUser = userList?.users?.find((u: { email?: string; id: string }) => u.email === email)
+  const existingUser = userList?.users?.find(
+    (u: { email?: string; id: string }) => u.email === email
+  )
 
   let userId: string
 
   if (existingUser) {
-    console.log(`   User already exists in auth.users (ID: ${existingUser.id}). Updating password and metadata...`)
-    const { data: updated, error: updateError } = await supabase.auth.admin.updateUserById(existingUser.id, {
-      password,
-      user_metadata: { full_name: name, role: 'admin' },
-      email_confirm: true,
-    })
+    console.log(
+      `   User already exists in auth.users (ID: ${existingUser.id}). Updating password and metadata...`
+    )
+    const { data: updated, error: updateError } =
+      await supabase.auth.admin.updateUserById(existingUser.id, {
+        password,
+        user_metadata: { full_name: name, role: 'admin' },
+        email_confirm: true,
+      })
     if (updateError) throw updateError
     userId = updated.user.id
   } else {
@@ -85,18 +94,16 @@ async function bootstrapAdmin() {
   }
 
   console.log(`2. Ensuring public.profiles entry has role='admin'...`)
-  const { error: profileError } = await supabase
-    .from('profiles')
-    .upsert({
-      id: userId,
-      full_name: name,
-      email: email,
-      role_id: 'admin',
-      department: 'Plant Operations & IT Administration',
-      account_status: 'active',
-      avatar_initials: name.slice(0, 2).toUpperCase(),
-      updated_at: new Date().toISOString(),
-    })
+  const { error: profileError } = await supabase.from('profiles').upsert({
+    id: userId,
+    full_name: name,
+    email: email,
+    role_id: 'admin',
+    department: 'Plant Operations & IT Administration',
+    account_status: 'active',
+    avatar_initials: name.slice(0, 2).toUpperCase(),
+    updated_at: new Date().toISOString(),
+  })
 
   if (profileError) {
     console.error('Profile upsert error:', profileError)

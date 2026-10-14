@@ -10,7 +10,10 @@ export const faultWebhookEnabled = Boolean(WEBHOOK_URL)
 
 function loadNotified(): Record<string, string> {
   try {
-    return JSON.parse(localStorage.getItem(NOTIFIED_KEY) ?? '{}') as Record<string, string>
+    return JSON.parse(localStorage.getItem(NOTIFIED_KEY) ?? '{}') as Record<
+      string,
+      string
+    >
   } catch {
     return {}
   }

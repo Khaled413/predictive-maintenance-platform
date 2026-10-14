@@ -55,8 +55,14 @@ function assert(cond: boolean, msg?: string) {
 
 // 1. Unauthenticated user denied all permissions
 test('Security 1: Null/undefined user is denied all 28 permissions by default', () => {
-  assert(!hasPermission(null, 'dashboard.view'), 'null user must be denied dashboard.view')
-  assert(!hasPermission(undefined, 'machines.read'), 'undefined user must be denied machines.read')
+  assert(
+    !hasPermission(null, 'dashboard.view'),
+    'null user must be denied dashboard.view'
+  )
+  assert(
+    !hasPermission(undefined, 'machines.read'),
+    'undefined user must be denied machines.read'
+  )
   assert(!hasPermission(null, 'users.create'), 'null user must be denied users.create')
   assert(!canAccessMachine(null, 'M-001'), 'null user cannot access any machine')
   assert(
@@ -97,10 +103,22 @@ test('Security 2: Deactivated account is completely blocked even with admin role
     lastLoginAt: '2026-01-01',
   }
 
-  assert(!hasPermission(deactivatedAdmin, 'dashboard.view'), 'Deactivated admin denied dashboard.view')
-  assert(!hasPermission(deactivatedAdmin, 'users.read'), 'Deactivated admin denied users.read')
-  assert(!hasPermission(deactivatedAdmin, 'machines.create'), 'Deactivated admin denied machines.create')
-  assert(!canAccessMachine(deactivatedAdmin, 'M-001'), 'Deactivated admin denied machine access')
+  assert(
+    !hasPermission(deactivatedAdmin, 'dashboard.view'),
+    'Deactivated admin denied dashboard.view'
+  )
+  assert(
+    !hasPermission(deactivatedAdmin, 'users.read'),
+    'Deactivated admin denied users.read'
+  )
+  assert(
+    !hasPermission(deactivatedAdmin, 'machines.create'),
+    'Deactivated admin denied machines.create'
+  )
+  assert(
+    !canAccessMachine(deactivatedAdmin, 'M-001'),
+    'Deactivated admin denied machine access'
+  )
 })
 
 // 3. Technician restricted strictly to assigned machines
@@ -184,9 +202,15 @@ test('Security 5: Maintenance Manager blocked from user creation, role managemen
   }
 
   assert(!hasPermission(manager, 'users.create'), 'Manager must not have users.create')
-  assert(!hasPermission(manager, 'users.deactivate'), 'Manager must not have users.deactivate')
+  assert(
+    !hasPermission(manager, 'users.deactivate'),
+    'Manager must not have users.deactivate'
+  )
   assert(!hasPermission(manager, 'roles.manage'), 'Manager must not have roles.manage')
-  assert(!hasPermission(manager, 'permissions.manage'), 'Manager must not have permissions.manage')
+  assert(
+    !hasPermission(manager, 'permissions.manage'),
+    'Manager must not have permissions.manage'
+  )
   assert(!hasPermission(manager, 'audit.read'), 'Manager must not have audit.read')
 })
 
@@ -208,8 +232,14 @@ test('Security 6: Administrator cannot demote or deactivate their own active acc
   }
 
   const result = canManageUser(admin, admin)
-  assert(!result.allowed, 'Admin must not be allowed to change their own role or deactivate self')
-  assert(Boolean(result.reason?.includes('own active account')), 'Must state cannot modify own active account')
+  assert(
+    !result.allowed,
+    'Admin must not be allowed to change their own role or deactivate self'
+  )
+  assert(
+    Boolean(result.reason?.includes('own active account')),
+    'Must state cannot modify own active account'
+  )
 })
 
 // 7. Live Supabase Authentication & RLS boundary test
@@ -231,7 +261,10 @@ async function runLiveDbChecks() {
     })
     assert(!error, `Valid sign-in failed: ${error?.message}`)
     assert(Boolean(data.user && data.session), 'User and session must be returned')
-    assert(data.user?.email === 'admin@factory.com', 'User email must match admin@factory.com')
+    assert(
+      data.user?.email === 'admin@factory.com',
+      'User email must match admin@factory.com'
+    )
   })
 
   await test('Security 8 (Live Auth): Supabase Auth rejects invalid credentials and unknown accounts', async () => {
@@ -250,13 +283,20 @@ async function runLiveDbChecks() {
     const { data, error } = await anonClient.from('machines').select('id, name')
 
     if (error && error.message.includes("Could not find the table 'public.machines'")) {
-      console.log('    ℹ NOTE: PostgreSQL schema tables (machines/profiles) not yet applied to remote instance.')
-      console.log('    ℹ Execute supabase/migrations/20261012_consolidated_enterprise_schema.sql in Supabase SQL Editor.')
+      console.log(
+        '    ℹ NOTE: PostgreSQL schema tables (machines/profiles) not yet applied to remote instance.'
+      )
+      console.log(
+        '    ℹ Execute supabase/migrations/20261012_consolidated_enterprise_schema.sql in Supabase SQL Editor.'
+      )
       return
     }
 
     assert(!error, `Anon query returned error: ${error?.message}`)
-    assert(Array.isArray(data) && data.length === 0, `Anon visitor must receive 0 rows under RLS, got: ${data?.length}`)
+    assert(
+      Array.isArray(data) && data.length === 0,
+      `Anon visitor must receive 0 rows under RLS, got: ${data?.length}`
+    )
   })
 }
 

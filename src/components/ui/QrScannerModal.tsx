@@ -37,7 +37,11 @@ export default function QrScannerModal({ isOpen, onClose }: QrScannerModalProps)
           throw new Error('Camera access not supported on this browser')
         }
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'environment', width: { ideal: 640 }, height: { ideal: 480 } },
+          video: {
+            facingMode: 'environment',
+            width: { ideal: 640 },
+            height: { ideal: 480 },
+          },
         })
         if (!isMounted) {
           stream.getTracks().forEach((track) => track.stop())
@@ -131,9 +135,7 @@ export default function QrScannerModal({ isOpen, onClose }: QrScannerModalProps)
               <ScanLine className="h-5 w-5 animate-pulse" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-ink">
-                {t('Factory QR Scanner')}
-              </h3>
+              <h3 className="text-sm font-bold text-ink">{t('Factory QR Scanner')}</h3>
               <p className="text-[11px] text-ink-faint">
                 {t('Scan machine floor tag to open live telemetry & work orders')}
               </p>
@@ -185,7 +187,9 @@ export default function QrScannerModal({ isOpen, onClose }: QrScannerModalProps)
                   {cameraError ?? t('Optical scanner ready')}
                 </p>
                 <p className="text-[10.5px] text-ink-faint max-w-xs">
-                  {t('Point camera at QR code tag or select a machine from the fleet list below')}
+                  {t(
+                    'Point camera at QR code tag or select a machine from the fleet list below'
+                  )}
                 </p>
               </div>
             )}
@@ -197,7 +201,9 @@ export default function QrScannerModal({ isOpen, onClose }: QrScannerModalProps)
                 <span className="mt-2 font-mono text-base font-extrabold text-emerald-300">
                   {recognizedMachineId}
                 </span>
-                <span className="text-xs text-ink-faint">{t('Opening Machine Profile...')}</span>
+                <span className="text-xs text-ink-faint">
+                  {t('Opening Machine Profile...')}
+                </span>
               </div>
             )}
           </div>

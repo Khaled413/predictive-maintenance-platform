@@ -182,7 +182,9 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
             <div className="mb-2.5 flex h-8 w-8 items-center justify-center rounded-lg bg-sky-500/20 ring-1 ring-sky-400/35 shadow-sm">
               <Factory className="h-4 w-4 text-sky-300" />
             </div>
-            <p className="text-[12.5px] font-bold text-ink text-gradient">Industrial AI Platform</p>
+            <p className="text-[12.5px] font-bold text-ink text-gradient">
+              Industrial AI Platform
+            </p>
             <p className="mt-0.5 text-[11px] leading-relaxed text-ink-dim">
               Smart Maintenance for Higher Productivity
             </p>

@@ -28,9 +28,13 @@ serve(async (req) => {
     }
 
     // 1. Create client with caller's JWT to verify identity and role
-    const callerClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY') ?? '', {
-      global: { headers: { Authorization: authHeader } },
-    })
+    const callerClient = createClient(
+      supabaseUrl,
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      {
+        global: { headers: { Authorization: authHeader } },
+      }
+    )
 
     const {
       data: { user: callerUser },
@@ -51,11 +55,18 @@ serve(async (req) => {
       .eq('id', callerUser.id)
       .single()
 
-    if (profileError || callerProfile?.role_id !== 'admin' || callerProfile?.account_status !== 'active') {
-      return new Response(JSON.stringify({ error: 'Forbidden: Admin authority required to invite users' }), {
-        status: 403,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
+    if (
+      profileError ||
+      callerProfile?.role_id !== 'admin' ||
+      callerProfile?.account_status !== 'active'
+    ) {
+      return new Response(
+        JSON.stringify({ error: 'Forbidden: Admin authority required to invite users' }),
+        {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      )
     }
 
     // 3. Parse and validate payload
@@ -63,10 +74,13 @@ serve(async (req) => {
     const { email, fullName, role, department, assignedMachineIds } = body
 
     if (!email || !fullName || !role) {
-      return new Response(JSON.stringify({ error: 'email, fullName, and role are required' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
+      return new Response(
+        JSON.stringify({ error: 'email, fullName, and role are required' }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      )
     }
 
     if (!['admin', 'manager', 'technician'].includes(role)) {
@@ -80,13 +94,14 @@ serve(async (req) => {
     const adminClient = createClient(supabaseUrl, supabaseServiceKey)
 
     // Send invitation email via Supabase Auth Admin
-    const { data: inviteData, error: inviteError } = await adminClient.auth.admin.inviteUserByEmail(email, {
-      data: {
-        full_name: fullName,
-        role: role,
-        department: department || 'Plant Operations',
-      },
-    })
+    const { data: inviteData, error: inviteError } =
+      await adminClient.auth.admin.inviteUserByEmail(email, {
+        data: {
+          full_name: fullName,
+          role: role,
+          department: department || 'Plant Operations',
+        },
+      })
 
     if (inviteError) {
       return new Response(JSON.stringify({ error: inviteError.message }), {
@@ -123,7 +138,11 @@ serve(async (req) => {
     })
 
     return new Response(
-      JSON.stringify({ success: true, userId: newUserId, message: `Invitation sent to ${email}` }),
+      JSON.stringify({
+        success: true,
+        userId: newUserId,
+        message: `Invitation sent to ${email}`,
+      }),
       {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

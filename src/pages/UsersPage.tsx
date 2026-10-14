@@ -44,11 +44,23 @@ export default function UsersPage() {
 
   // Modals state
   const [createModalOpen, setCreateModalOpen] = useState(false)
-  const [roleModalUser, setRoleModalUser] = useState<{ id: string; name: string; currentRole: UserRole } | null>(null)
+  const [roleModalUser, setRoleModalUser] = useState<{
+    id: string
+    name: string
+    currentRole: UserRole
+  } | null>(null)
   const [newSelectedRole, setNewSelectedRole] = useState<UserRole>('technician')
-  const [assignModalUser, setAssignModalUser] = useState<{ id: string; name: string; assigned: string[] } | null>(null)
+  const [assignModalUser, setAssignModalUser] = useState<{
+    id: string
+    name: string
+    assigned: string[]
+  } | null>(null)
   const [selectedMachineIds, setSelectedMachineIds] = useState<string[]>([])
-  const [editModalUser, setEditModalUser] = useState<{ id: string; name: string; department: string } | null>(null)
+  const [editModalUser, setEditModalUser] = useState<{
+    id: string
+    name: string
+    department: string
+  } | null>(null)
   const [editName, setEditName] = useState('')
   const [editDepartment, setEditDepartment] = useState('')
   const [isUpdatingProfile, setIsUpdatingProfile] = useState(false)
@@ -129,7 +141,10 @@ export default function UsersPage() {
     if (!assignModalUser) return
     setActionError(null)
 
-    const result = await assignMachinesToTechnician(assignModalUser.id, selectedMachineIds)
+    const result = await assignMachinesToTechnician(
+      assignModalUser.id,
+      selectedMachineIds
+    )
     if (result.success) {
       setAssignModalUser(null)
     } else {
@@ -202,7 +217,9 @@ export default function UsersPage() {
                   <span className="text-gradient">{t('User Management & RBAC')}</span>
                 </h1>
                 <p className="text-xs text-ink-dim">
-                  {t('Manage user roles, operational machine assignments, and review security audit logs.')}
+                  {t(
+                    'Manage user roles, operational machine assignments, and review security audit logs.'
+                  )}
                 </p>
               </div>
             </div>
@@ -331,11 +348,15 @@ export default function UsersPage() {
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-3">
                               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-cyan-400 via-sky-500 to-indigo-600 text-xs font-bold text-white shadow-sm ring-1 ring-white/10">
-                                {language === 'ar' ? user.avatarInitialsAr : user.avatarInitials}
+                                {language === 'ar'
+                                  ? user.avatarInitialsAr
+                                  : user.avatarInitials}
                               </div>
                               <div className="min-w-0">
                                 <p className="font-semibold text-ink truncate">
-                                  {language === 'ar' && user.nameAr ? user.nameAr : user.name}
+                                  {language === 'ar' && user.nameAr
+                                    ? user.nameAr
+                                    : user.name}
                                   {isSelf && (
                                     <span className="ml-1.5 text-[10px] text-sky-400 font-normal">
                                       ({t('You')})
@@ -365,7 +386,9 @@ export default function UsersPage() {
                             )}
                           </td>
                           <td className="px-4 py-3 text-ink-dim truncate max-w-xs">
-                            {language === 'ar' && user.departmentAr ? user.departmentAr : user.department}
+                            {language === 'ar' && user.departmentAr
+                              ? user.departmentAr
+                              : user.department}
                           </td>
                           <td className="px-4 py-3">
                             {user.role === 'technician' ? (
@@ -409,7 +432,9 @@ export default function UsersPage() {
                                     title={t('Assign Machines')}
                                   >
                                     <Cpu className="h-3.5 w-3.5 text-sky-400" />
-                                    <span className="hidden sm:inline">{t('Assign')}</span>
+                                    <span className="hidden sm:inline">
+                                      {t('Assign')}
+                                    </span>
                                   </button>
                                 )}
 
@@ -454,10 +479,15 @@ export default function UsersPage() {
                                     type="button"
                                     onClick={async () => {
                                       setActionError(null)
-                                      const next = user.status === 'active' ? 'deactivated' : 'active'
+                                      const next =
+                                        user.status === 'active'
+                                          ? 'deactivated'
+                                          : 'active'
                                       const res = await setUserStatus(user.id, next)
                                       if (!res.success) {
-                                        setActionError(res.error ?? 'Failed to update user status')
+                                        setActionError(
+                                          res.error ?? 'Failed to update user status'
+                                        )
                                       }
                                     }}
                                     className={`btn-ghost px-2 py-1 h-7 text-[11px] ${
@@ -466,7 +496,9 @@ export default function UsersPage() {
                                         : 'text-emerald-400 hover:border-emerald-400/40 hover:text-emerald-300'
                                     }`}
                                   >
-                                    {user.status === 'active' ? t('Deactivate') : t('Activate')}
+                                    {user.status === 'active'
+                                      ? t('Deactivate')
+                                      : t('Activate')}
                                   </button>
                                 )}
                               </div>
@@ -496,7 +528,9 @@ export default function UsersPage() {
                 {t('Security Audit & RBAC Event Log')}
               </h2>
               <p className="text-xs text-ink-faint">
-                {t('Chronological immutable record of security and authorization events.')}
+                {t(
+                  'Chronological immutable record of security and authorization events.'
+                )}
               </p>
             </div>
             <span className="rounded-md border border-line bg-navy-800 px-2 py-1 font-mono text-[11px] text-ink-dim">
@@ -593,8 +627,12 @@ export default function UsersPage() {
                   onChange={(e) => setNewRole(e.target.value as UserRole)}
                   className="input"
                 >
-                  <option value="technician">{t('Technician (Assigned scope only)')}</option>
-                  <option value="manager">{t('Maintenance Manager (Fleet-wide operations)')}</option>
+                  <option value="technician">
+                    {t('Technician (Assigned scope only)')}
+                  </option>
+                  <option value="manager">
+                    {t('Maintenance Manager (Fleet-wide operations)')}
+                  </option>
                   <option value="admin">{t('Admin (Full system authority)')}</option>
                 </select>
               </div>
@@ -711,7 +749,8 @@ export default function UsersPage() {
                           } else {
                             setSelectedMachineIds((prev) =>
                               prev.filter((id) => id !== m.id)
-                            )}
+                            )
+                          }
                         }}
                         className="rounded border-line bg-navy-950 text-sky-500 focus:ring-0"
                       />

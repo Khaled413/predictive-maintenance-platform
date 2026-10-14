@@ -82,7 +82,9 @@ export default function AccessDeniedPage({
 
       {currentUser?.status === 'deactivated' && (
         <div className="mt-4 rounded-xl border border-red-500/40 bg-red-500/10 p-3 text-xs text-red-200 max-w-md">
-          {t('This account has been deactivated. Please contact an administrator to reactivate your access.')}
+          {t(
+            'This account has been deactivated. Please contact an administrator to reactivate your access.'
+          )}
         </div>
       )}
 

@@ -9,7 +9,9 @@ dist-ssr/
 
 # Python
 __pycache__/
+**/__pycache__/
 *.py[cod]
+**/*.py[cod]
 *$py.class
 *.so
 .Python
@@ -19,8 +21,14 @@ build/
 .eggs/
 *.egg
 .pytest_cache/
+**/.pytest_cache/
 .coverage
 htmlcov/
+.venv/
+venv/
+ENV/
+env/
+.venv*/
 
 # Logs
 *.log
@@ -68,6 +76,9 @@ ml/data/raw/
 ml/data/processed/
 ml/reports/
 ml/models/*.joblib
+!ml/models/failure_prediction_model.joblib
+!ml/models/failure_type_model.joblib
+!ml/models/old_sensor_anomaly_model.joblib
 ml/quality/models/
 ml/quality/weights/
 ml/quality/data/

@@ -466,7 +466,9 @@ function generateOperationalFallbackReply(
     if (isArabic) {
       const list = pending
         .slice(0, 5)
-        .map((o) => `• **${o.id}** (${o.machineId}): ${o.reason} — الأولوية: ${o.priority}`)
+        .map(
+          (o) => `• **${o.id}** (${o.machineId}): ${o.reason} — الأولوية: ${o.priority}`
+        )
         .join('\n')
       return {
         answer: `يوجد حالياً **${pending.length}** أوامر صيانة قيد التنفيذ أو مجدولة:\n\n${list || 'لا توجد أوامر صيانة مفتوحة.'}\n\nيمكنك الاطلاع على كافة التفاصيل وإدارة الفنيين من خلال صفحة الصيانة.`,
@@ -488,7 +490,9 @@ function generateOperationalFallbackReply(
     } else {
       const list = pending
         .slice(0, 5)
-        .map((o) => `• **${o.id}** (${o.machineId}): ${o.reason} — Priority: ${o.priority}`)
+        .map(
+          (o) => `• **${o.id}** (${o.machineId}): ${o.reason} — Priority: ${o.priority}`
+        )
         .join('\n')
       return {
         answer: `There are currently **${pending.length}** pending or scheduled work orders:\n\n${list || 'No active work orders.'}\n\nYou can inspect and assign technicians directly in the Maintenance tab.`,
@@ -824,7 +828,9 @@ export default function AssistantPage() {
     () => () => {
       try {
         speechRecognitionRef.current?.abort()
-      } catch {}
+      } catch {
+        /* ignore */
+      }
       speechRecognitionRef.current = null
       recorderRef.current?.stop()
       mediaStreamRef.current?.getTracks().forEach((track) => track.stop())
@@ -1156,13 +1162,17 @@ export default function AssistantPage() {
       if (speechRecognitionRef.current) {
         try {
           speechRecognitionRef.current.stop()
-        } catch {}
+        } catch {
+          /* ignore */
+        }
         speechRecognitionRef.current = null
       }
       if (recorderRef.current && recorderRef.current.state !== 'inactive') {
         try {
           recorderRef.current.stop()
-        } catch {}
+        } catch {
+          /* ignore */
+        }
       }
       setRecording(false)
       return
@@ -1171,10 +1181,18 @@ export default function AssistantPage() {
     // 1. Try browser Web Speech API (real-time dictation with zero backend latency)
     const SpeechRecognitionClass =
       typeof window !== 'undefined'
-        ? (window as unknown as { SpeechRecognition?: any; webkitSpeechRecognition?: any })
-            .SpeechRecognition ||
-          (window as unknown as { SpeechRecognition?: any; webkitSpeechRecognition?: any })
-            .webkitSpeechRecognition
+        ? (
+            window as unknown as {
+              SpeechRecognition?: any
+              webkitSpeechRecognition?: any
+            }
+          ).SpeechRecognition ||
+          (
+            window as unknown as {
+              SpeechRecognition?: any
+              webkitSpeechRecognition?: any
+            }
+          ).webkitSpeechRecognition
         : null
 
     if (SpeechRecognitionClass) {
@@ -1294,7 +1312,9 @@ export default function AssistantPage() {
       notify(
         'error',
         t('Microphone access failed'),
-        error instanceof Error ? error.message : t('Allow microphone access and try again.')
+        error instanceof Error
+          ? error.message
+          : t('Allow microphone access and try again.')
       )
     }
   }
@@ -1338,7 +1358,9 @@ export default function AssistantPage() {
         notify(
           'warning',
           t('Voice output unavailable'),
-          t('The reply is available as text, but this browser has no matching speech voice installed.')
+          t(
+            'The reply is available as text, but this browser has no matching speech voice installed.'
+          )
         )
         return
       }
@@ -2190,89 +2212,127 @@ export default function AssistantPage() {
                   >
                     <span className="whitespace-pre-line">{msg.content}</span>
                   </div>
-                  {msg.role === 'assistant' && (() => {
-                    const actionableMachines = parseActionableMachines(msg.content, machines)
-                    if (actionableMachines.length === 0) return null
-                    return (
-                      <div className="mt-3 space-y-2 border-t border-sky-400/20 pt-2.5">
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-sky-400/90 flex items-center gap-1.5">
-                          <Sparkles className="h-3 w-3 text-cyan-400" />
-                          <span>{language === 'ar' ? 'إجراءات مقترحة بالذكاء الاصطناعي' : 'Actionable Recommendations'}</span>
-                        </p>
-                        {actionableMachines.map((m) => (
-                          <div
-                            key={m.id}
-                            className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-xl border border-sky-400/20 bg-sky-500/5 p-2.5 transition-all hover:bg-sky-500/10"
-                          >
-                            <div className="min-w-0">
-                              <div className="flex items-center gap-1.5">
-                                <span className="font-mono text-xs font-bold text-sky-300">{m.id}</span>
-                                <span className="text-[11px] font-medium text-ink truncate">· {m.name}</span>
-                                <span
-                                  className={cx(
-                                    'rounded px-1.5 py-0.5 text-[9px] font-bold uppercase',
-                                    m.status === 'Critical'
-                                      ? 'bg-red-500/20 text-red-300'
-                                      : m.status === 'Warning'
-                                        ? 'bg-amber-500/20 text-amber-300'
-                                        : 'bg-emerald-500/20 text-emerald-300'
-                                  )}
-                                >
-                                  {m.status ?? 'Normal'}
-                                </span>
+                  {msg.role === 'assistant' &&
+                    (() => {
+                      const actionableMachines = parseActionableMachines(
+                        msg.content,
+                        machines
+                      )
+                      if (actionableMachines.length === 0) return null
+                      return (
+                        <div className="mt-3 space-y-2 border-t border-sky-400/20 pt-2.5">
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-sky-400/90 flex items-center gap-1.5">
+                            <Sparkles className="h-3 w-3 text-cyan-400" />
+                            <span>
+                              {language === 'ar'
+                                ? 'إجراءات مقترحة بالذكاء الاصطناعي'
+                                : 'Actionable Recommendations'}
+                            </span>
+                          </p>
+                          {actionableMachines.map((m) => (
+                            <div
+                              key={m.id}
+                              className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-xl border border-sky-400/20 bg-sky-500/5 p-2.5 transition-all hover:bg-sky-500/10"
+                            >
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="font-mono text-xs font-bold text-sky-300">
+                                    {m.id}
+                                  </span>
+                                  <span className="text-[11px] font-medium text-ink truncate">
+                                    · {m.name}
+                                  </span>
+                                  <span
+                                    className={cx(
+                                      'rounded px-1.5 py-0.5 text-[9px] font-bold uppercase',
+                                      m.status === 'Critical'
+                                        ? 'bg-red-500/20 text-red-300'
+                                        : m.status === 'Warning'
+                                          ? 'bg-amber-500/20 text-amber-300'
+                                          : 'bg-emerald-500/20 text-emerald-300'
+                                    )}
+                                  >
+                                    {m.status ?? 'Normal'}
+                                  </span>
+                                </div>
+                                <p className="mt-0.5 text-[10.5px] text-ink-faint truncate">
+                                  {m.recommendation ??
+                                    (language === 'ar'
+                                      ? 'فحص ومتابعة الصيانة الوقائية'
+                                      : 'Scheduled preventive inspection')}
+                                </p>
                               </div>
-                              <p className="mt-0.5 text-[10.5px] text-ink-faint truncate">
-                                {m.recommendation ?? (language === 'ar' ? 'فحص ومتابعة الصيانة الوقائية' : 'Scheduled preventive inspection')}
-                              </p>
-                            </div>
-                            <div className="flex items-center gap-1.5 shrink-0">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const newOrder = {
-                                    id: `MT-${crypto.randomUUID()}`,
-                                    machineId: m.id,
-                                    machineName: m.name,
-                                    machineType: m.type,
-                                    type: m.recommendation ? m.recommendation.split(';')[0].slice(0, 30) : 'Corrective Inspection',
-                                    reason: `AI Copilot recommendation for ${m.id}`,
-                                    priority: m.status === 'Critical' ? ('High' as const) : ('Medium' as const),
-                                    date: new Date(Date.now() + 86_400_000).toISOString(),
-                                    technician: 'Ahmed H.',
-                                    status: 'Scheduled' as const,
-                                    downtime: '—',
-                                    cost: null,
-                                    notes: `Automatically generated via Copilot: ${m.recommendation || 'Preventive check'}`,
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const newOrder = {
+                                      id: `MT-${crypto.randomUUID()}`,
+                                      machineId: m.id,
+                                      machineName: m.name,
+                                      machineType: m.type,
+                                      type: m.recommendation
+                                        ? m.recommendation.split(';')[0].slice(0, 30)
+                                        : 'Corrective Inspection',
+                                      reason: `AI Copilot recommendation for ${m.id}`,
+                                      priority:
+                                        m.status === 'Critical'
+                                          ? ('High' as const)
+                                          : ('Medium' as const),
+                                      date: new Date(
+                                        Date.now() + 86_400_000
+                                      ).toISOString(),
+                                      technician: 'Ahmed H.',
+                                      status: 'Scheduled' as const,
+                                      downtime: '—',
+                                      cost: null,
+                                      notes: `Automatically generated via Copilot: ${m.recommendation || 'Preventive check'}`,
+                                    }
+                                    addMaintenance(newOrder)
+                                    playSuccessChime()
+                                    notify(
+                                      'success',
+                                      language === 'ar'
+                                        ? 'تم إنشاء أمر الصيانة بنجاح'
+                                        : 'Work Order Scheduled',
+                                      `${m.id} · ${newOrder.type}`
+                                    )
+                                  }}
+                                  className="flex items-center gap-1 rounded-lg bg-sky-500/20 px-2.5 py-1 text-[10.5px] font-semibold text-sky-300 ring-1 ring-sky-400/30 transition-all hover:bg-sky-500/30 active:scale-95"
+                                  title={
+                                    language === 'ar'
+                                      ? 'إنشاء أمر صيانة فوري'
+                                      : 'Schedule Work Order'
                                   }
-                                  addMaintenance(newOrder)
-                                  playSuccessChime()
-                                  notify(
-                                    'success',
-                                    language === 'ar' ? 'تم إنشاء أمر الصيانة بنجاح' : 'Work Order Scheduled',
-                                    `${m.id} · ${newOrder.type}`
-                                  )
-                                }}
-                                className="flex items-center gap-1 rounded-lg bg-sky-500/20 px-2.5 py-1 text-[10.5px] font-semibold text-sky-300 ring-1 ring-sky-400/30 transition-all hover:bg-sky-500/30 active:scale-95"
-                                title={language === 'ar' ? 'إنشاء أمر صيانة فوري' : 'Schedule Work Order'}
-                              >
-                                <CalendarPlus className="h-3.5 w-3.5" />
-                                <span>{language === 'ar' ? 'إنشاء أمر صيانة' : 'Create Order'}</span>
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => navigate(`/machines/${encodeURIComponent(m.id)}`)}
-                                className="flex items-center gap-1 rounded-lg border border-line bg-navy-800 px-2 py-1 text-[10.5px] font-medium text-ink-dim hover:text-sky-300 hover:border-sky-400/30 transition-all"
-                                title={language === 'ar' ? 'عرض تفاصيل الآلة' : 'Open Machine Profile'}
-                              >
-                                <ExternalLink className="h-3 w-3" />
-                                <span>{language === 'ar' ? 'الملف' : 'Details'}</span>
-                              </button>
+                                >
+                                  <CalendarPlus className="h-3.5 w-3.5" />
+                                  <span>
+                                    {language === 'ar'
+                                      ? 'إنشاء أمر صيانة'
+                                      : 'Create Order'}
+                                  </span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    navigate(`/machines/${encodeURIComponent(m.id)}`)
+                                  }
+                                  className="flex items-center gap-1 rounded-lg border border-line bg-navy-800 px-2 py-1 text-[10.5px] font-medium text-ink-dim hover:text-sky-300 hover:border-sky-400/30 transition-all"
+                                  title={
+                                    language === 'ar'
+                                      ? 'عرض تفاصيل الآلة'
+                                      : 'Open Machine Profile'
+                                  }
+                                >
+                                  <ExternalLink className="h-3 w-3" />
+                                  <span>{language === 'ar' ? 'الملف' : 'Details'}</span>
+                                </button>
+                              </div>
                             </div>
-                          </div>
-                        ))}
-                      </div>
-                    )
-                  })()}
+                          ))}
+                        </div>
+                      )
+                    })()}
                   {msg.sources?.length ? (
                     <div className="mt-2 rounded-xl border border-sky-400/15 bg-sky-500/5 px-2.5 py-1.5">
                       <p className="text-[9.5px] font-semibold uppercase tracking-wider text-sky-400/90">

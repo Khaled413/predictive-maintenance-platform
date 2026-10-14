@@ -54,7 +54,8 @@ export default function AlertsPage() {
   )
 
   const counts = useMemo((): Record<Severity | 'all', number> => {
-    const bySeverity = (s: Severity) => accessibleAlerts.filter((a) => a.severity === s).length
+    const bySeverity = (s: Severity) =>
+      accessibleAlerts.filter((a) => a.severity === s).length
     return {
       all: accessibleAlerts.length,
       critical: bySeverity('critical'),
@@ -153,7 +154,9 @@ export default function AlertsPage() {
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-[12.5px] font-bold text-ink">{t(a.type)}</span>
+                      <span className="text-[12.5px] font-bold text-ink">
+                        {t(a.type)}
+                      </span>
                       <SeverityBadge severity={a.severity} />
                       {a.isDemo && (
                         <span className="chip border-amber-400/20 text-amber-300">
@@ -244,7 +247,9 @@ export default function AlertsPage() {
                                 notify(
                                   'warning',
                                   t('Work order not created'),
-                                  t('The alert machine is no longer available in the fleet.')
+                                  t(
+                                    'The alert machine is no longer available in the fleet.'
+                                  )
                                 )
                                 return
                               }
@@ -264,7 +269,9 @@ export default function AlertsPage() {
                             }}
                           >
                             <CalendarPlus className="h-3.5 w-3.5" />
-                            {existingOrder ? t('Open Work Order') : t('Create Work Order')}
+                            {existingOrder
+                              ? t('Open Work Order')
+                              : t('Create Work Order')}
                           </button>
                         )
                       })()}

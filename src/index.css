@@ -40,8 +40,20 @@
   );
 
   /* Brand accent gradients */
-  --grad-accent: linear-gradient(135deg, #00f2fe 0%, #38bdf8 35%, #6366f1 75%, #a855f7 100%);
-  --grad-accent-strong: linear-gradient(135deg, #0284c7 0%, #00f2fe 30%, #4f46e5 70%, #8b5cf6 100%);
+  --grad-accent: linear-gradient(
+    135deg,
+    #00f2fe 0%,
+    #38bdf8 35%,
+    #6366f1 75%,
+    #a855f7 100%
+  );
+  --grad-accent-strong: linear-gradient(
+    135deg,
+    #0284c7 0%,
+    #00f2fe 30%,
+    #4f46e5 70%,
+    #8b5cf6 100%
+  );
   --grad-aurora: linear-gradient(135deg, #10b981 0%, #06b6d4 50%, #3b82f6 100%);
   --grad-amber: linear-gradient(135deg, #f59e0b 0%, #f97316 60%, #ef4444 100%);
   --grad-danger: linear-gradient(135deg, #f43f5e 0%, #ef4444 50%, #dc2626 100%);
@@ -50,8 +62,7 @@
   /* Theme-aware elevation */
   --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.4), 0 10px 24px -10px rgba(0, 0, 0, 0.5);
   --shadow-panel: 0 1px 3px rgba(0, 0, 0, 0.45), 0 20px 42px -16px rgba(0, 0, 0, 0.65);
-  --shadow-glow:
-    0 0 0 1px rgba(56, 189, 248, 0.25), 0 12px 28px -10px rgba(0, 0, 0, 0.6);
+  --shadow-glow: 0 0 0 1px rgba(56, 189, 248, 0.25), 0 12px 28px -10px rgba(0, 0, 0, 0.6);
 }
 
 html,
@@ -136,7 +147,13 @@ body.light-mode {
     rgba(240, 246, 255, 0)
   );
 
-  --grad-accent: linear-gradient(135deg, #0284c7 0%, #3b82f6 40%, #6366f1 80%, #9333ea 100%);
+  --grad-accent: linear-gradient(
+    135deg,
+    #0284c7 0%,
+    #3b82f6 40%,
+    #6366f1 80%,
+    #9333ea 100%
+  );
   --grad-accent-strong: linear-gradient(135deg, #0284c7 0%, #2563eb 50%, #4f46e5 100%);
   --grad-aurora: linear-gradient(135deg, #059669 0%, #0d9488 50%, #2563eb 100%);
   --grad-amber: linear-gradient(135deg, #d97706 0%, #ea580c 60%, #dc2626 100%);
@@ -148,7 +165,8 @@ body.light-mode {
   --shadow-panel:
     0 1px 3px rgba(15, 34, 66, 0.08), 0 24px 48px -20px rgba(15, 34, 66, 0.24);
   --shadow-glow:
-    0 0 0 1px rgba(14, 165, 233, 0.35), 0 16px 38px -16px rgba(37, 99, 235, 0.35), 0 0 20px -4px rgba(99, 102, 241, 0.2);
+    0 0 0 1px rgba(14, 165, 233, 0.35), 0 16px 38px -16px rgba(37, 99, 235, 0.35),
+    0 0 20px -4px rgba(99, 102, 241, 0.2);
 
   background-image:
     radial-gradient(1100px 560px at 85% -10%, var(--page-glow-1), transparent 62%),
@@ -486,9 +504,10 @@ body.light-mode .shadow-panel {
     background-color: var(--bg-panel);
     background-image: var(--panel-sheen);
     box-shadow: var(--shadow-card);
-    transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1),
-                box-shadow 0.28s cubic-bezier(0.16, 1, 0.3, 1),
-                border-color 0.25s ease;
+    transition:
+      transform 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+      box-shadow 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+      border-color 0.25s ease;
   }
 
   .panel-hover {
@@ -625,8 +644,6 @@ body.light-mode .shadow-panel {
     background-clip: text;
     color: transparent;
   }
-
-
 
   /* Crisp status points (solid LED style, without blurry neon bloom) */
   .glow-dot-emerald,

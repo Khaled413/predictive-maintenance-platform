@@ -35,7 +35,6 @@ import {
   type AssistantConfigResponse,
 } from '../data/assistantApi'
 
-
 type SectionKey = 'general' | 'thresholds' | 'notifications' | 'data' | 'ai'
 
 const SECTIONS: {
@@ -157,7 +156,7 @@ export default function SettingsPage() {
       notify(
         'warning',
         t('API Key cannot be empty'),
-        t('Enter a valid Groq API key (starting with gsk_).'),
+        t('Enter a valid Groq API key (starting with gsk_).')
       )
       return
     }
@@ -169,7 +168,7 @@ export default function SettingsPage() {
       notify(
         'success',
         t('Key added successfully'),
-        t('Your AI Assistant key pool has been updated.'),
+        t('Your AI Assistant key pool has been updated.')
       )
     } catch (err) {
       const msg =
@@ -183,9 +182,16 @@ export default function SettingsPage() {
   const handleRemoveApiKey = async (keyToRemove: string) => {
     setSavingApiKey(true)
     try {
-      const result = await updateAssistantConfig({ api_key: keyToRemove, action: 'remove' })
+      const result = await updateAssistantConfig({
+        api_key: keyToRemove,
+        action: 'remove',
+      })
       setAiConfig(result)
-      notify('info', t('Key removed successfully'), t('Key was removed from the active pool.'))
+      notify(
+        'info',
+        t('Key removed successfully'),
+        t('Key was removed from the active pool.')
+      )
     } catch (err) {
       const msg =
         err instanceof Error ? err.message : t('Failed to verify or update the API key.')
@@ -197,9 +203,16 @@ export default function SettingsPage() {
 
   const handleSelectActiveKey = async (index: number) => {
     try {
-      const result = await updateAssistantConfig({ active_key_index: index, action: 'select' })
+      const result = await updateAssistantConfig({
+        active_key_index: index,
+        action: 'select',
+      })
       setAiConfig(result)
-      notify('success', t('Active key updated'), t('AI requests will now use this key as primary.'))
+      notify(
+        'success',
+        t('Active key updated'),
+        t('AI requests will now use this key as primary.')
+      )
     } catch (err) {
       const msg =
         err instanceof Error ? err.message : t('Failed to verify or update the API key.')
@@ -228,7 +241,7 @@ export default function SettingsPage() {
       notify(
         'success',
         t('AI models updated successfully'),
-        `${chatModel || result.chat_model} · ${sttModel || result.stt_model}`,
+        `${chatModel || result.chat_model} · ${sttModel || result.stt_model}`
       )
     } catch (err) {
       const msg =
@@ -246,7 +259,7 @@ export default function SettingsPage() {
       notify(
         'info',
         t('Groq API key has been cleared.'),
-        t('AI Assistant provider is now deactivated.'),
+        t('AI Assistant provider is now deactivated.')
       )
     } catch (err) {
       const msg =
@@ -781,7 +794,7 @@ export default function SettingsPage() {
                 <PanelHeader
                   title={t('API Key Pool')}
                   subtitle={t(
-                    'Manage multiple Groq API keys with automatic rotation and failover.',
+                    'Manage multiple Groq API keys with automatic rotation and failover.'
                   )}
                   right={
                     <div className="flex items-center gap-2">
@@ -817,7 +830,7 @@ export default function SettingsPage() {
                   <ToggleRow
                     label={t('Auto-rotate keys on rate limit (Round-Robin / Failover)')}
                     hint={t(
-                      'Automatically switches to the next available API key when rate limits (429) or transient errors occur.',
+                      'Automatically switches to the next available API key when rate limits (429) or transient errors occur.'
                     )}
                     checked={aiConfig?.auto_rotate ?? true}
                     onChange={(val) => void handleToggleAutoRotate(val)}
@@ -841,7 +854,7 @@ export default function SettingsPage() {
                                   'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ring-1 font-mono text-[11px] font-bold',
                                   item.is_active
                                     ? 'bg-emerald-500/20 text-emerald-300 ring-emerald-500/40'
-                                    : 'bg-navy-700/60 text-ink-dim ring-line',
+                                    : 'bg-navy-700/60 text-ink-dim ring-line'
                                 )}
                               >
                                 #{idx + 1}
@@ -884,9 +897,13 @@ export default function SettingsPage() {
                       </div>
                     ) : (
                       <div className="rounded-xl border border-dashed border-line bg-navy-900/30 p-4 text-center">
-                        <p className="text-[12.5px] text-ink-dim">{t('No API keys added yet')}</p>
+                        <p className="text-[12.5px] text-ink-dim">
+                          {t('No API keys added yet')}
+                        </p>
                         <p className="mt-0.5 text-[11px] text-ink-faint">
-                          {t('Add at least one Groq API key to activate AI assistant features.')}
+                          {t(
+                            'Add at least one Groq API key to activate AI assistant features.'
+                          )}
                         </p>
                       </div>
                     )}
@@ -974,15 +991,17 @@ export default function SettingsPage() {
                     label={t('Chat & Diagnostics Model')}
                     hint={
                       aiConfig?.available_chat_models?.find(
-                        (m) => m.id === (aiConfig?.chat_model || 'openai/gpt-oss-120b'),
-                      )?.desc || t('Select the AI model for maintenance assistant responses')
+                        (m) => m.id === (aiConfig?.chat_model || 'openai/gpt-oss-120b')
+                      )?.desc ||
+                      t('Select the AI model for maintenance assistant responses')
                     }
                   >
                     <SelectInput
                       value={aiConfig?.chat_model || 'openai/gpt-oss-120b'}
                       onChange={(e) => void handleModelChange(e.target.value, undefined)}
                     >
-                      {aiConfig?.available_chat_models && aiConfig.available_chat_models.length > 0 ? (
+                      {aiConfig?.available_chat_models &&
+                      aiConfig.available_chat_models.length > 0 ? (
                         aiConfig.available_chat_models.map((model) => (
                           <option key={model.id} value={model.id}>
                             {model.name} {model.tag ? `(${model.tag})` : ''}
@@ -990,11 +1009,21 @@ export default function SettingsPage() {
                         ))
                       ) : (
                         <>
-                          <option value="openai/gpt-oss-120b">GPT OSS 120B (Reasoning - Recommended)</option>
-                          <option value="llama-3.3-70b-versatile">Llama 3.3 70B (Fast & Balanced)</option>
-                          <option value="openai/gpt-oss-20b">GPT OSS 20B (Ultra-Fast)</option>
-                          <option value="qwen/qwen3.8-27b">Qwen 3.8 27B (Multimodal)</option>
-                          <option value="allam-2-7b">ALLaM 2.0 7B (Arabic Specialized)</option>
+                          <option value="openai/gpt-oss-120b">
+                            GPT OSS 120B (Reasoning - Recommended)
+                          </option>
+                          <option value="llama-3.3-70b-versatile">
+                            Llama 3.3 70B (Fast & Balanced)
+                          </option>
+                          <option value="openai/gpt-oss-20b">
+                            GPT OSS 20B (Ultra-Fast)
+                          </option>
+                          <option value="qwen/qwen3.8-27b">
+                            Qwen 3.8 27B (Multimodal)
+                          </option>
+                          <option value="allam-2-7b">
+                            ALLaM 2.0 7B (Arabic Specialized)
+                          </option>
                         </>
                       )}
                     </SelectInput>
@@ -1004,7 +1033,7 @@ export default function SettingsPage() {
                     label={t('Speech-to-Text Model (Whisper)')}
                     hint={
                       aiConfig?.available_stt_models?.find(
-                        (m) => m.id === (aiConfig?.stt_model || 'whisper-large-v3'),
+                        (m) => m.id === (aiConfig?.stt_model || 'whisper-large-v3')
                       )?.desc || t('Select the Whisper model for audio transcription')
                     }
                   >
@@ -1012,7 +1041,8 @@ export default function SettingsPage() {
                       value={aiConfig?.stt_model || 'whisper-large-v3'}
                       onChange={(e) => void handleModelChange(undefined, e.target.value)}
                     >
-                      {aiConfig?.available_stt_models && aiConfig.available_stt_models.length > 0 ? (
+                      {aiConfig?.available_stt_models &&
+                      aiConfig.available_stt_models.length > 0 ? (
                         aiConfig.available_stt_models.map((model) => (
                           <option key={model.id} value={model.id}>
                             {model.name}
@@ -1020,8 +1050,12 @@ export default function SettingsPage() {
                         ))
                       ) : (
                         <>
-                          <option value="whisper-large-v3">Whisper Large v3 (Highest Precision)</option>
-                          <option value="whisper-large-v3-turbo">Whisper Large v3 Turbo (Ultra-Fast)</option>
+                          <option value="whisper-large-v3">
+                            Whisper Large v3 (Highest Precision)
+                          </option>
+                          <option value="whisper-large-v3-turbo">
+                            Whisper Large v3 Turbo (Ultra-Fast)
+                          </option>
                         </>
                       )}
                     </SelectInput>
@@ -1068,7 +1102,9 @@ export default function SettingsPage() {
                   </span>
                   <span className="chip">
                     <Key className="h-3 w-3 text-amber-300" />
-                    Pool: {aiConfig?.api_keys?.length || (aiConfig?.configured ? 1 : 0)} key(s)
+                    Pool: {aiConfig?.api_keys?.length ||
+                      (aiConfig?.configured ? 1 : 0)}{' '}
+                    key(s)
                   </span>
                   <span className="chip">
                     <Database className="h-3 w-3 text-emerald-400" />

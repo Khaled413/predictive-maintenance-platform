@@ -42,7 +42,11 @@ import type { PredictionInputs, PredictionResponse } from '../types'
 import { useAuth } from './AuthContext'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
 import { notifyFaultTransitions } from '../utils/faultWebhook'
-import { playCriticalAlarm, playWarningBeep, playSuccessChime } from '../utils/audioAlerts'
+import {
+  playCriticalAlarm,
+  playWarningBeep,
+  playSuccessChime,
+} from '../utils/audioAlerts'
 
 const STORAGE_KEY = 'iap-state-v4'
 
@@ -493,18 +497,33 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
                 name: dbM.name,
                 type: dbM.type,
                 status: (dbM.status as any) || existing?.status || 'Operational',
-                healthScore: dbM.health_score !== null ? Number(dbM.health_score) : (existing?.healthScore ?? 95),
-                failureRisk: dbM.failure_risk !== null ? Number(dbM.failure_risk) : (existing?.failureRisk ?? 5),
+                healthScore:
+                  dbM.health_score !== null
+                    ? Number(dbM.health_score)
+                    : (existing?.healthScore ?? 95),
+                failureRisk:
+                  dbM.failure_risk !== null
+                    ? Number(dbM.failure_risk)
+                    : (existing?.failureRisk ?? 5),
                 location: dbM.location || existing?.location || 'Plant Floor',
-                manufacturer: dbM.manufacturer || existing?.manufacturer || 'Siemens Industrial',
+                manufacturer:
+                  dbM.manufacturer || existing?.manufacturer || 'Siemens Industrial',
                 model: dbM.model || existing?.model || 'Series Standard',
                 installationDate: existing?.installationDate || '2023-01-15',
-                lastMaintenance: dbM.last_maintenance || existing?.lastMaintenance || new Date().toISOString(),
-                nextMaintenance: dbM.next_maintenance || existing?.nextMaintenance || new Date().toISOString(),
-                description: existing?.description || `${dbM.name} operational fleet unit`,
+                lastMaintenance:
+                  dbM.last_maintenance ||
+                  existing?.lastMaintenance ||
+                  new Date().toISOString(),
+                nextMaintenance:
+                  dbM.next_maintenance ||
+                  existing?.nextMaintenance ||
+                  new Date().toISOString(),
+                description:
+                  existing?.description || `${dbM.name} operational fleet unit`,
                 recommendation: existing?.recommendation || 'Regular inspection schedule',
                 likelihood: existing?.likelihood || 'Low',
-                sensors: (Array.isArray(dbM.sensors) ? dbM.sensors : existing?.sensors) || [],
+                sensors:
+                  (Array.isArray(dbM.sensors) ? dbM.sensors : existing?.sensors) || [],
                 history: existing?.history || [],
                 sensorHistory: existing?.sensorHistory || [],
                 events: existing?.events || [],
@@ -744,7 +763,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const updateMachine = useCallback(
     (id: string, patch: Partial<Machine>) => {
       if (!checkPermission('machines.update')) {
-        notify('error', 'Access Denied', 'You do not have permission to update machine configurations.')
+        notify(
+          'error',
+          'Access Denied',
+          'You do not have permission to update machine configurations.'
+        )
         logAudit('machines.update', 'machine', id, 'denied', { patch })
         return
       }
@@ -757,7 +780,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         ...s,
         machines: s.machines.map((m) => (m.id === id ? { ...m, ...patch } : m)),
       }))
-      logAudit('machines.update', 'machine', id, 'allowed', { patchKeys: Object.keys(patch) })
+      logAudit('machines.update', 'machine', id, 'allowed', {
+        patchKeys: Object.keys(patch),
+      })
     },
     [checkPermission, checkMachineAccess, logAudit, notify]
   )
@@ -788,7 +813,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const addMaintenance = useCallback(
     (r: MaintenanceRecord) => {
       if (!checkPermission('maintenance.create')) {
-        notify('error', 'Access Denied', 'You do not have permission to create maintenance orders.')
+        notify(
+          'error',
+          'Access Denied',
+          'You do not have permission to create maintenance orders.'
+        )
         logAudit('maintenance.create', 'maintenance', r.id, 'denied')
         return
       }
@@ -796,7 +825,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         ...s,
         maintenance: [{ ...r, isDemo: r.isDemo ?? false }, ...s.maintenance],
       }))
-      logAudit('maintenance.create', 'maintenance', r.id, 'allowed', { machineId: r.machineId })
+      logAudit('maintenance.create', 'maintenance', r.id, 'allowed', {
+        machineId: r.machineId,
+      })
 
       if (isSupabaseConfigured && supabase) {
         void (supabase as any).from('maintenance_orders').insert({
@@ -897,16 +928,28 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const record = state.maintenance.find((item) => item.id === id)
       if (!record) return false
 
-      const requiredPerm = status === 'Completed' ? 'maintenance.complete' : 'maintenance.update'
+      const requiredPerm =
+        status === 'Completed' ? 'maintenance.complete' : 'maintenance.update'
       if (!checkPermission(requiredPerm)) {
-        notify('error', 'Access Denied', `You do not have permission to transition this order to ${status}.`)
+        notify(
+          'error',
+          'Access Denied',
+          `You do not have permission to transition this order to ${status}.`
+        )
         logAudit(requiredPerm, 'maintenance', id, 'denied', { targetStatus: status })
         return false
       }
 
       if (!checkOrderModify(record)) {
-        notify('error', 'Access Denied', 'You can only update maintenance orders assigned to you.')
-        logAudit(requiredPerm, 'maintenance', id, 'denied', { reason: 'not_assigned_to_user', targetStatus: status })
+        notify(
+          'error',
+          'Access Denied',
+          'You can only update maintenance orders assigned to you.'
+        )
+        logAudit(requiredPerm, 'maintenance', id, 'denied', {
+          reason: 'not_assigned_to_user',
+          targetStatus: status,
+        })
         return false
       }
 
@@ -946,7 +989,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             : item
         ),
       }))
-      logAudit(requiredPerm, 'maintenance', id, 'allowed', { fromStatus: record.status, targetStatus: status })
+      logAudit(requiredPerm, 'maintenance', id, 'allowed', {
+        fromStatus: record.status,
+        targetStatus: status,
+      })
       return true
     },
     [checkPermission, checkOrderModify, logAudit, notify, state.maintenance]
@@ -955,7 +1001,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const deleteMaintenance = useCallback(
     (id: string) => {
       if (!checkPermission('maintenance.update')) {
-        notify('error', 'Access Denied', 'You do not have permission to delete maintenance records.')
+        notify(
+          'error',
+          'Access Denied',
+          'You do not have permission to delete maintenance records.'
+        )
         return
       }
       setState((s) => ({ ...s, maintenance: s.maintenance.filter((r) => r.id !== id) }))
@@ -1005,55 +1055,61 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const saveThresholds = useCallback(
     (t: Thresholds) => {
       if (!checkPermission('models.manage')) {
-        notify('error', 'Access Denied', 'You do not have permission to modify model thresholds.')
+        notify(
+          'error',
+          'Access Denied',
+          'You do not have permission to modify model thresholds.'
+        )
         logAudit('models.manage', 'settings', 'thresholds', 'denied')
         return
       }
       logAudit('models.manage', 'settings', 'thresholds', 'allowed')
       setState((s) => {
-      const machines = s.machines.map((machine) => {
-        if (!machine.prediction) return machine
-        const status = statusForPrediction(machine.prediction, t)
-        const recommendation = recommendationForStatus(status)
-        return {
-          ...machine,
-          status,
-          maintenanceStatus: maintenanceStatusFromPrediction(status),
-          recommendation,
-          prediction: { ...machine.prediction, status, recommendation },
-        }
-      })
-      const machineById = new Map(machines.map((machine) => [machine.id, machine]))
-      let alerts = s.alerts
-        .filter((alert) => {
-          if (!alert.id.startsWith('ML-') || alert.status === 'resolved') return true
-          const machine = machineById.get(alert.machineId)
-          return (
-            !machine?.prediction ||
-            machine.prediction.anomaly_flag === true ||
-            machine.prediction.status !== 'Operational'
-          )
-        })
-        .map((alert) => {
-          const machine = machineById.get(alert.machineId)
-          if (!alert.id.startsWith('ML-') || !machine?.prediction) return alert
+        const machines = s.machines.map((machine) => {
+          if (!machine.prediction) return machine
+          const status = statusForPrediction(machine.prediction, t)
+          const recommendation = recommendationForStatus(status)
           return {
-            ...alert,
-            severity:
-              machine.prediction.status === 'Critical'
-                ? ('critical' as const)
-                : ('warning' as const),
-            recommendedAction: machine.prediction.recommendation,
+            ...machine,
+            status,
+            maintenanceStatus: maintenanceStatusFromPrediction(status),
+            recommendation,
+            prediction: { ...machine.prediction, status, recommendation },
           }
         })
-      machines.forEach((machine) => {
-        if (machine.prediction) {
-          alerts = addPredictionAlert(alerts, machine, machine.prediction)
-        }
+        const machineById = new Map(machines.map((machine) => [machine.id, machine]))
+        let alerts = s.alerts
+          .filter((alert) => {
+            if (!alert.id.startsWith('ML-') || alert.status === 'resolved') return true
+            const machine = machineById.get(alert.machineId)
+            return (
+              !machine?.prediction ||
+              machine.prediction.anomaly_flag === true ||
+              machine.prediction.status !== 'Operational'
+            )
+          })
+          .map((alert) => {
+            const machine = machineById.get(alert.machineId)
+            if (!alert.id.startsWith('ML-') || !machine?.prediction) return alert
+            return {
+              ...alert,
+              severity:
+                machine.prediction.status === 'Critical'
+                  ? ('critical' as const)
+                  : ('warning' as const),
+              recommendedAction: machine.prediction.recommendation,
+            }
+          })
+        machines.forEach((machine) => {
+          if (machine.prediction) {
+            alerts = addPredictionAlert(alerts, machine, machine.prediction)
+          }
+        })
+        return { ...s, machines, alerts, thresholds: t }
       })
-      return { ...s, machines, alerts, thresholds: t }
-    })
-  }, [checkPermission, logAudit, notify])
+    },
+    [checkPermission, logAudit, notify]
+  )
 
   const resetDemo = useCallback(() => {
     localStorage.removeItem(STORAGE_KEY)

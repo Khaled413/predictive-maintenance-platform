@@ -180,7 +180,9 @@ export default function QualityPage() {
           </p>
           <p className="mt-0.5">
             {modelStatus?.model_available
-              ? t('This model detects visual anomalies and highlights regions; it does not identify defect names or certify product quality.')
+              ? t(
+                  'This model detects visual anomalies and highlights regions; it does not identify defect names or certify product quality.'
+                )
               : (modelStatus?.message ??
                 statusError ??
                 t('Checking model and checkpoint availability…'))}
@@ -239,7 +241,9 @@ export default function QualityPage() {
             />
             {!modelStatus?.model_available && (
               <p className="mt-3 text-center text-[11px] text-ink-faint">
-                {t('A trained PatchCore checkpoint is required before images can be inspected.')}
+                {t(
+                  'A trained PatchCore checkpoint is required before images can be inspected.'
+                )}
               </p>
             )}
             {requestError && (
@@ -305,7 +309,9 @@ export default function QualityPage() {
                 </p>
               </div>
               <p className="text-[10px] leading-relaxed text-ink-faint">
-                {t('The score and heatmap are PatchCore outputs. Anomaly scores are not confidence percentages; validate the model and decision threshold using representative production images before operational use.')}
+                {t(
+                  'The score and heatmap are PatchCore outputs. Anomaly scores are not confidence percentages; validate the model and decision threshold using representative production images before operational use.'
+                )}
               </p>
             </div>
           </Panel>
@@ -319,8 +325,12 @@ export default function QualityPage() {
             </p>
             <p className="mt-1 max-w-sm text-[12px] leading-relaxed text-ink-faint">
               {modelStatus?.model_available
-                ? t('Upload an image to see the PatchCore classification, anomaly score, and heatmap.')
-                : t('A trained PatchCore checkpoint is required before images can be inspected.')}
+                ? t(
+                    'Upload an image to see the PatchCore classification, anomaly score, and heatmap.'
+                  )
+                : t(
+                    'A trained PatchCore checkpoint is required before images can be inspected.'
+                  )}
             </p>
           </Panel>
         )}
@@ -347,7 +357,9 @@ export default function QualityPage() {
           <div className="px-6 py-10">
             <EmptyState
               title={t('No PatchCore inspection records')}
-              message={t('Results from the demo inspection data are excluded. Run PatchCore on an image to create the first real model record.')}
+              message={t(
+                'Results from the demo inspection data are excluded. Run PatchCore on an image to create the first real model record.'
+              )}
             />
           </div>
         ) : (

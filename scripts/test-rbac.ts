@@ -102,7 +102,11 @@ function test(name: string, fn: () => void) {
     fn()
     tests.push({ name, status: 'PASS' })
   } catch (err: unknown) {
-    tests.push({ name, status: 'FAIL', error: err instanceof Error ? err.message : String(err) })
+    tests.push({
+      name,
+      status: 'FAIL',
+      error: err instanceof Error ? err.message : String(err),
+    })
   }
 }
 
@@ -121,7 +125,10 @@ test('Scenario 1: Admin can perform explicitly permitted administrative actions'
   assert(hasPermission(adminUser, 'users.create'), 'Admin should have users.create')
   assert(hasPermission(adminUser, 'users.update'), 'Admin should have users.update')
   assert(hasPermission(adminUser, 'roles.manage'), 'Admin should have roles.manage')
-  assert(hasPermission(adminUser, 'permissions.manage'), 'Admin should have permissions.manage')
+  assert(
+    hasPermission(adminUser, 'permissions.manage'),
+    'Admin should have permissions.manage'
+  )
   assert(hasPermission(adminUser, 'machines.create'), 'Admin should have machines.create')
   assert(hasPermission(adminUser, 'machines.delete'), 'Admin should have machines.delete')
   assert(hasPermission(adminUser, 'models.manage'), 'Admin should have models.manage')
@@ -130,11 +137,23 @@ test('Scenario 1: Admin can perform explicitly permitted administrative actions'
 
 // Scenario 2: A Maintenance Manager cannot create an Admin account or modify protected global permissions.
 test('Scenario 2: Maintenance Manager cannot create Admin account or manage global permissions', () => {
-  assert(!hasPermission(managerUser, 'users.create'), 'Manager must NOT have users.create')
-  assert(!hasPermission(managerUser, 'roles.manage'), 'Manager must NOT have roles.manage')
-  assert(!hasPermission(managerUser, 'permissions.manage'), 'Manager must NOT have permissions.manage')
-  assert(!hasPermission(managerUser, 'settings.manage'), 'Manager must NOT have settings.manage')
-  
+  assert(
+    !hasPermission(managerUser, 'users.create'),
+    'Manager must NOT have users.create'
+  )
+  assert(
+    !hasPermission(managerUser, 'roles.manage'),
+    'Manager must NOT have roles.manage'
+  )
+  assert(
+    !hasPermission(managerUser, 'permissions.manage'),
+    'Manager must NOT have permissions.manage'
+  )
+  assert(
+    !hasPermission(managerUser, 'settings.manage'),
+    'Manager must NOT have settings.manage'
+  )
+
   const manageAdminResult = canManageUser(managerUser, adminUser)
   assert(!manageAdminResult.allowed, 'Manager must be denied from managing Admin account')
 })
@@ -144,7 +163,10 @@ test('Scenario 3: Technician cannot manage users or roles', () => {
   assert(!hasPermission(techA, 'users.read'), 'Technician must NOT have users.read')
   assert(!hasPermission(techA, 'users.create'), 'Technician must NOT have users.create')
   assert(!hasPermission(techA, 'users.update'), 'Technician must NOT have users.update')
-  assert(!hasPermission(techA, 'users.deactivate'), 'Technician must NOT have users.deactivate')
+  assert(
+    !hasPermission(techA, 'users.deactivate'),
+    'Technician must NOT have users.deactivate'
+  )
   assert(!hasPermission(techA, 'roles.manage'), 'Technician must NOT have roles.manage')
   assert(!hasPermission(techA, 'settings.read'), 'Technician must NOT have settings.read')
 })
@@ -153,15 +175,24 @@ test('Scenario 3: Technician cannot manage users or roles', () => {
 test('Scenario 4: Technician can access an assigned machine', () => {
   assert(canAccessMachine(techA, 'M-001'), 'Tech A must access assigned M-001')
   assert(canAccessMachine(techA, 'M-002'), 'Tech A must access assigned M-002')
-  assert(canAccessMachine(techA, { id: 'M-003' } as unknown as Machine), 'Tech A must access assigned M-003 object')
+  assert(
+    canAccessMachine(techA, { id: 'M-003' } as unknown as Machine),
+    'Tech A must access assigned M-003 object'
+  )
 })
 
 // Scenario 5: A Technician cannot access an unassigned machine.
 test('Scenario 5: Technician cannot access an unassigned machine', () => {
   assert(!canAccessMachine(techA, 'M-004'), 'Tech A must NOT access unassigned M-004')
   assert(!canAccessMachine(techA, 'M-005'), 'Tech A must NOT access unassigned M-005')
-  assert(!canAccessMachine(techA, { id: 'M-006' } as unknown as Machine), 'Tech A must NOT access unassigned M-006 object')
-  assert(canAccessMachine(managerUser, 'M-004'), 'Manager should access fleet machine M-004')
+  assert(
+    !canAccessMachine(techA, { id: 'M-006' } as unknown as Machine),
+    'Tech A must NOT access unassigned M-006 object'
+  )
+  assert(
+    canAccessMachine(managerUser, 'M-004'),
+    'Manager should access fleet machine M-004'
+  )
   assert(canAccessMachine(adminUser, 'M-004'), 'Admin should access fleet machine M-004')
 })
 
@@ -200,11 +231,26 @@ test('Scenario 6: Technician cannot update another technician maintenance order'
     maintenanceKind: 'preventive',
   }
 
-  assert(canModifyMaintenanceOrder(techA, orderTechA), 'Tech A should be able to update own order')
-  assert(canModifyMaintenanceOrder(techB, orderTechB), 'Tech B should be able to update own order')
-  assert(!canModifyMaintenanceOrder(techA, orderTechB), 'Tech A must NOT be able to update Tech B order')
-  assert(canModifyMaintenanceOrder(managerUser, orderTechB), 'Manager should be able to update any order in fleet')
-  assert(canModifyMaintenanceOrder(adminUser, orderTechB), 'Admin should be able to update any order in fleet')
+  assert(
+    canModifyMaintenanceOrder(techA, orderTechA),
+    'Tech A should be able to update own order'
+  )
+  assert(
+    canModifyMaintenanceOrder(techB, orderTechB),
+    'Tech B should be able to update own order'
+  )
+  assert(
+    !canModifyMaintenanceOrder(techA, orderTechB),
+    'Tech A must NOT be able to update Tech B order'
+  )
+  assert(
+    canModifyMaintenanceOrder(managerUser, orderTechB),
+    'Manager should be able to update any order in fleet'
+  )
+  assert(
+    canModifyMaintenanceOrder(adminUser, orderTechB),
+    'Admin should be able to update any order in fleet'
+  )
 })
 
 // Scenario 7: A user without the required permission is denied even when attempting a direct request.
@@ -217,46 +263,87 @@ test('Scenario 7: Direct request denied without required permission (Deny by def
 // Scenario 8: An unauthenticated user cannot access protected operations.
 test('Scenario 8: Unauthenticated user cannot access protected operations', () => {
   assert(!hasPermission(null, 'dashboard.view'), 'null user denied dashboard.view')
-  assert(!hasPermission(undefined, 'machines.read'), 'undefined user denied machines.read')
+  assert(
+    !hasPermission(undefined, 'machines.read'),
+    'undefined user denied machines.read'
+  )
   assert(!canAccessMachine(null, 'M-001'), 'null user denied canAccessMachine')
-  assert(!canModifyMaintenanceOrder(null, { id: 'MO-1', machineId: 'M-001' } as unknown as MaintenanceRecord), 'null user denied canModifyMaintenanceOrder')
+  assert(
+    !canModifyMaintenanceOrder(null, {
+      id: 'MO-1',
+      machineId: 'M-001',
+    } as unknown as MaintenanceRecord),
+    'null user denied canModifyMaintenanceOrder'
+  )
 })
 
 // Scenario 9: Missing or invalid authorization data fails safely.
 test('Scenario 9: Missing or invalid authorization data fails safely', () => {
-  const malformedUser1 = { id: 'bad-1', role: 'unknown_role', status: 'active' } as unknown as AuthUser
-  const malformedUser2 = { id: 'bad-2', role: null, status: 'active' } as unknown as AuthUser
+  const malformedUser1 = {
+    id: 'bad-1',
+    role: 'unknown_role',
+    status: 'active',
+  } as unknown as AuthUser
+  const malformedUser2 = {
+    id: 'bad-2',
+    role: null,
+    status: 'active',
+  } as unknown as AuthUser
   const malformedUser3 = { id: 'bad-3' } as unknown as AuthUser // no role or status
 
   assert(!hasPermission(malformedUser1, 'dashboard.view'), 'Unknown role fails safely')
   assert(!hasPermission(malformedUser2, 'machines.read'), 'Null role fails safely')
   assert(!hasPermission(malformedUser3, 'settings.read'), 'Missing role fails safely')
-  assert(!hasPermission(techA, 'nonexistent.permission' as Permission), 'Nonexistent permission fails safely')
+  assert(
+    !hasPermission(techA, 'nonexistent.permission' as Permission),
+    'Nonexistent permission fails safely'
+  )
 })
 
 // Scenario 10: Changing a user role updates effective permissions.
 test('Scenario 10: Changing a user role updates effective permissions', () => {
   const user = { ...techA }
   assert(!hasPermission(user, 'users.create'), 'Before promotion: cannot create users')
-  
+
   // Promote to admin
   const promotedUser: AuthUser = { ...user, role: 'admin' }
-  assert(hasPermission(promotedUser, 'users.create'), 'After promotion to admin: can create users')
-  assert(hasPermission(promotedUser, 'machines.delete'), 'After promotion to admin: can delete machines')
+  assert(
+    hasPermission(promotedUser, 'users.create'),
+    'After promotion to admin: can create users'
+  )
+  assert(
+    hasPermission(promotedUser, 'machines.delete'),
+    'After promotion to admin: can delete machines'
+  )
 })
 
 // Scenario 11: Deactivated users cannot continue performing protected operations.
 test('Scenario 11: Deactivated users cannot perform any protected operations', () => {
-  assert(!hasPermission(deactivatedUser, 'dashboard.view'), 'Deactivated user denied dashboard.view')
-  assert(!hasPermission(deactivatedUser, 'machines.read'), 'Deactivated user denied machines.read')
-  assert(!hasPermission(deactivatedUser, 'maintenance.read'), 'Deactivated user denied maintenance.read')
-  assert(!canAccessMachine(deactivatedUser, 'M-001'), 'Deactivated user denied assigned machine access')
+  assert(
+    !hasPermission(deactivatedUser, 'dashboard.view'),
+    'Deactivated user denied dashboard.view'
+  )
+  assert(
+    !hasPermission(deactivatedUser, 'machines.read'),
+    'Deactivated user denied machines.read'
+  )
+  assert(
+    !hasPermission(deactivatedUser, 'maintenance.read'),
+    'Deactivated user denied maintenance.read'
+  )
+  assert(
+    !canAccessMachine(deactivatedUser, 'M-001'),
+    'Deactivated user denied assigned machine access'
+  )
 })
 
 // Scenario 12: Unauthorized requests do not modify stored data (Logic check).
 test('Scenario 12: Self-escalation and unauthorized modification checks', () => {
   // A manager attempting to promote themselves to admin
-  const selfElevationAttempt = canManageUser(managerUser, { ...managerUser, role: 'admin' })
+  const selfElevationAttempt = canManageUser(managerUser, {
+    ...managerUser,
+    role: 'admin',
+  })
   assert(!selfElevationAttempt.allowed, 'Manager self-elevation must be denied')
 
   // A tech attempting to manage manager
@@ -267,10 +354,22 @@ test('Scenario 12: Self-escalation and unauthorized modification checks', () => 
 // Scenario 13: Matrix integrity & comprehensive permission boundaries
 test('Scenario 13: Permission matrix deny-by-default integrity', () => {
   // Verify that Admin, Manager, Technician role maps exist and are distinct
-  assert(ROLE_PERMISSIONS.admin.length > ROLE_PERMISSIONS.manager.length, 'Admin permissions > Manager permissions')
-  assert(ROLE_PERMISSIONS.manager.length > ROLE_PERMISSIONS.technician.length, 'Manager permissions > Technician permissions')
-  assert(ROLE_PERMISSIONS.technician.includes('assistant.use'), 'Technician has assistant.use')
-  assert(!ROLE_PERMISSIONS.technician.includes('settings.manage'), 'Technician does NOT have settings.manage')
+  assert(
+    ROLE_PERMISSIONS.admin.length > ROLE_PERMISSIONS.manager.length,
+    'Admin permissions > Manager permissions'
+  )
+  assert(
+    ROLE_PERMISSIONS.manager.length > ROLE_PERMISSIONS.technician.length,
+    'Manager permissions > Technician permissions'
+  )
+  assert(
+    ROLE_PERMISSIONS.technician.includes('assistant.use'),
+    'Technician has assistant.use'
+  )
+  assert(
+    !ROLE_PERMISSIONS.technician.includes('settings.manage'),
+    'Technician does NOT have settings.manage'
+  )
 })
 
 console.log('\nVERIFICATION RESULTS:')

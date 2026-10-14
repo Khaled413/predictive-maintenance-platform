@@ -15,10 +15,8 @@ const TONES: Record<string, string> = {
 /** Rich multi-stop gradient accent line along the top edge. */
 const RAILS: Record<string, string> = {
   blue: 'linear-gradient(90deg, #00f2fe 0%, #38bdf8 30%, #6366f1 70%, transparent)',
-  green:
-    'linear-gradient(90deg, #10b981 0%, #34d399 30%, #06b6d4 70%, transparent)',
-  amber:
-    'linear-gradient(90deg, #fbbf24 0%, #f59e0b 30%, #f97316 70%, transparent)',
+  green: 'linear-gradient(90deg, #10b981 0%, #34d399 30%, #06b6d4 70%, transparent)',
+  amber: 'linear-gradient(90deg, #fbbf24 0%, #f59e0b 30%, #f97316 70%, transparent)',
   red: 'linear-gradient(90deg, #f43f5e 0%, #ef4444 30%, #b91c1c 70%, transparent)',
   gray: 'linear-gradient(90deg, rgba(148, 163, 184, 0.5) 0%, transparent)',
 }

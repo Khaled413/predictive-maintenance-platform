@@ -1523,7 +1523,8 @@ Object.assign(translations, {
   'Select AI Models': 'تحديد نماذج الذكاء الاصطناعي',
   'Chat & Diagnostics Model': 'نموذج المحادثة والتشخيص',
   'Speech-to-Text Model (Whisper)': 'نموذج تحويل الصوت إلى نص (Whisper)',
-  'Select the AI model for maintenance assistant responses': 'اختر نموذج الذكاء الاصطناعي لإجابات وتشخيصات المساعد',
+  'Select the AI model for maintenance assistant responses':
+    'اختر نموذج الذكاء الاصطناعي لإجابات وتشخيصات المساعد',
   'Select the Whisper model for audio transcription': 'اختر نموذج Whisper لتفريغ الصوت',
   'Key added successfully': 'تمت إضافة المفتاح بنجاح',
   'Key removed successfully': 'تم حذف المفتاح بنجاح',
@@ -1575,11 +1576,13 @@ Object.assign(translations, {
   'Explore the Platform': 'استكشاف المنصة',
   'Launch Industrial Platform': 'إطلاق المنصة الصناعية',
   'Interactive Product Walkthrough': 'جولة تفاعلية في المنصة',
-  'From Sensor Telemetry to Resolved Work Order': 'من بيانات المستشعرات إلى إنجاز أمر الصيانة',
+  'From Sensor Telemetry to Resolved Work Order':
+    'من بيانات المستشعرات إلى إنجاز أمر الصيانة',
   'Next Stage': 'المرحلة التالية',
   'Try in Workspace': 'تجربة في بيئة العمل',
   'Industrial Challenges & Solutions': 'التحديات الصناعية والحلول',
-  'Eliminating Reactive Maintenance & Hidden Costs': 'إنهاء الصيانة العلاجية والتكاليف الخفية',
+  'Eliminating Reactive Maintenance & Hidden Costs':
+    'إنهاء الصيانة العلاجية والتكاليف الخفية',
   'Core Platform Features': 'ميزات المنصة الأساسية',
   'Industrial Intelligence Suite': 'حزمة الذكاء الاصطناعي الصناعي',
   'Tailored Workspaces': 'بيئات عمل مخصصة',
@@ -1591,7 +1594,8 @@ Object.assign(translations, {
   'Edit Employee Details': 'تعديل بيانات الموظف',
   'Edit Details': 'تعديل البيانات',
   'Department / Line': 'القسم / خط الإنتاج',
-  'Update full name and department assignment for this employee.': 'تحديث الاسم الكامل والقسم التابع له هذا الموظف.',
+  'Update full name and department assignment for this employee.':
+    'تحديث الاسم الكامل والقسم التابع له هذا الموظف.',
   'Saving...': 'جارٍ الحفظ...',
   // Navigation & RBAC
   'Users & RBAC': 'المستخدمين والصلاحيات',
@@ -1602,9 +1606,11 @@ Object.assign(translations, {
   'Industrial Fleet Intelligence': 'ذكاء أسطول المنشأة الصناعية',
   'Real-time machine health monitoring, predictive failure risk classification, and automated maintenance scheduling powered by machine learning.':
     'مراقبة لحظية لصحة الماكينات، وتصنيف تنبؤي لمخاطر الأعطال، وجدولة صيانة آلية مدعومة بالذكاء الاصطناعي.',
-  'AI Fleet Health & Predictive Maintenance': 'صحة الأسطول والصيانة التنبؤية بالذكاء الاصطناعي',
+  'AI Fleet Health & Predictive Maintenance':
+    'صحة الأسطول والصيانة التنبؤية بالذكاء الاصطناعي',
   // Financial ROI & Cost Avoidance
-  'Predictive ROI & Downtime Cost Avoidance': 'العائد الاستثماري وحساب تكلفة الأعطال المتفادية',
+  'Predictive ROI & Downtime Cost Avoidance':
+    'العائد الاستثماري وحساب تكلفة الأعطال المتفادية',
   'Financial savings gained from preventing unplanned factory stoppages through ML predictive anomaly detection ($1,250/hr production loss benchmark).':
     'العائد المالي المحقق من تفادي التوقف غير المخطط للمصنع عبر رصد الشذوذ بالذكاء الاصطناعي (معيار خسارة 1,250 دولار/ساعة).',
   'Net Cost Avoided': 'صافي التكلفة الموفرة',
@@ -1614,20 +1620,23 @@ Object.assign(translations, {
   // Reports
   'Shift Handover PDF': 'تقرير تسليم الوردية (PDF)',
   'Reliability PDF': 'تقرير موثوقية المصنع (PDF)',
-  'Official Shift Handover Certificate with Signatures': 'شهادة تسليم الوردية الرسمية مع التوقيعات',
-  'Executive Plant Reliability & MTBF/MTTR Report': 'تقرير موثوقية المصنع التنفيذي ومعدلات MTBF/MTTR',
+  'Official Shift Handover Certificate with Signatures':
+    'شهادة تسليم الوردية الرسمية مع التوقيعات',
+  'Executive Plant Reliability & MTBF/MTTR Report':
+    'تقرير موثوقية المصنع التنفيذي ومعدلات MTBF/MTTR',
   'Plant Reliability Report Generated': 'تم إنشاء تقرير موثوقية المصنع',
   'Shift Handover Report Generated': 'تم إنشاء تقرير تسليم الوردية',
   'Print certificate preview loaded': 'تم تحميل معاينة شهادة الطباعة',
   // Common Actions & Badges
-  'DEMO': 'تجريبي',
+  DEMO: 'تجريبي',
   'Scan machine QR code': 'مسح كود QR للمعدة',
   'Realtime Live': 'البث الحي متصل',
-  'Reconnecting': 'جارٍ إعادة الاتصال',
+  Reconnecting: 'جارٍ إعادة الاتصال',
   'Mute factory audio alarms': 'كتم صوت التنبيهات الصناعية',
   'Unmute factory audio alarms': 'تشغيل صوت التنبيهات الصناعية',
   'Sound alarms are now muted.': 'تم كتم أصوات صفارات الإنذار الآن.',
-  'Critical and warning sirens are now active.': 'صفارات الإنذار للتحذيرات والحالات الحرجة مفعلة الآن.',
+  'Critical and warning sirens are now active.':
+    'صفارات الإنذار للتحذيرات والحالات الحرجة مفعلة الآن.',
   // QR & Tag Modal
   'Equipment QR Tag': 'بطاقة QR للمعدة',
   'Generate Equipment QR Tag': 'توليد بطاقة QR للمعدة',
@@ -1648,7 +1657,8 @@ Object.assign(translations, {
   'Quick Fleet Jump': 'انتقال سريع للأسطول',
   'Jump to Machine Profile': 'انتقال لملف الآلة',
   'Select machine to inspect...': 'اختر آلة لفحصها...',
-  'Select an image file containing a machine QR tag': 'حدد ملف صورة يحتوي على باركود المعدة',
+  'Select an image file containing a machine QR tag':
+    'حدد ملف صورة يحتوي على باركود المعدة',
   'No QR found in image': 'لم يتم العثور على باركود في الصورة',
   'Please choose an image that clearly shows an equipment QR code':
     'يرجى اختيار صورة واضحة لرمز QR الخاص بالمعدة',
@@ -1675,8 +1685,8 @@ Object.assign(translations, {
   'Audio Sirens Muted': 'تم كتم صفارات الإنذار',
   'Audio Sirens Unmuted': 'تم تفعيل صفارات الإنذار',
   'Toggle Language': 'تبديل اللغة',
-  'English': 'الإنجليزية',
-  'Arabic': 'العربية',
+  English: 'الإنجليزية',
+  Arabic: 'العربية',
   // Navigation & Landing
   Features: 'المميزات',
   // Alerts Page items
@@ -1689,12 +1699,12 @@ Object.assign(translations, {
     'الوضع مستقر — لا توجد تنبيهات تطابق الفلاتر المحددة.',
   'DEMO INPUTS': 'مدخلات تجريبية',
   '● Active': '● نشط',
-  'Acknowledged': 'تم الاطلاع',
-  'Resolved': 'تم الحل',
+  Acknowledged: 'تم الاطلاع',
+  Resolved: 'تم الحل',
   'Open Quality Inspection': 'فتح فحص الجودة',
   'Recommended action: ': 'الإجراء الموصى به: ',
   'Recommended action:': 'الإجراء الموصى به:',
-  'Acknowledge': 'اطلاع',
+  Acknowledge: 'اطلاع',
   'Alert acknowledged': 'تم الاطلاع على التنبيه',
   'Work order not created': 'لم يتم إنشاء أمر الصيانة',
   'The alert machine is no longer available in the fleet.':
@@ -1704,7 +1714,7 @@ Object.assign(translations, {
   'Open Work Order': 'عرض أمر الصيانة',
   'Create Work Order': 'إنشاء أمر صيانة',
   'Alert resolved': 'تم حل التنبيه بنجاح',
-  'Resolve': 'حل التنبيه',
+  Resolve: 'حل التنبيه',
   // Quality Page items
   'AI Visual Quality Inspection': 'فحص الجودة البصري بالذكاء الاصطناعي',
   'PatchCore is not ready': 'نموذج PatchCore غير جاهز',
@@ -1712,9 +1722,9 @@ Object.assign(translations, {
   'This model detects visual anomalies and highlights regions; it does not identify defect names or certify product quality.':
     'يكتشف هذا النموذج الشذوذ البصري ويحدد المناطق المتأثرة؛ ولا يحدد أسماء العيوب أو يمنح شهادات جودة المنتج.',
   'PatchCore Inspections': 'فحوصات PatchCore',
-  'Normal': 'طبيعي',
-  'Anomalous': 'شاذ / به عيب',
-  'Defective': 'معيب',
+  Normal: 'طبيعي',
+  Anomalous: 'شاذ / به عيب',
+  Defective: 'معيب',
   'Anomaly Rate': 'معدل الشذوذ',
   'Upload Product Inspection Image': 'رفع صورة فحص المنتج',
   'Upload product surface photo': 'رفع صورة لسطح المنتج',
@@ -1730,9 +1740,9 @@ Object.assign(translations, {
   'Anomaly Score': 'درجة الشذوذ',
   'Inference Time': 'وقت الاستنتاج',
   'Defect Type': 'نوع العيب',
-  'Confidence': 'مستوى الثقة',
+  Confidence: 'مستوى الثقة',
   'Product ID / Image': 'معرّف المنتج / الصورة',
-  'Location': 'الموقع',
+  Location: 'الموقع',
   'No inspections yet': 'لا توجد فحوصات بعد',
   'Pass Rate': 'معدل المطابقة',
   'Inspections (24h)': 'فحوصات (24 ساعة)',
@@ -1745,23 +1755,27 @@ Object.assign(translations, {
   'Anomaly detected': 'تم رصد شذوذ / عيب',
   'PatchCore available ·': 'نموذج PatchCore متاح ·',
   'Visual Quality Inspection': 'فحص الجودة البصري',
-  'Upload a product photo for PatchCore anomaly detection': 'ارفع صورة المنتج لرصد الشذوذ بنموذج PatchCore',
+  'Upload a product photo for PatchCore anomaly detection':
+    'ارفع صورة المنتج لرصد الشذوذ بنموذج PatchCore',
   'Upload Product Image': 'رفع صورة المنتج',
   'JPEG, PNG, or WEBP · Maximum ': 'JPEG أو PNG أو WEBP · بحد أقصى ',
   'Analyzing…': 'جارٍ التحليل…',
   'PatchCore Result': 'نتيجة PatchCore',
   'Anomaly score': 'درجة الشذوذ',
   'No inspection result': 'لا توجد نتيجة فحص',
-  'Upload an image to see the PatchCore classification, anomaly score, and heatmap.': 'ارفع صورة لعرض تصنيف PatchCore ودرجة الشذوذ والخريطة الحرارية.',
-  'A trained PatchCore checkpoint is required before images can be inspected.': 'يلزم توفر نقطة فحص PatchCore مدربة قبل بدء فحص الصور.',
+  'Upload an image to see the PatchCore classification, anomaly score, and heatmap.':
+    'ارفع صورة لعرض تصنيف PatchCore ودرجة الشذوذ والخريطة الحرارية.',
+  'A trained PatchCore checkpoint is required before images can be inspected.':
+    'يلزم توفر نقطة فحص PatchCore مدربة قبل بدء فحص الصور.',
   'PatchCore Inspection History': 'سجل فحوصات PatchCore',
   'All results': 'جميع النتائج',
   'No PatchCore inspection records': 'لا توجد سجلات فحص PatchCore',
-  'Results from the demo inspection data are excluded. Run PatchCore on an image to create the first real model record.': 'تم استبعاد بيانات الفحص التجريبية. قم بتشغيل PatchCore على صورة لإنشاء أول سجل نموذج حقيقي.',
-  'Image': 'الصورة',
-  'Timestamp': 'التوقيت',
-  'Result': 'النتيجة',
-  'Model': 'النموذج',
+  'Results from the demo inspection data are excluded. Run PatchCore on an image to create the first real model record.':
+    'تم استبعاد بيانات الفحص التجريبية. قم بتشغيل PatchCore على صورة لإنشاء أول سجل نموذج حقيقي.',
+  Image: 'الصورة',
+  Timestamp: 'التوقيت',
+  Result: 'النتيجة',
+  Model: 'النموذج',
   // Standalone Assistant fallback messages
   'Offline Operational Assistant': 'المساعد التشغيلي المحلي',
   'Autonomous Fleet Response': 'استجابة الأسطول الذاتية',

@@ -92,7 +92,8 @@ export default function MachinesPage() {
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <span className="chip border-line/60 bg-navy-800/80 font-mono text-[11px] font-semibold text-ink">
-            {currentUser?.role === 'technician' ? 'Assigned' : 'Fleet Total'} · {derived.length}
+            {currentUser?.role === 'technician' ? 'Assigned' : 'Fleet Total'} ·{' '}
+            {derived.length}
           </span>
           <span className="chip border-emerald-400/35 bg-gradient-to-r from-emerald-500/15 to-teal-500/10 text-emerald-300 font-semibold shadow-sm">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
@@ -109,7 +110,11 @@ export default function MachinesPage() {
         </div>
         {checkPermission('machines.create') && (
           <div className="ml-auto">
-            <button type="button" className="btn-primary" onClick={() => setAddOpen(true)}>
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={() => setAddOpen(true)}
+            >
               <Plus className="h-4 w-4" />
               Add Machine
             </button>

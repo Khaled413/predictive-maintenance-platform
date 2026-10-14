@@ -79,7 +79,10 @@ export default function AppLayout() {
           title={language === 'en' ? t('Switch to Arabic') : t('Switch to English')}
         >
           <Languages className="h-3.5 w-3.5 transition-transform duration-300 group-hover:scale-110" />
-          <span data-no-translate className="font-mono text-[11px] font-bold tracking-wider">
+          <span
+            data-no-translate
+            className="font-mono text-[11px] font-bold tracking-wider"
+          >
             {language === 'en' ? 'AR' : 'EN'}
           </span>
         </button>

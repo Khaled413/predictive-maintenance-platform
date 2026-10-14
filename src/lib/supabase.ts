@@ -1,12 +1,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 
 export type Json =
-  | string
-  | number
-  | boolean
-  | null
-  | { [key: string]: Json | undefined }
-  | Json[]
+  string | number | boolean | null | { [key: string]: Json | undefined } | Json[]
 
 export interface Database {
   public: {
@@ -325,16 +320,17 @@ const supabaseUrl: string =
 
 const supabaseAnonKey: string =
   (typeof import.meta !== 'undefined' &&
-    (import.meta.env?.VITE_SUPABASE_ANON_KEY || import.meta.env?.VITE_SUPABASE_PUBLISHABLE_KEY)) ||
+    (import.meta.env?.VITE_SUPABASE_ANON_KEY ||
+      import.meta.env?.VITE_SUPABASE_PUBLISHABLE_KEY)) ||
   procEnv?.VITE_SUPABASE_ANON_KEY ||
   procEnv?.SUPABASE_ANON_KEY ||
   'sb_publishable_eyUw9szBPSLfytfpgMLSKQ_zHTBTeNY'
 
 export const isSupabaseConfigured = Boolean(
   supabaseUrl &&
-    supabaseAnonKey &&
-    supabaseUrl.startsWith('https://') &&
-    !supabaseUrl.includes('placeholder')
+  supabaseAnonKey &&
+  supabaseUrl.startsWith('https://') &&
+  !supabaseUrl.includes('placeholder')
 )
 
 export const supabase: SupabaseClient<any> | null = isSupabaseConfigured

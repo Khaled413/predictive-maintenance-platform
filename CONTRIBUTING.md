@@ -42,12 +42,17 @@ npm run build
 - Use Black and isort formatting.
 - Add or update tests for model/API behavior changes.
 
-## Testing
+## Testing and Quality Verification
+
+Run all repository checks before submitting a PR:
 
 ```bash
-npm run smoke
+npm run format:check
+npm run lint
 npm run typecheck
-python -m unittest discover -s ml/tests -v
+npm run build
+npm run test         # Runs pytest ml/tests suite
+npm run smoke        # Verifies local service endpoints
 ```
 
 ## Pull request checklist

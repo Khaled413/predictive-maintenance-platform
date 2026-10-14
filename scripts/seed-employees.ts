@@ -27,7 +27,10 @@ function loadEnv() {
     if (eqIdx > 0) {
       const key = trimmed.slice(0, eqIdx).trim()
       let val = trimmed.slice(eqIdx + 1).trim()
-      if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+      if (
+        (val.startsWith('"') && val.endsWith('"')) ||
+        (val.startsWith("'") && val.endsWith("'"))
+      ) {
         val = val.slice(1, -1)
       }
       env[key] = val
@@ -37,8 +40,10 @@ function loadEnv() {
 }
 
 const env = loadEnv()
-const supabaseUrl = process.env.SUPABASE_URL || env.SUPABASE_URL || env.VITE_SUPABASE_URL || ''
-const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || env.SUPABASE_SERVICE_ROLE_KEY || ''
+const supabaseUrl =
+  process.env.SUPABASE_URL || env.SUPABASE_URL || env.VITE_SUPABASE_URL || ''
+const serviceRoleKey =
+  process.env.SUPABASE_SERVICE_ROLE_KEY || env.SUPABASE_SERVICE_ROLE_KEY || ''
 
 if (!supabaseUrl || !serviceRoleKey) {
   console.error('Error: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required in .env')
@@ -120,12 +125,15 @@ async function seedEmployees() {
 
     const existing = existingByEmail.get(emp.email.toLowerCase())
     if (existing) {
-      console.log(`  - User exists in auth.users (${existing.id}). Updating password and metadata...`)
-      const { data: updated, error: updateErr } = await supabase.auth.admin.updateUserById(existing.id, {
-        password: DEFAULT_PASSWORD,
-        user_metadata: { full_name: emp.fullName, role: emp.role },
-        email_confirm: true,
-      })
+      console.log(
+        `  - User exists in auth.users (${existing.id}). Updating password and metadata...`
+      )
+      const { data: updated, error: updateErr } =
+        await supabase.auth.admin.updateUserById(existing.id, {
+          password: DEFAULT_PASSWORD,
+          user_metadata: { full_name: emp.fullName, role: emp.role },
+          email_confirm: true,
+        })
       if (updateErr) {
         console.error(`    Failed to update auth user: ${updateErr.message}`)
         continue
@@ -147,18 +155,16 @@ async function seedEmployees() {
     }
 
     // 2. Upsert into public.profiles
-    const { error: profErr } = await supabase
-      .from('profiles')
-      .upsert({
-        id: userId,
-        full_name: emp.fullName,
-        email: emp.email,
-        role_id: emp.role,
-        department: emp.department,
-        account_status: 'active',
-        avatar_initials: emp.initials,
-        updated_at: new Date().toISOString(),
-      })
+    const { error: profErr } = await supabase.from('profiles').upsert({
+      id: userId,
+      full_name: emp.fullName,
+      email: emp.email,
+      role_id: emp.role,
+      department: emp.department,
+      account_status: 'active',
+      avatar_initials: emp.initials,
+      updated_at: new Date().toISOString(),
+    })
 
     if (profErr) {
       console.error(`    Failed to update profile: ${profErr.message}`)
@@ -169,10 +175,7 @@ async function seedEmployees() {
     // 3. Assign machines if technician
     if (emp.role === 'technician' && emp.assignedMachines.length > 0) {
       // Clear old active assignments
-      await supabase
-        .from('machine_assignments')
-        .delete()
-        .eq('user_id', userId)
+      await supabase.from('machine_assignments').delete().eq('user_id', userId)
 
       const assignments = emp.assignedMachines.map((mId) => ({
         machine_id: mId,
@@ -187,7 +190,9 @@ async function seedEmployees() {
       if (assignErr) {
         console.warn(`    Notice on machine assignments: ${assignErr.message}`)
       } else {
-        console.log(`  ✓ Assigned ${emp.assignedMachines.length} machines (${emp.assignedMachines.join(', ')}).`)
+        console.log(
+          `  ✓ Assigned ${emp.assignedMachines.length} machines (${emp.assignedMachines.join(', ')}).`
+        )
       }
     }
   }
@@ -199,7 +204,9 @@ async function seedEmployees() {
   console.log('------------------------------------------------------------')
   console.log('1. Admin:      admin@factory.com      / IndustrialAdmin2026!')
   console.log('2. Manager:    manager@factory.com    / FactoryTest2026!')
-  console.log('3. Tech 1:     tech1@factory.com      / FactoryTest2026!  (M-001, M-002, M-003)')
+  console.log(
+    '3. Tech 1:     tech1@factory.com      / FactoryTest2026!  (M-001, M-002, M-003)'
+  )
   console.log('4. Tech 2:     tech2@factory.com      / FactoryTest2026!  (M-004, M-005)')
   console.log('5. Tech 3:     tech3@factory.com      / FactoryTest2026!  (M-006, M-007)')
   console.log('6. Tech 4:     tech4@factory.com      / FactoryTest2026!  (M-008, M-012)')

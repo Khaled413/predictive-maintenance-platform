@@ -64,6 +64,20 @@ const failures = []
 
 try {
   const { MemoryRouter, Route, Routes } = await vite.ssrLoadModule('react-router-dom')
+  const { AuthProvider } = await vite.ssrLoadModule('/src/context/AuthContext.tsx')
+  const mockAdminUser = {
+    id: 'usr-admin-test',
+    name: 'Platform Administrator',
+    nameAr: 'مدير المنصة',
+    email: 'admin@plant.local',
+    role: 'admin',
+    status: 'active',
+    department: 'Operations',
+    departmentAr: 'العمليات',
+    assignedMachineIds: [],
+    createdAt: new Date().toISOString(),
+    lastLoginAt: new Date().toISOString(),
+  }
   const { AppProvider, useApp } = await vite.ssrLoadModule('/src/context/AppContext.tsx')
   const { PreferencesProvider } = await vite.ssrLoadModule(
     '/src/context/PreferencesContext.tsx'
@@ -130,7 +144,11 @@ try {
     )
   }
   const persistedStateHtml = renderToString(
-    React.createElement(AppProvider, null, React.createElement(PersistedInputsProbe))
+    React.createElement(
+      AuthProvider,
+      { initialUser: mockAdminUser },
+      React.createElement(AppProvider, null, React.createElement(PersistedInputsProbe))
+    )
   )
   const startupReusesPersistedInputs = persistedStateHtml.includes(
     String(persistedInputs.air_temperature)
@@ -425,21 +443,25 @@ try {
         MemoryRouter,
         { initialEntries: [route] },
         React.createElement(
-          AppProvider,
-          null,
+          AuthProvider,
+          { initialUser: mockAdminUser },
           React.createElement(
-            PreferencesProvider,
+            AppProvider,
             null,
             React.createElement(
-              Routes,
+              PreferencesProvider,
               null,
               React.createElement(
-                Route,
-                { element: React.createElement(AppLayout) },
-                React.createElement(Route, {
-                  path: pattern,
-                  element: React.createElement(Page),
-                })
+                Routes,
+                null,
+                React.createElement(
+                  Route,
+                  { element: React.createElement(AppLayout) },
+                  React.createElement(Route, {
+                    path: pattern,
+                    element: React.createElement(Page),
+                  })
+                )
               )
             )
           )

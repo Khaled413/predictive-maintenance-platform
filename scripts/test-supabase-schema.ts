@@ -23,7 +23,11 @@ function test(name: string, fn: () => void) {
     fn()
     tests.push({ name, status: 'PASS' })
   } catch (err: unknown) {
-    tests.push({ name, status: 'FAIL', error: err instanceof Error ? err.message : String(err) })
+    tests.push({
+      name,
+      status: 'FAIL',
+      error: err instanceof Error ? err.message : String(err),
+    })
   }
 }
 
@@ -33,7 +37,10 @@ function assert(cond: boolean, msg?: string) {
 
 // 1. Verify consolidated enterprise schema file exists and contains essential tables
 test('Verify 20261012_consolidated_enterprise_schema.sql contains required enterprise tables', () => {
-  const schemaPath = path.resolve(__dirname, '../supabase/migrations/20261012_consolidated_enterprise_schema.sql')
+  const schemaPath = path.resolve(
+    __dirname,
+    '../supabase/migrations/20261012_consolidated_enterprise_schema.sql'
+  )
   assert(fs.existsSync(schemaPath), 'Consolidated migration file must exist')
   const content = fs.readFileSync(schemaPath, 'utf-8')
 
@@ -50,13 +57,19 @@ test('Verify 20261012_consolidated_enterprise_schema.sql contains required enter
   ]
 
   expectedTables.forEach((table) => {
-    assert(content.includes(`CREATE TABLE IF NOT EXISTS ${table}`), `Schema must define ${table}`)
+    assert(
+      content.includes(`CREATE TABLE IF NOT EXISTS ${table}`),
+      `Schema must define ${table}`
+    )
   })
 })
 
 // 2. Verify Row Level Security (RLS) is enabled on all tables
 test('Verify Row Level Security (RLS) is enabled on all tables', () => {
-  const schemaPath = path.resolve(__dirname, '../supabase/migrations/20261012_consolidated_enterprise_schema.sql')
+  const schemaPath = path.resolve(
+    __dirname,
+    '../supabase/migrations/20261012_consolidated_enterprise_schema.sql'
+  )
   const content = fs.readFileSync(schemaPath, 'utf-8')
 
   const rlsTables = [
@@ -72,26 +85,50 @@ test('Verify Row Level Security (RLS) is enabled on all tables', () => {
   ]
 
   rlsTables.forEach((table) => {
-    assert(content.includes(`ALTER TABLE ${table} ENABLE ROW LEVEL SECURITY;`), `RLS must be enabled on ${table}`)
+    assert(
+      content.includes(`ALTER TABLE ${table} ENABLE ROW LEVEL SECURITY;`),
+      `RLS must be enabled on ${table}`
+    )
   })
 })
 
 // 3. Verify security definer functions exist
 test('Verify Security Definier helper functions exist in migration', () => {
-  const schemaPath = path.resolve(__dirname, '../supabase/migrations/20261012_consolidated_enterprise_schema.sql')
+  const schemaPath = path.resolve(
+    __dirname,
+    '../supabase/migrations/20261012_consolidated_enterprise_schema.sql'
+  )
   const content = fs.readFileSync(schemaPath, 'utf-8')
 
-  assert(content.includes('FUNCTION public.get_current_user_role()'), 'Must contain get_current_user_role()')
+  assert(
+    content.includes('FUNCTION public.get_current_user_role()'),
+    'Must contain get_current_user_role()'
+  )
   assert(content.includes('FUNCTION public.is_admin()'), 'Must contain is_admin()')
-  assert(content.includes('FUNCTION public.is_manager_or_admin()'), 'Must contain is_manager_or_admin()')
-  assert(content.includes('FUNCTION public.has_permission('), 'Must contain has_permission()')
-  assert(content.includes('FUNCTION public.is_assigned_to_machine('), 'Must contain is_assigned_to_machine()')
-  assert(content.includes('FUNCTION public.handle_new_user()'), 'Must contain handle_new_user() auth trigger')
+  assert(
+    content.includes('FUNCTION public.is_manager_or_admin()'),
+    'Must contain is_manager_or_admin()'
+  )
+  assert(
+    content.includes('FUNCTION public.has_permission('),
+    'Must contain has_permission()'
+  )
+  assert(
+    content.includes('FUNCTION public.is_assigned_to_machine('),
+    'Must contain is_assigned_to_machine()'
+  )
+  assert(
+    content.includes('FUNCTION public.handle_new_user()'),
+    'Must contain handle_new_user() auth trigger'
+  )
 })
 
 // 4. Verify seed data contains all permissions and roles matching TypeScript RBAC catalog
 test('Verify consolidated schema matches TypeScript RBAC catalog', () => {
-  const schemaPath = path.resolve(__dirname, '../supabase/migrations/20261012_consolidated_enterprise_schema.sql')
+  const schemaPath = path.resolve(
+    __dirname,
+    '../supabase/migrations/20261012_consolidated_enterprise_schema.sql'
+  )
   const content = fs.readFileSync(schemaPath, 'utf-8')
 
   // Check roles
@@ -107,19 +144,28 @@ test('Verify consolidated schema matches TypeScript RBAC catalog', () => {
 
 // 5. Verify Edge Function exists
 test('Verify Edge Function invite-user exists and has correct structure', () => {
-  const edgeFuncPath = path.resolve(__dirname, '../supabase/functions/invite-user/index.ts')
+  const edgeFuncPath = path.resolve(
+    __dirname,
+    '../supabase/functions/invite-user/index.ts'
+  )
   assert(fs.existsSync(edgeFuncPath), 'Edge function file must exist')
   const content = fs.readFileSync(edgeFuncPath, 'utf-8')
 
   assert(content.includes('inviteUserByEmail'), 'Must invoke inviteUserByEmail')
-  assert(content.includes('callerProfile?.role_id !== \'admin\''), 'Must verify caller admin authority')
+  assert(
+    content.includes("callerProfile?.role_id !== 'admin'"),
+    'Must verify caller admin authority'
+  )
   assert(content.includes('audit_logs'), 'Must log security audit event')
 })
 
 // 6. Verify Supabase Client configuration state
 test('Verify Supabase client handles unconfigured gracefully', () => {
   // In dev environment without env vars, isSupabaseConfigured must be a boolean (false or true)
-  assert(typeof isSupabaseConfigured === 'boolean', 'isSupabaseConfigured must be boolean')
+  assert(
+    typeof isSupabaseConfigured === 'boolean',
+    'isSupabaseConfigured must be boolean'
+  )
 })
 
 console.log('\nVERIFICATION RESULTS:')

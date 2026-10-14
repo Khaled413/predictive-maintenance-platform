@@ -44,9 +44,7 @@ export interface AuthContextValue {
     password: string
   ) => Promise<{ success: boolean; error?: string }>
   signOutUser: () => Promise<void>
-  requestPasswordReset: (
-    email: string
-  ) => Promise<{ success: boolean; error?: string }>
+  requestPasswordReset: (email: string) => Promise<{ success: boolean; error?: string }>
   inviteUser: (data: {
     email: string
     fullName: string
@@ -96,9 +94,15 @@ export interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null)
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null)
-  const [isLoading, setIsLoading] = useState<boolean>(true)
+export function AuthProvider({
+  children,
+  initialUser = null,
+}: {
+  children: React.ReactNode
+  initialUser?: AuthUser | null
+}) {
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(initialUser)
+  const [isLoading, setIsLoading] = useState<boolean>(initialUser ? false : true)
   const [configError, setConfigError] = useState<string | null>(null)
   const [users, setUsers] = useState<AuthUser[]>([])
   const [auditLog, setAuditLog] = useState<AuditEvent[]>([])
@@ -211,7 +215,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .single()
 
         if (pError || !profile) {
-          console.warn('Profile lookup failed or missing for user:', userId, pError?.message)
+          console.warn(
+            'Profile lookup failed or missing for user:',
+            userId,
+            pError?.message
+          )
           return null
         }
 
@@ -229,7 +237,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .eq('user_id', userId)
           .eq('assignment_status', 'active')
 
-        const assignedMachineIds = assignments ? assignments.map((a: any) => a.machine_id) : []
+        const assignedMachineIds = assignments
+          ? assignments.map((a: any) => a.machine_id)
+          : []
 
         return {
           id: userId,
@@ -256,6 +266,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Primary authentication initialization & session listener
   useEffect(() => {
+    if (initialUser) {
+      setIsLoading(false)
+      return
+    }
+
     if (!isSupabaseConfigured || !supabase) {
       setIsLoading(false)
       setConfigError(
@@ -424,7 +439,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await client.auth.signOut()
         return {
           success: false,
-          error: 'Account access has been deactivated or profile is missing. Contact your plant administrator.',
+          error:
+            'Account access has been deactivated or profile is missing. Contact your plant administrator.',
         }
       }
 
@@ -499,7 +515,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       assignedMachineIds?: string[]
     }): Promise<{ success: boolean; error?: string }> => {
       if (!hasPermission(currentUser, 'users.create')) {
-        return { success: false, error: 'Forbidden: Admin authority required to invite users.' }
+        return {
+          success: false,
+          error: 'Forbidden: Admin authority required to invite users.',
+        }
       }
 
       if (!isSupabaseConfigured || !supabase) {
@@ -542,7 +561,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         return { success: true }
       } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : 'Failed to invoke invitation Edge Function.'
+        const msg =
+          err instanceof Error
+            ? err.message
+            : 'Failed to invoke invitation Edge Function.'
         return { success: false, error: msg }
       }
     },
@@ -571,7 +593,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       newRole: UserRole
     ): Promise<{ success: boolean; error?: string }> => {
       if (!hasPermission(currentUser, 'roles.manage')) {
-        return { success: false, error: 'Forbidden: Role management permission required.' }
+        return {
+          success: false,
+          error: 'Forbidden: Role management permission required.',
+        }
       }
 
       if (!isSupabaseConfigured || !supabase) {
@@ -627,13 +652,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const target = users.find((u) => u.id === userId)
       if (!target) return { success: false, error: 'Target user not found.' }
 
-      const initials = data.name
-        .trim()
-        .split(' ')
-        .map((part) => part[0])
-        .slice(0, 2)
-        .join('')
-        .toUpperCase() || target.avatarInitials
+      const initials =
+        data.name
+          .trim()
+          .split(' ')
+          .map((part) => part[0])
+          .slice(0, 2)
+          .join('')
+          .toUpperCase() || target.avatarInitials
 
       const client = supabase
       const { error } = await (client as any)
@@ -670,7 +696,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       newStatus: AccountStatus
     ): Promise<{ success: boolean; error?: string }> => {
       if (!hasPermission(currentUser, 'users.deactivate')) {
-        return { success: false, error: 'Forbidden: Account status management permission required.' }
+        return {
+          success: false,
+          error: 'Forbidden: Account status management permission required.',
+        }
       }
 
       if (!isSupabaseConfigured || !supabase) {
@@ -716,7 +745,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       machineIds: string[]
     ): Promise<{ success: boolean; error?: string }> => {
       if (!hasPermission(currentUser, 'machines.assign')) {
-        return { success: false, error: 'Forbidden: Machine assignment permission required.' }
+        return {
+          success: false,
+          error: 'Forbidden: Machine assignment permission required.',
+        }
       }
 
       if (!isSupabaseConfigured || !supabase) {
@@ -743,7 +775,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           assigned_by: currentUser?.id || null,
           assignment_status: 'active',
         }))
-        const { error: insErr } = await (client as any).from('machine_assignments').insert(rows)
+        const { error: insErr } = await (client as any)
+          .from('machine_assignments')
+          .insert(rows)
         if (insErr) {
           return { success: false, error: insErr.message }
         }

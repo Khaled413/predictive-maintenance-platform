@@ -39,7 +39,8 @@ const WALKTHROUGH_STEPS = [
     titleAr: 'جمع بيانات المستشعرات',
     badge: 'IoT Edge Telemetry',
     desc: 'High-frequency vibration, thermal, acoustic, and pressure sensors capture millisecond-level telemetry from rotating equipment.',
-    descAr: 'مستشعرات الاهتزاز والحرارة والضغط تلتقط قياسات لحظية دقيقة من المعدات الدوارة والميكانيكية.',
+    descAr:
+      'مستشعرات الاهتزاز والحرارة والضغط تلتقط قياسات لحظية دقيقة من المعدات الدوارة والميكانيكية.',
     metrics: [
       { label: 'Drive Vibration', val: '4.2 mm/s', status: 'Elevated' },
       { label: 'Bearing Temp', val: '78.5 °C', status: 'Warning' },
@@ -53,7 +54,8 @@ const WALKTHROUGH_STEPS = [
     titleAr: 'معالجة البيانات وهندسة الخصائص',
     badge: 'Real-time Pipeline',
     desc: 'Fast Fourier Transform (FFT) spectral extraction, RMS vibration calculations, and thermal gradient transformations prepare clean tensors.',
-    descAr: 'تحويل فورييه السريع (FFT) واستخراج جذر متوسط المربع للترددات وتدرجات الحرارة لتهيئة مصفوفات الإدخال.',
+    descAr:
+      'تحويل فورييه السريع (FFT) واستخراج جذر متوسط المربع للترددات وتدرجات الحرارة لتهيئة مصفوفات الإدخال.',
     metrics: [
       { label: 'Sampling Rate', val: '10 kHz', status: 'Sync' },
       { label: 'Spectral Peaks', val: '3 Frequencies', status: 'Extracted' },
@@ -67,7 +69,8 @@ const WALKTHROUGH_STEPS = [
     titleAr: 'استدلال الذكاء الاصطناعي بالأعطال',
     badge: 'FastAPI ML Engine',
     desc: 'Trained ensemble models assess multi-modal sensor inputs to detect early micro-anomalies long before mechanical seizure occurs.',
-    descAr: 'نماذج الذكاء الاصطناعي تحلل المدخلات لاكتشاف الشذوذ الميكانيكي الدقيق قبل حدوث التوقف المفاجئ بأسابيع.',
+    descAr:
+      'نماذج الذكاء الاصطناعي تحلل المدخلات لاكتشاف الشذوذ الميكانيكي الدقيق قبل حدوث التوقف المفاجئ بأسابيع.',
     metrics: [
       { label: 'Inference Latency', val: '42 ms', status: 'Real-time' },
       { label: 'Model Version', val: 'v2.4 Production', status: 'Active' },
@@ -81,7 +84,8 @@ const WALKTHROUGH_STEPS = [
     titleAr: 'تقييم الصحة ومستوى المخاطر',
     badge: 'Diagnostic Intelligence',
     desc: 'The machine health score drops from 95% to 34%, classifying Heat Dissipation Failure (HDF) with 66% probability.',
-    descAr: 'انخفاض مؤشر صحة الآلة إلى 34% مع تصنيف عطل تشتيت الحرارة (HDF) باحتمالية 66%.',
+    descAr:
+      'انخفاض مؤشر صحة الآلة إلى 34% مع تصنيف عطل تشتيت الحرارة (HDF) باحتمالية 66%.',
     metrics: [
       { label: 'Health Score', val: '34 / 100', status: 'Critical' },
       { label: 'Failure Risk', val: '66.0%', status: 'Severe' },
@@ -95,7 +99,8 @@ const WALKTHROUGH_STEPS = [
     titleAr: 'التوصيات الوقائية الذكية',
     badge: 'Prescriptive Action',
     desc: 'The platform generates step-by-step root-cause guidance: inspect cooling jacket flow, check coolant pump impeller, and flush heat exchanger.',
-    descAr: 'المنصة تقدم خطوات علاجية محددة: فحص سترة التبريد، واختبار مضخة سائل التبريد، وتنظيف المبادل الحراري.',
+    descAr:
+      'المنصة تقدم خطوات علاجية محددة: فحص سترة التبريد، واختبار مضخة سائل التبريد، وتنظيف المبادل الحراري.',
     metrics: [
       { label: 'Urgency', val: 'Within 48h', status: 'Immediate' },
       { label: 'Prescribed Action', val: 'Flush Exchanger', status: 'Specific' },
@@ -109,7 +114,8 @@ const WALKTHROUGH_STEPS = [
     titleAr: 'أمر الصيانة وتعيين الفني',
     badge: 'Operational Dispatch',
     desc: 'Maintenance order MO-005 is dispatched to certified technician Ahmed Hassan based on his Line 2 operational scope.',
-    descAr: 'إصدار أمر العمل MO-005 وإسناده تلقائياً إلى الفني المختص أحمد حسن بناءً على نطاق مسؤوليته في خط 2.',
+    descAr:
+      'إصدار أمر العمل MO-005 وإسناده تلقائياً إلى الفني المختص أحمد حسن بناءً على نطاق مسؤوليته في خط 2.',
     metrics: [
       { label: 'Order ID', val: 'MO-M005', status: 'Created' },
       { label: 'Technician', val: 'Ahmed Hassan', status: 'Assigned' },
@@ -123,7 +129,8 @@ const WALKTHROUGH_STEPS = [
     titleAr: 'إتمام الصيانة واستعادة الكفاءة',
     badge: 'Closed-Loop Reliability',
     desc: 'Work is marked complete, sensor telemetry normalizes to 95% health, and an immutable record is archived in the audit log.',
-    descAr: 'إتمام الصيانة، وعودة قياسات المستشعرات للمعدل الطبيعي بنسبة 95%، وتوثيق السجل في سجل التدقيق الأمني.',
+    descAr:
+      'إتمام الصيانة، وعودة قياسات المستشعرات للمعدل الطبيعي بنسبة 95%، وتوثيق السجل في سجل التدقيق الأمني.',
     metrics: [
       { label: 'Post-Work Health', val: '95 / 100', status: 'Nominal' },
       { label: 'Status', val: 'Operational', status: 'Healthy' },
@@ -140,9 +147,13 @@ export default function LandingPage() {
   const { theme, toggleTheme, language, toggleLanguage, t } = usePreferences()
 
   const [authModalOpen, setAuthModalOpen] = useState(false)
-  const [authModalMode, setAuthModalMode] = useState<'signin' | 'reset' | 'request'>('signin')
+  const [authModalMode, setAuthModalMode] = useState<'signin' | 'reset' | 'request'>(
+    'signin'
+  )
   const [activeStep, setActiveStep] = useState(0)
-  const [activeRoleTab, setActiveRoleTab] = useState<'admin' | 'manager' | 'technician'>('manager')
+  const [activeRoleTab, setActiveRoleTab] = useState<'admin' | 'manager' | 'technician'>(
+    'manager'
+  )
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   const openAuth = (mode: 'signin' | 'reset' | 'request' = 'signin') => {
@@ -179,7 +190,10 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-navy-950 text-ink selection:bg-sky-500/30 selection:text-sky-200">
       {/* Ambient Lighting Orbs */}
-      <div aria-hidden="true" className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed inset-0 z-0 overflow-hidden"
+      >
         <div className="absolute -left-40 -top-40 h-[600px] w-[600px] rounded-full bg-gradient-to-br from-cyan-500/10 via-sky-600/5 to-transparent blur-[140px] animate-float" />
         <div className="absolute right-0 top-1/4 h-[550px] w-[550px] rounded-full bg-gradient-to-bl from-indigo-600/10 via-purple-600/5 to-transparent blur-[150px]" />
         <div className="absolute bottom-10 left-1/3 h-[500px] w-[500px] rounded-full bg-gradient-to-tr from-teal-500/10 via-emerald-600/5 to-transparent blur-[130px]" />
@@ -235,7 +249,9 @@ export default function LandingPage() {
               title="Toggle Language (EN/AR)"
             >
               <Languages className="h-3.5 w-3.5 text-sky-400" />
-              <span className="font-mono text-[11px] font-bold">{language === 'en' ? 'AR' : 'EN'}</span>
+              <span className="font-mono text-[11px] font-bold">
+                {language === 'en' ? 'AR' : 'EN'}
+              </span>
             </button>
 
             {/* Theme Toggle */}
@@ -372,7 +388,10 @@ export default function LandingPage() {
       </header>
 
       {/* Hero Section */}
-      <section id="overview" className="relative z-10 mx-auto max-w-7xl px-4 pt-16 pb-20 sm:px-6 lg:px-8">
+      <section
+        id="overview"
+        className="relative z-10 mx-auto max-w-7xl px-4 pt-16 pb-20 sm:px-6 lg:px-8"
+      >
         <div className="grid items-center gap-12 lg:grid-cols-12">
           {/* Headline & Value Proposition */}
           <div className="space-y-6 lg:col-span-7">
@@ -386,11 +405,14 @@ export default function LandingPage() {
             <h1 className="text-3xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-ink leading-[1.12]">
               {language === 'ar' ? (
                 <>
-                  تنبأ بالأعطال. <span className="text-gradient">امنع التوقف.</span> حافظ على تدفق الإنتاج.
+                  تنبأ بالأعطال. <span className="text-gradient">امنع التوقف.</span> حافظ
+                  على تدفق الإنتاج.
                 </>
               ) : (
                 <>
-                  Predict Failures. <span className="text-gradient">Prevent Downtime.</span> Keep Production Moving.
+                  Predict Failures.{' '}
+                  <span className="text-gradient">Prevent Downtime.</span> Keep Production
+                  Moving.
                 </>
               )}
             </h1>
@@ -436,15 +458,21 @@ export default function LandingPage() {
             {/* Trust Badges */}
             <div className="grid grid-cols-3 gap-4 pt-4 border-t border-line/60">
               <div>
-                <p className="font-mono text-xl sm:text-2xl font-black text-sky-400">100%</p>
+                <p className="font-mono text-xl sm:text-2xl font-black text-sky-400">
+                  100%
+                </p>
                 <p className="text-[11px] text-ink-faint">{t('Deny-by-Default RBAC')}</p>
               </div>
               <div>
-                <p className="font-mono text-xl sm:text-2xl font-black text-emerald-400">&lt;50ms</p>
+                <p className="font-mono text-xl sm:text-2xl font-black text-emerald-400">
+                  &lt;50ms
+                </p>
                 <p className="text-[11px] text-ink-faint">{t('Inference Latency')}</p>
               </div>
               <div>
-                <p className="font-mono text-xl sm:text-2xl font-black text-indigo-400">RLS</p>
+                <p className="font-mono text-xl sm:text-2xl font-black text-indigo-400">
+                  RLS
+                </p>
                 <p className="text-[11px] text-ink-faint">{t('Supabase Protected')}</p>
               </div>
             </div>
@@ -464,7 +492,9 @@ export default function LandingPage() {
               <div className="flex items-center justify-between pb-3 border-b border-line/60">
                 <div className="flex items-center gap-2">
                   <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 animate-ping" />
-                  <span className="font-mono text-xs font-bold text-ink">CNC Milling Station Alpha</span>
+                  <span className="font-mono text-xs font-bold text-ink">
+                    CNC Milling Station Alpha
+                  </span>
                 </div>
                 <span className="rounded-full border border-emerald-400/35 bg-emerald-500/10 px-2 py-0.5 font-mono text-[10px] font-semibold text-emerald-300">
                   Bay A · Line 1
@@ -489,17 +519,25 @@ export default function LandingPage() {
                       <span className="font-mono font-bold text-emerald-400">6.0%</span>
                     </div>
                     <div className="mt-1.5 h-1.5 w-full rounded-full bg-navy-900 overflow-hidden">
-                      <div className="h-full bg-emerald-400 rounded-full" style={{ width: '6%' }} />
+                      <div
+                        className="h-full bg-emerald-400 rounded-full"
+                        style={{ width: '6%' }}
+                      />
                     </div>
                   </div>
 
                   <div className="rounded-xl border border-line bg-navy-800/60 p-2.5">
                     <div className="flex justify-between text-[10px] text-ink-faint">
                       <span>{t('Thermal Anomaly')}</span>
-                      <span className="font-mono font-bold text-sky-400">0.02 (Nominal)</span>
+                      <span className="font-mono font-bold text-sky-400">
+                        0.02 (Nominal)
+                      </span>
                     </div>
                     <div className="mt-1.5 h-1.5 w-full rounded-full bg-navy-900 overflow-hidden">
-                      <div className="h-full bg-sky-400 rounded-full" style={{ width: '12%' }} />
+                      <div
+                        className="h-full bg-sky-400 rounded-full"
+                        style={{ width: '12%' }}
+                      />
                     </div>
                   </div>
                 </div>
@@ -512,13 +550,16 @@ export default function LandingPage() {
                   <span>{t('AI Prescriptive Guidance')}</span>
                 </div>
                 <p className="text-[11px] text-ink-dim">
-                  Spindle vibration harmonics stable. Next scheduled preventive inspection in 16 days.
+                  Spindle vibration harmonics stable. Next scheduled preventive inspection
+                  in 16 days.
                 </p>
               </div>
 
               {/* Action Button inside preview */}
               <div className="mt-3 flex items-center justify-between pt-3 border-t border-line/60">
-                <span className="text-[10px] text-ink-faint font-mono">Assigned Tech: Ahmed H.</span>
+                <span className="text-[10px] text-ink-faint font-mono">
+                  Assigned Tech: Ahmed H.
+                </span>
                 <button
                   type="button"
                   onClick={handleLaunchApp}
@@ -533,7 +574,10 @@ export default function LandingPage() {
       </section>
 
       {/* Interactive Product Walkthrough */}
-      <section id="walkthrough" className="relative z-10 border-t border-line/70 bg-navy-900/50 py-20 backdrop-blur-md">
+      <section
+        id="walkthrough"
+        className="relative z-10 border-t border-line/70 bg-navy-900/50 py-20 backdrop-blur-md"
+      >
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto space-y-3">
             <div className="inline-flex items-center gap-1.5 rounded-full border border-sky-400/30 bg-sky-500/10 px-3 py-0.5 text-xs font-semibold text-sky-300">
@@ -565,7 +609,9 @@ export default function LandingPage() {
               >
                 <span
                   className={`flex h-5 w-5 items-center justify-center rounded-full font-mono text-[10px] font-bold ${
-                    activeStep === idx ? 'bg-sky-400 text-navy-950' : 'bg-navy-700 text-ink-faint'
+                    activeStep === idx
+                      ? 'bg-sky-400 text-navy-950'
+                      : 'bg-navy-700 text-ink-faint'
                   }`}
                 >
                   {step.step}
@@ -591,11 +637,15 @@ export default function LandingPage() {
                 </div>
 
                 <h3 className="text-xl sm:text-2xl font-bold text-ink">
-                  {language === 'ar' ? currentWalkthrough.titleAr : currentWalkthrough.title}
+                  {language === 'ar'
+                    ? currentWalkthrough.titleAr
+                    : currentWalkthrough.title}
                 </h3>
 
                 <p className="text-sm leading-relaxed text-ink-dim">
-                  {language === 'ar' ? currentWalkthrough.descAr : currentWalkthrough.desc}
+                  {language === 'ar'
+                    ? currentWalkthrough.descAr
+                    : currentWalkthrough.desc}
                 </p>
 
                 <div className="flex items-center gap-3 pt-2">
@@ -624,7 +674,9 @@ export default function LandingPage() {
                 <div className="rounded-xl border border-line bg-navy-800/80 p-5 space-y-3.5 shadow-inner">
                   <div className="flex items-center justify-between text-xs pb-2 border-b border-line">
                     <span className="font-mono text-ink-faint">SIMULATED TELEMETRY</span>
-                    <span className="font-mono text-emerald-400 text-[11px]">● ACTIVE INGESTION</span>
+                    <span className="font-mono text-emerald-400 text-[11px]">
+                      ● ACTIVE INGESTION
+                    </span>
                   </div>
 
                   {currentWalkthrough.metrics.map((m, i) => (
@@ -634,14 +686,16 @@ export default function LandingPage() {
                     >
                       <span className="text-xs text-ink-dim">{m.label}</span>
                       <div className="flex items-center gap-2">
-                        <span className="font-mono text-xs font-bold text-ink">{m.val}</span>
+                        <span className="font-mono text-xs font-bold text-ink">
+                          {m.val}
+                        </span>
                         <span
                           className={`rounded px-1.5 py-0.5 font-mono text-[9.5px] font-bold ${
                             m.status === 'Critical' || m.status === 'Severe'
                               ? 'bg-red-500/20 text-red-300'
                               : m.status === 'Warning' || m.status === 'Elevated'
-                              ? 'bg-amber-500/20 text-amber-300'
-                              : 'bg-emerald-500/20 text-emerald-300'
+                                ? 'bg-amber-500/20 text-amber-300'
+                                : 'bg-emerald-500/20 text-emerald-300'
                           }`}
                         >
                           {m.status}
@@ -651,7 +705,8 @@ export default function LandingPage() {
                   ))}
 
                   <p className="text-[10px] text-ink-faint pt-1">
-                    * Illustrative sequence showing edge-to-cloud automated dispatch pipeline.
+                    * Illustrative sequence showing edge-to-cloud automated dispatch
+                    pipeline.
                   </p>
                 </div>
               </div>
@@ -661,7 +716,10 @@ export default function LandingPage() {
       </section>
 
       {/* Problem & Solution */}
-      <section id="problems" className="relative z-10 mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
+      <section
+        id="problems"
+        className="relative z-10 mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8"
+      >
         <div className="text-center max-w-3xl mx-auto space-y-3">
           <div className="inline-flex items-center gap-1.5 rounded-full border border-sky-400/30 bg-sky-500/10 px-3 py-0.5 text-xs font-semibold text-sky-300">
             <Sliders className="h-3 w-3" />
@@ -685,7 +743,8 @@ export default function LandingPage() {
               solution: 'Multi-Modal ML Prediction',
               solutionAr: 'التنبؤ الذكي متعدد النماذج',
               desc: 'Unplanned downtime averages $260k/hour in automotive and machining. Our models catch early wear patterns weeks in advance.',
-              descAr: 'التوقف المفاجئ يكلف آلاف الدولارات في الساعة. نماذجنا ترصد إشارات التآكل قبل أسابيع.',
+              descAr:
+                'التوقف المفاجئ يكلف آلاف الدولارات في الساعة. نماذجنا ترصد إشارات التآكل قبل أسابيع.',
               icon: AlertTriangle,
               tone: 'red',
             },
@@ -695,7 +754,8 @@ export default function LandingPage() {
               solution: 'Continuous Anomaly Classification',
               solutionAr: 'تصنيف مستمر لشذوذ الإشارات',
               desc: 'Subtle high-frequency vibrations escape manual rounds. Algorithmic thresholds spot micro-deviations in real time.',
-              descAr: 'الاهتزازات الدقيقة لا يلاحظها الفحص اليدوي. الخوارزميات ترصد الانحرافات اللحظية بدقة.',
+              descAr:
+                'الاهتزازات الدقيقة لا يلاحظها الفحص اليدوي. الخوارزميات ترصد الانحرافات اللحظية بدقة.',
               icon: Activity,
               tone: 'amber',
             },
@@ -705,7 +765,8 @@ export default function LandingPage() {
               solution: 'Unified Digital CMMS & Work Orders',
               solutionAr: 'نظام رقمي موحد لأوامر العمل',
               desc: 'Paper logs and disparate spreadsheets cause missed work. Digital orders flow directly from predictive triggers to technicians.',
-              descAr: 'السجلات الورقية تسبب إهمال الصيانة. أوامر العمل الرقمية ترتبط مباشرة بتنبيهات الذكاء الاصطناعي.',
+              descAr:
+                'السجلات الورقية تسبب إهمال الصيانة. أوامر العمل الرقمية ترتبط مباشرة بتنبيهات الذكاء الاصطناعي.',
               icon: FileText,
               tone: 'sky',
             },
@@ -715,7 +776,8 @@ export default function LandingPage() {
               solution: 'Scoped Fleet Assignments',
               solutionAr: 'إسناد الآلات بنطاقات عمل محددة',
               desc: 'Engineers lack visibility into who owns which bay. Assign dedicated machine fleets with strict operational boundaries.',
-              descAr: 'تعيين أساطيل الآلات للفنيين بنطاقات واضحة تمنع التداخل وتضمن المساءلة.',
+              descAr:
+                'تعيين أساطيل الآلات للفنيين بنطاقات واضحة تمنع التداخل وتضمن المساءلة.',
               icon: Users,
               tone: 'indigo',
             },
@@ -725,7 +787,8 @@ export default function LandingPage() {
               solution: 'Supabase RLS & Strict RBAC',
               solutionAr: 'أمان Supabase RLS والتحكم الصارم',
               desc: 'Open systems allow accidental configuration overrides. Deny-by-default role permissions and PostgreSQL RLS secure every query.',
-              descAr: 'سياسات RLS على مستوى قاعدة البيانات مع مصفوفة صلاحيات صارمة تمنع التعديلات غير المصرح بها.',
+              descAr:
+                'سياسات RLS على مستوى قاعدة البيانات مع مصفوفة صلاحيات صارمة تمنع التعديلات غير المصرح بها.',
               icon: ShieldCheck,
               tone: 'emerald',
             },
@@ -735,7 +798,8 @@ export default function LandingPage() {
               solution: 'AI Maintenance Assistant & RAG',
               solutionAr: 'مساعد ذكي للتشخيص ودليل الصيانة',
               desc: 'Complex mechanical manuals take hours to browse. The AI Assistant interprets vibration signatures and suggests manufacturer fixes.',
-              descAr: 'المساعد الذكي يحلل إشارات الأعطال ويوجه الفني لأسرع إجراء معتمد من الشركة المصنعة.',
+              descAr:
+                'المساعد الذكي يحلل إشارات الأعطال ويوجه الفني لأسرع إجراء معتمد من الشركة المصنعة.',
               icon: Brain,
               tone: 'cyan',
             },
@@ -750,7 +814,9 @@ export default function LandingPage() {
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-sky-400/25 bg-sky-500/10 text-sky-400">
                     <Icon className="h-5 w-5" />
                   </div>
-                  <span className="font-mono text-[10px] text-ink-faint">0{index + 1}</span>
+                  <span className="font-mono text-[10px] text-ink-faint">
+                    0{index + 1}
+                  </span>
                 </div>
 
                 <div className="space-y-1">
@@ -772,7 +838,10 @@ export default function LandingPage() {
       </section>
 
       {/* Feature Showcase */}
-      <section id="features" className="relative z-10 border-t border-line/70 bg-navy-900/40 py-20 backdrop-blur-md">
+      <section
+        id="features"
+        className="relative z-10 border-t border-line/70 bg-navy-900/40 py-20 backdrop-blur-md"
+      >
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto space-y-3">
             <div className="inline-flex items-center gap-1.5 rounded-full border border-sky-400/30 bg-sky-500/10 px-3 py-0.5 text-xs font-semibold text-sky-300">
@@ -783,7 +852,9 @@ export default function LandingPage() {
               {t('Industrial Intelligence Suite')}
             </h2>
             <p className="text-xs sm:text-sm text-ink-dim">
-              {t('A complete ecosystem built for plant managers, reliability engineers, and field technicians.')}
+              {t(
+                'A complete ecosystem built for plant managers, reliability engineers, and field technicians.'
+              )}
             </p>
           </div>
 
@@ -839,7 +910,10 @@ export default function LandingPage() {
       </section>
 
       {/* Role-Based Experience Preview */}
-      <section id="roles" className="relative z-10 mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
+      <section
+        id="roles"
+        className="relative z-10 mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8"
+      >
         <div className="text-center max-w-3xl mx-auto space-y-3">
           <div className="inline-flex items-center gap-1.5 rounded-full border border-sky-400/30 bg-sky-500/10 px-3 py-0.5 text-xs font-semibold text-sky-300">
             <UserCheck className="h-3 w-3" />
@@ -849,7 +923,9 @@ export default function LandingPage() {
             {t('Purpose-Built for Every Operational Stakeholder')}
           </h2>
           <p className="text-xs sm:text-sm text-ink-dim">
-            {t('Strict RBAC ensures users see only the data, controls, and equipment relevant to their duties.')}
+            {t(
+              'Strict RBAC ensures users see only the data, controls, and equipment relevant to their duties.'
+            )}
           </p>
         </div>
 
@@ -900,34 +976,56 @@ export default function LandingPage() {
                 <span className="rounded-md border border-purple-400/30 bg-purple-500/10 px-2 py-0.5 font-mono text-[11px] font-bold text-purple-300">
                   GOVERNANCE & SECURITY SCOPE
                 </span>
-                <h3 className="text-xl font-bold text-ink">Administrative & System Governance Workspace</h3>
+                <h3 className="text-xl font-bold text-ink">
+                  Administrative & System Governance Workspace
+                </h3>
                 <p className="text-xs text-ink-dim leading-relaxed">
-                  Plant Admins manage user provisioning, enforce invitation workflows, assign roles, monitor immutable security audit logs, configure machine records, and tune platform thresholds.
+                  Plant Admins manage user provisioning, enforce invitation workflows,
+                  assign roles, monitor immutable security audit logs, configure machine
+                  records, and tune platform thresholds.
                 </p>
                 <ul className="space-y-2 text-xs text-ink-dim">
                   <li className="flex items-center gap-2">
                     <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
-                    <span>User directory management & invitation-only account provisioning</span>
+                    <span>
+                      User directory management & invitation-only account provisioning
+                    </span>
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
-                    <span>Append-only security audit trail tracking all authorization events</span>
+                    <span>
+                      Append-only security audit trail tracking all authorization events
+                    </span>
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
-                    <span>Equipment registration, decommissioning, and factory settings</span>
+                    <span>
+                      Equipment registration, decommissioning, and factory settings
+                    </span>
                   </li>
                 </ul>
               </div>
               <div className="rounded-xl border border-line bg-navy-800/80 p-4 space-y-2 text-xs font-mono">
                 <div className="text-sky-300 font-bold">Admin Navigation Items:</div>
                 <div className="grid grid-cols-2 gap-2 text-ink-dim text-[11px]">
-                  <div className="p-2 rounded bg-navy-900/80 border border-line">● Overview Dashboard</div>
-                  <div className="p-2 rounded bg-navy-900/80 border border-line">● Users & Access</div>
-                  <div className="p-2 rounded bg-navy-900/80 border border-line">● Machine Management</div>
-                  <div className="p-2 rounded bg-navy-900/80 border border-line">● Security Audit Trail</div>
-                  <div className="p-2 rounded bg-navy-900/80 border border-line">● ML Quality Models</div>
-                  <div className="p-2 rounded bg-navy-900/80 border border-line">● Factory Settings</div>
+                  <div className="p-2 rounded bg-navy-900/80 border border-line">
+                    ● Overview Dashboard
+                  </div>
+                  <div className="p-2 rounded bg-navy-900/80 border border-line">
+                    ● Users & Access
+                  </div>
+                  <div className="p-2 rounded bg-navy-900/80 border border-line">
+                    ● Machine Management
+                  </div>
+                  <div className="p-2 rounded bg-navy-900/80 border border-line">
+                    ● Security Audit Trail
+                  </div>
+                  <div className="p-2 rounded bg-navy-900/80 border border-line">
+                    ● ML Quality Models
+                  </div>
+                  <div className="p-2 rounded bg-navy-900/80 border border-line">
+                    ● Factory Settings
+                  </div>
                 </div>
               </div>
             </div>
@@ -939,34 +1037,58 @@ export default function LandingPage() {
                 <span className="rounded-md border border-sky-400/30 bg-sky-500/10 px-2 py-0.5 font-mono text-[11px] font-bold text-sky-300">
                   OPERATIONAL COMMAND SCOPE
                 </span>
-                <h3 className="text-xl font-bold text-ink">Plant Reliability & Maintenance Operations</h3>
+                <h3 className="text-xl font-bold text-ink">
+                  Plant Reliability & Maintenance Operations
+                </h3>
                 <p className="text-xs text-ink-dim leading-relaxed">
-                  Maintenance Managers oversee fleet-wide health scores, prioritize alerts, schedule preventive work orders, and assign technicians to equipment based on bay specialties.
+                  Maintenance Managers oversee fleet-wide health scores, prioritize
+                  alerts, schedule preventive work orders, and assign technicians to
+                  equipment based on bay specialties.
                 </p>
                 <ul className="space-y-2 text-xs text-ink-dim">
                   <li className="flex items-center gap-2">
                     <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
-                    <span>Real-time monitoring of all machines, health scores, and failure risks</span>
+                    <span>
+                      Real-time monitoring of all machines, health scores, and failure
+                      risks
+                    </span>
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
-                    <span>One-click work order creation directly from critical predictive alerts</span>
+                    <span>
+                      One-click work order creation directly from critical predictive
+                      alerts
+                    </span>
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
-                    <span>Technician workload tracking, assignments, and MTBF/MTTR analytics</span>
+                    <span>
+                      Technician workload tracking, assignments, and MTBF/MTTR analytics
+                    </span>
                   </li>
                 </ul>
               </div>
               <div className="rounded-xl border border-line bg-navy-800/80 p-4 space-y-2 text-xs font-mono">
                 <div className="text-sky-300 font-bold">Manager Navigation Items:</div>
                 <div className="grid grid-cols-2 gap-2 text-ink-dim text-[11px]">
-                  <div className="p-2 rounded bg-navy-900/80 border border-line">● Overview Fleet Dashboard</div>
-                  <div className="p-2 rounded bg-navy-900/80 border border-line">● Plant Machines</div>
-                  <div className="p-2 rounded bg-navy-900/80 border border-line">● Maintenance Dispatch</div>
-                  <div className="p-2 rounded bg-navy-900/80 border border-line">● Predictive Alerts</div>
-                  <div className="p-2 rounded bg-navy-900/80 border border-line">● Operational Reports</div>
-                  <div className="p-2 rounded bg-navy-900/80 border border-line">● AI Diagnostics Copilot</div>
+                  <div className="p-2 rounded bg-navy-900/80 border border-line">
+                    ● Overview Fleet Dashboard
+                  </div>
+                  <div className="p-2 rounded bg-navy-900/80 border border-line">
+                    ● Plant Machines
+                  </div>
+                  <div className="p-2 rounded bg-navy-900/80 border border-line">
+                    ● Maintenance Dispatch
+                  </div>
+                  <div className="p-2 rounded bg-navy-900/80 border border-line">
+                    ● Predictive Alerts
+                  </div>
+                  <div className="p-2 rounded bg-navy-900/80 border border-line">
+                    ● Operational Reports
+                  </div>
+                  <div className="p-2 rounded bg-navy-900/80 border border-line">
+                    ● AI Diagnostics Copilot
+                  </div>
                 </div>
               </div>
             </div>
@@ -978,34 +1100,58 @@ export default function LandingPage() {
                 <span className="rounded-md border border-emerald-400/30 bg-emerald-500/10 px-2 py-0.5 font-mono text-[11px] font-bold text-emerald-300">
                   ASSIGNED FLEET WORKSPACE
                 </span>
-                <h3 className="text-xl font-bold text-ink">Dedicated Field Technician Workspace</h3>
+                <h3 className="text-xl font-bold text-ink">
+                  Dedicated Field Technician Workspace
+                </h3>
                 <p className="text-xs text-ink-dim leading-relaxed">
-                  Field Technicians access only their assigned machine units and assigned work orders. They advance task statuses (Scheduled → In Progress → Completed) with work logs and downtime records.
+                  Field Technicians access only their assigned machine units and assigned
+                  work orders. They advance task statuses (Scheduled → In Progress →
+                  Completed) with work logs and downtime records.
                 </p>
                 <ul className="space-y-2 text-xs text-ink-dim">
                   <li className="flex items-center gap-2">
                     <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
-                    <span>Access restricted to assigned equipment (e.g. Line 1: M-001..M-003)</span>
+                    <span>
+                      Access restricted to assigned equipment (e.g. Line 1: M-001..M-003)
+                    </span>
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
-                    <span>Task advancement controls restricted to own maintenance orders</span>
+                    <span>
+                      Task advancement controls restricted to own maintenance orders
+                    </span>
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
-                    <span>AI Assistant troubleshooting queries on assigned equipment manuals</span>
+                    <span>
+                      AI Assistant troubleshooting queries on assigned equipment manuals
+                    </span>
                   </li>
                 </ul>
               </div>
               <div className="rounded-xl border border-line bg-navy-800/80 p-4 space-y-2 text-xs font-mono">
-                <div className="text-sky-300 font-bold">Technician Scoped Navigation:</div>
+                <div className="text-sky-300 font-bold">
+                  Technician Scoped Navigation:
+                </div>
                 <div className="grid grid-cols-2 gap-2 text-ink-dim text-[11px]">
-                  <div className="p-2 rounded bg-navy-900/80 border border-line">● Assigned Fleet Overview</div>
-                  <div className="p-2 rounded bg-navy-900/80 border border-line">● Assigned Machines Only</div>
-                  <div className="p-2 rounded bg-navy-900/80 border border-line">● My Maintenance Orders</div>
-                  <div className="p-2 rounded bg-navy-900/80 border border-line">● Machine Sensor Telemetry</div>
-                  <div className="p-2 rounded bg-navy-900/80 border border-line">● Shift Reports</div>
-                  <div className="p-2 rounded bg-navy-900/80 border border-line">● AI Assistant</div>
+                  <div className="p-2 rounded bg-navy-900/80 border border-line">
+                    ● Assigned Fleet Overview
+                  </div>
+                  <div className="p-2 rounded bg-navy-900/80 border border-line">
+                    ● Assigned Machines Only
+                  </div>
+                  <div className="p-2 rounded bg-navy-900/80 border border-line">
+                    ● My Maintenance Orders
+                  </div>
+                  <div className="p-2 rounded bg-navy-900/80 border border-line">
+                    ● Machine Sensor Telemetry
+                  </div>
+                  <div className="p-2 rounded bg-navy-900/80 border border-line">
+                    ● Shift Reports
+                  </div>
+                  <div className="p-2 rounded bg-navy-900/80 border border-line">
+                    ● AI Assistant
+                  </div>
                 </div>
               </div>
             </div>
@@ -1014,7 +1160,10 @@ export default function LandingPage() {
       </section>
 
       {/* Security & Trust */}
-      <section id="security" className="relative z-10 border-t border-line/70 bg-navy-900/50 py-20 backdrop-blur-md">
+      <section
+        id="security"
+        className="relative z-10 border-t border-line/70 bg-navy-900/50 py-20 backdrop-blur-md"
+      >
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto space-y-3">
             <div className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/30 bg-emerald-500/10 px-3 py-0.5 text-xs font-semibold text-emerald-300">
@@ -1025,7 +1174,9 @@ export default function LandingPage() {
               {t('Defense-in-Depth Architecture')}
             </h2>
             <p className="text-xs sm:text-sm text-ink-dim">
-              {t('How we protect critical industrial telemetry, operational records, and equipment control.')}
+              {t(
+                'How we protect critical industrial telemetry, operational records, and equipment control.'
+              )}
             </p>
           </div>
 
@@ -1036,7 +1187,8 @@ export default function LandingPage() {
               </div>
               <h4 className="font-bold text-sm text-ink">PostgreSQL RLS</h4>
               <p className="text-xs text-ink-dim leading-relaxed">
-                Supabase Row Level Security enforced at database boundary. Direct queries cannot bypass technician scope.
+                Supabase Row Level Security enforced at database boundary. Direct queries
+                cannot bypass technician scope.
               </p>
             </div>
 
@@ -1046,7 +1198,8 @@ export default function LandingPage() {
               </div>
               <h4 className="font-bold text-sm text-ink">Deny-by-Default RBAC</h4>
               <p className="text-xs text-ink-dim leading-relaxed">
-                27 dot-notation permissions evaluated centrally. Missing permissions fail closed instantly with HTTP 403.
+                27 dot-notation permissions evaluated centrally. Missing permissions fail
+                closed instantly with HTTP 403.
               </p>
             </div>
 
@@ -1056,7 +1209,8 @@ export default function LandingPage() {
               </div>
               <h4 className="font-bold text-sm text-ink">Immutable Audit Trail</h4>
               <p className="text-xs text-ink-dim leading-relaxed">
-                All role updates, machine deletions, and assignment modifications recorded to append-only security logs.
+                All role updates, machine deletions, and assignment modifications recorded
+                to append-only security logs.
               </p>
             </div>
 
@@ -1066,7 +1220,8 @@ export default function LandingPage() {
               </div>
               <h4 className="font-bold text-sm text-ink">Invitation-Only Flow</h4>
               <p className="text-xs text-ink-dim leading-relaxed">
-                No self-registered admin accounts. User provisioning is strictly executed by authenticated plant administrators.
+                No self-registered admin accounts. User provisioning is strictly executed
+                by authenticated plant administrators.
               </p>
             </div>
           </div>
@@ -1094,7 +1249,8 @@ export default function LandingPage() {
                 </>
               ) : (
                 <>
-                  Ready to eliminate <span className="text-gradient">unplanned downtime</span>?
+                  Ready to eliminate{' '}
+                  <span className="text-gradient">unplanned downtime</span>?
                 </>
               )}
             </h2>
@@ -1146,7 +1302,9 @@ export default function LandingPage() {
               <div className="flex h-7 w-7 items-center justify-center rounded-lg border border-sky-400/30 bg-sky-500/10 text-sky-400">
                 <Factory className="h-4 w-4" />
               </div>
-              <span className="font-mono font-bold text-ink">Industrial AI Predictive Platform</span>
+              <span className="font-mono font-bold text-ink">
+                Industrial AI Predictive Platform
+              </span>
             </div>
             <div className="flex items-center gap-6">
               <a href="#overview" className="hover:text-ink transition-colors">

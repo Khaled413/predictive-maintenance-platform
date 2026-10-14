@@ -99,7 +99,6 @@ export interface AssistantConfigPayload {
   auto_rotate?: boolean
 }
 
-
 async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, init)
   if (!response.ok) {
@@ -314,7 +313,7 @@ export async function getAssistantConfig(): Promise<AssistantConfigResponse> {
 }
 
 export async function updateAssistantConfig(
-  payload: string | AssistantConfigPayload,
+  payload: string | AssistantConfigPayload
 ): Promise<AssistantConfigResponse> {
   const body =
     typeof payload === 'string'
@@ -326,4 +325,3 @@ export async function updateAssistantConfig(
     body: JSON.stringify(body),
   })
 }
-

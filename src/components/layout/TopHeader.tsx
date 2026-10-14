@@ -146,7 +146,9 @@ export default function TopHeader({ onMenu }: TopHeaderProps) {
         </span>
         <div className="hidden items-center gap-1.5 rounded-lg border border-line bg-navy-800/60 px-2.5 py-1.5 text-[11px] font-medium text-ink-dim xl:flex">
           <Zap className="h-3.5 w-3.5 text-sky-400" />
-          <span className="text-gradient font-semibold">{t('Predict · Prevent · Optimize')}</span>
+          <span className="text-gradient font-semibold">
+            {t('Predict · Prevent · Optimize')}
+          </span>
         </div>
 
         <div className="hidden items-center gap-2 rounded-lg border border-line bg-navy-800/60 px-3 py-1.5 md:flex">
@@ -272,7 +274,9 @@ export default function TopHeader({ onMenu }: TopHeaderProps) {
             )
           }}
           className="rounded-lg border border-line bg-navy-800/60 p-2 text-ink-dim transition-all hover:border-sky-400/40 hover:text-ink hover:scale-105 active:scale-95"
-          title={audioMuted ? t('Unmute factory audio alarms') : t('Mute factory audio alarms')}
+          title={
+            audioMuted ? t('Unmute factory audio alarms') : t('Mute factory audio alarms')
+          }
           aria-label="Toggle audio alerts"
         >
           {audioMuted ? (
@@ -339,14 +343,14 @@ export default function TopHeader({ onMenu }: TopHeaderProps) {
               }`}
             >
               {language === 'ar'
-                ? currentUser?.avatarInitialsAr ?? 'مخ'
-                : currentUser?.avatarInitials ?? 'EK'}
+                ? (currentUser?.avatarInitialsAr ?? 'مخ')
+                : (currentUser?.avatarInitials ?? 'EK')}
             </div>
             <div className="hidden text-left leading-none sm:block">
               <p className="text-[11.5px] font-semibold text-ink group-hover:text-sky-300 transition-colors">
                 {language === 'ar' && currentUser?.nameAr
                   ? currentUser.nameAr
-                  : currentUser?.name ?? t('Eng. Khaled')}
+                  : (currentUser?.name ?? t('Eng. Khaled'))}
               </p>
               <p className="mt-0.5 text-[10px] text-ink-faint capitalize">
                 {t(
@@ -421,9 +425,13 @@ export default function TopHeader({ onMenu }: TopHeaderProps) {
                   </span>
                   <span className="rounded-md border border-line bg-navy-800 px-2 py-0.5 text-[10px] text-ink-dim">
                     {currentUser?.status === 'active' ? (
-                      <span className="text-emerald-400 font-semibold">{t('Active')}</span>
+                      <span className="text-emerald-400 font-semibold">
+                        {t('Active')}
+                      </span>
                     ) : (
-                      <span className="text-red-400 font-semibold">{t('Deactivated')}</span>
+                      <span className="text-red-400 font-semibold">
+                        {t('Deactivated')}
+                      </span>
                     )}
                   </span>
                 </div>
