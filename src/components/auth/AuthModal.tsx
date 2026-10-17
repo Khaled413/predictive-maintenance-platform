@@ -29,7 +29,7 @@ export default function AuthModal({
   onSuccess,
 }: AuthModalProps) {
   const navigate = useNavigate()
-  const { t, language } = usePreferences()
+  const { t } = usePreferences()
   const { signInWithEmail, requestPasswordReset } = useAuth()
 
   const [mode, setMode] = useState<'signin' | 'reset' | 'request'>(initialMode)
@@ -156,70 +156,7 @@ export default function AuthModal({
 
         {/* Mode: Sign In */}
         {mode === 'signin' && (
-          <form onSubmit={handleSignIn} className="mt-4 space-y-3.5">
-            {/* Quick Demo Credentials Auto-Fill */}
-            <div className="rounded-xl border border-sky-400/25 bg-navy-950/60 p-3 shadow-inner">
-              <div className="mb-2 flex items-center justify-between text-[11px]">
-                <span className="font-semibold text-sky-300 flex items-center gap-1.5">
-                  <Shield className="h-3.5 w-3.5 text-sky-400" />
-                  {language === 'ar' ? 'حسابات المعاينة السريعة (Demo):' : 'Demo Test Accounts:'}
-                </span>
-                <span className="text-[10px] text-ink-faint">
-                  {language === 'ar' ? 'اضغط للتعبئة' : 'Click to fill'}
-                </span>
-              </div>
-              <div className="grid grid-cols-3 gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEmail('admin@factory.com')
-                    setPassword('IndustrialAdmin2026!')
-                    setError(null)
-                  }}
-                  className="group rounded-lg border border-line bg-navy-800/80 p-2 text-start transition-all hover:border-sky-400/50 hover:bg-sky-500/10"
-                >
-                  <div className="text-[11px] font-bold text-sky-400 group-hover:text-sky-300">
-                    {language === 'ar' ? 'مدير عام' : 'Admin'}
-                  </div>
-                  <div className="text-[9px] text-ink-dim">
-                    {language === 'ar' ? 'كامل الصلاحيات' : 'Full access'}
-                  </div>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEmail('manager@factory.com')
-                    setPassword('FactoryTest2026!')
-                    setError(null)
-                  }}
-                  className="group rounded-lg border border-line bg-navy-800/80 p-2 text-start transition-all hover:border-sky-400/50 hover:bg-sky-500/10"
-                >
-                  <div className="text-[11px] font-bold text-sky-400 group-hover:text-sky-300">
-                    {language === 'ar' ? 'مدير صيانة' : 'Manager'}
-                  </div>
-                  <div className="text-[9px] text-ink-dim">
-                    {language === 'ar' ? 'تشغيل وتعيين' : 'Ops & dispatch'}
-                  </div>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEmail('tech1@factory.com')
-                    setPassword('FactoryTest2026!')
-                    setError(null)
-                  }}
-                  className="group rounded-lg border border-line bg-navy-800/80 p-2 text-start transition-all hover:border-sky-400/50 hover:bg-sky-500/10"
-                >
-                  <div className="text-[11px] font-bold text-sky-400 group-hover:text-sky-300">
-                    {language === 'ar' ? 'فني خط 1' : 'Technician'}
-                  </div>
-                  <div className="text-[9px] text-ink-dim">
-                    {language === 'ar' ? 'صيانة وأوامر' : 'M-001/002/003'}
-                  </div>
-                </button>
-              </div>
-            </div>
-
+          <form onSubmit={handleSignIn} className="mt-4 space-y-4">
             <div>
               <label className="mb-1 block text-xs font-semibold text-ink-dim">
                 {t('Email')}
