@@ -416,7 +416,7 @@ export function AuthProvider({
       }
 
       const client = supabase
-      const cleanEmail = email.trim()
+      const cleanEmail = email.trim().toLowerCase()
 
       const { data, error } = await client.auth.signInWithPassword({
         email: cleanEmail,
@@ -484,7 +484,7 @@ export function AuthProvider({
         return { success: false, error: 'Authentication service unavailable.' }
       }
 
-      const cleanEmail = email.trim()
+      const cleanEmail = email.trim().toLowerCase()
       const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
         redirectTo: `${window.location.origin}/`,
       })

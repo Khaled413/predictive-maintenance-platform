@@ -71,6 +71,7 @@ Thumbs.db
 .env.*.local
 
 # ML Data Files (Large files)
+Models/
 ml/data/**/*.csv
 ml/data/raw/
 ml/data/processed/

@@ -121,11 +121,20 @@ try {
       backend.on('error', (error) => {
         backend.spawnError = error
       })
-      await waitForBackend()
+      try {
+        await waitForBackend()
+      } catch (err) {
+        console.warn(`\n⚠️  Notice: Python ML backend could not be started: ${err.message}`)
+        console.warn('👉 Starting Vite frontend with simulated edge telemetry & Supabase cloud auth...\n')
+      }
     }
   } else {
     console.log(`Using the configured external ML service at ${configuredOrigin}`)
-    await waitForBackend()
+    try {
+      await waitForBackend()
+    } catch (err) {
+      console.warn(`\n⚠️  External ML service not responding: ${err.message}. Continuing with frontend.\n`)
+    }
   }
 
   if (stopping) process.exitCode = 130
