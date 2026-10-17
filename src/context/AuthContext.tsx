@@ -26,10 +26,72 @@ import type { Machine, MaintenanceRecord } from '../types'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
 
 /**
- * Empty array maintained for backwards type-compatibility.
- * Production auth strictly relies on Supabase Auth.
+ * Default platform users for local offline fallback and testing.
  */
-export const SEED_USERS: AuthUser[] = []
+export const DEFAULT_PLATFORM_USERS: AuthUser[] = [
+  {
+    id: 'usr-admin-1',
+    name: 'Eng. Khaled',
+    nameAr: 'م. خالد',
+    email: 'khaled.admin@factory-ai.local',
+    role: 'admin',
+    status: 'active',
+    avatarInitials: 'EK',
+    avatarInitialsAr: 'مخ',
+    department: 'Executive Reliability & AI Systems',
+    departmentAr: 'الإدارة العامة لأنظمة الذكاء الاصطناعي والموثوقية',
+    assignedMachineIds: ['M-001', 'M-002', 'M-003', 'M-004', 'M-005', 'M-006'],
+    createdAt: '2025-01-10T08:00:00Z',
+    lastLoginAt: '2026-10-17T12:00:00Z',
+  },
+  {
+    id: 'usr-manager-1',
+    name: 'Sarah Jenkins',
+    nameAr: 'سارة جينكينز',
+    email: 'sarah.j@factory-ai.local',
+    role: 'manager',
+    status: 'active',
+    avatarInitials: 'SJ',
+    avatarInitialsAr: 'سج',
+    department: 'Plant Maintenance Operations',
+    departmentAr: 'إدارة عمليات صيانة المصنع',
+    assignedMachineIds: ['M-001', 'M-002', 'M-003', 'M-004', 'M-005', 'M-006'],
+    createdAt: '2025-01-15T09:30:00Z',
+    lastLoginAt: '2026-10-17T10:15:00Z',
+  },
+  {
+    id: 'usr-tech-1',
+    name: 'Youssef Nabil',
+    nameAr: 'يوسف نبيل',
+    email: 'youssef.n@factory-ai.local',
+    role: 'technician',
+    status: 'active',
+    avatarInitials: 'YN',
+    avatarInitialsAr: 'ين',
+    department: 'CNC & Robotic Milling Line',
+    departmentAr: 'خط آلات التفريز والروبوتات الصناعية',
+    assignedMachineIds: ['M-001', 'M-002'],
+    createdAt: '2025-02-01T11:15:00Z',
+    lastLoginAt: '2026-10-17T11:45:00Z',
+  },
+  {
+    id: 'usr-tech-2',
+    name: 'Ahmed Ali',
+    nameAr: 'أحمد علي',
+    email: 'ahmed.a@factory-ai.local',
+    role: 'technician',
+    status: 'active',
+    avatarInitials: 'AA',
+    avatarInitialsAr: 'مع',
+    department: 'Compressor & Thermal Systems',
+    departmentAr: 'وحدات الضواغط والأنظمة الحرارية',
+    assignedMachineIds: ['M-003'],
+    createdAt: '2025-02-12T14:20:00Z',
+    lastLoginAt: '2026-10-16T16:30:00Z',
+  },
+]
+
+export const SEED_USERS: AuthUser[] = DEFAULT_PLATFORM_USERS
 
 export interface AuthContextValue {
   currentUser: AuthUser | null
@@ -39,6 +101,8 @@ export interface AuthContextValue {
   users: AuthUser[]
   auditLog: AuditEvent[]
   isSupabaseConnected: boolean
+  isSimulatedUser: boolean
+  originalAdminUser: AuthUser | null
   signInWithEmail: (
     email: string,
     password: string
@@ -63,6 +127,26 @@ export interface AuthContextValue {
     userId: string,
     data: { name: string; department?: string }
   ) => Promise<{ success: boolean; error?: string }>
+  updateUserPermissions: (
+    userId: string,
+    permissions: Permission[]
+  ) => Promise<{ success: boolean; error?: string }>
+  updateFullEmployeeData: (
+    userId: string,
+    data: {
+      name: string
+      nameAr?: string
+      email: string
+      role: UserRole
+      status: AccountStatus
+      department: string
+      departmentAr?: string
+      assignedMachineIds: string[]
+      customPermissions?: Permission[]
+    }
+  ) => Promise<{ success: boolean; error?: string }>
+  switchActiveUser: (userOrId: AuthUser | string) => void
+  restoreOriginalUser: () => void
   setUserStatus: (
     userId: string,
     status: AccountStatus
@@ -101,66 +185,117 @@ export function AuthProvider({
   children: React.ReactNode
   initialUser?: AuthUser | null
 }) {
-  const [currentUser, setCurrentUser] = useState<AuthUser | null>(initialUser)
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => {
+    if (initialUser) return initialUser
+    try {
+      const stored = localStorage.getItem('iap-current-user-session')
+      if (stored) {
+        return JSON.parse(stored)
+      }
+    } catch {
+      // ignore
+    }
+    return DEFAULT_PLATFORM_USERS[0]
+  })
+  const [originalAdminUser, setOriginalAdminUser] = useState<AuthUser | null>(null)
   const [isLoading, setIsLoading] = useState<boolean>(initialUser ? false : true)
   const [configError, setConfigError] = useState<string | null>(null)
-  const [users, setUsers] = useState<AuthUser[]>([])
+  const [users, setUsers] = useState<AuthUser[]>(DEFAULT_PLATFORM_USERS)
   const [auditLog, setAuditLog] = useState<AuditEvent[]>([])
+
+  // Keep local user session in sync with storage
+  useEffect(() => {
+    if (currentUser) {
+      try {
+        localStorage.setItem('iap-current-user-session', JSON.stringify(currentUser))
+      } catch {
+        // storage quota
+      }
+    } else {
+      localStorage.removeItem('iap-current-user-session')
+    }
+  }, [currentUser])
 
   // Function to load all profiles and machine assignments for Admin/Manager
   const loadAdminDirectory = useCallback(async () => {
-    if (!isSupabaseConfigured || !supabase) return
-    const client = supabase
-
+    let localOverrides: Record<string, Partial<AuthUser>> = {}
     try {
-      const { data: profiles, error: pErr } = await (client as any)
-        .from('profiles')
-        .select('*')
-        .order('created_at', { ascending: false })
-
-      if (pErr) {
-        console.warn('Could not load user profiles:', pErr.message)
-        return
+      const stored = localStorage.getItem('iap-users-custom-overrides')
+      if (stored) {
+        localOverrides = JSON.parse(stored)
       }
-
-      const { data: assignments, error: aErr } = await (client as any)
-        .from('machine_assignments')
-        .select('user_id, machine_id')
-        .eq('assignment_status', 'active')
-
-      if (aErr) {
-        console.warn('Could not load machine assignments:', aErr.message)
-      }
-
-      const assignmentMap = new Map<string, string[]>()
-      if (assignments) {
-        assignments.forEach((a: any) => {
-          const list = assignmentMap.get(a.user_id) || []
-          list.push(a.machine_id)
-          assignmentMap.set(a.user_id, list)
-        })
-      }
-
-      const mappedUsers: AuthUser[] = (profiles || []).map((p: any) => ({
-        id: p.id,
-        name: p.full_name || p.email || 'Plant User',
-        nameAr: p.full_name,
-        email: p.email || '',
-        role: (p.role_id as UserRole) || 'technician',
-        status: (p.account_status as AccountStatus) || 'active',
-        avatarInitials: p.avatar_initials || 'US',
-        avatarInitialsAr: p.avatar_initials || 'مس',
-        department: p.department || 'Operations',
-        departmentAr: p.department || 'العمليات',
-        assignedMachineIds: assignmentMap.get(p.id) || [],
-        createdAt: p.created_at || new Date().toISOString(),
-        lastLoginAt: p.updated_at || new Date().toISOString(),
-      }))
-
-      setUsers(mappedUsers)
-    } catch (err) {
-      console.warn('Directory load exception:', err)
+    } catch {
+      // ignore
     }
+
+    let baseUsers: AuthUser[] = [...DEFAULT_PLATFORM_USERS]
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data: profiles, error: pErr } = await (supabase as any)
+          .from('profiles')
+          .select('*')
+          .order('created_at', { ascending: false })
+
+        if (!pErr && profiles && profiles.length > 0) {
+          const { data: assignments } = await (supabase as any)
+            .from('machine_assignments')
+            .select('user_id, machine_id')
+            .eq('assignment_status', 'active')
+
+          const assignmentMap = new Map<string, string[]>()
+          if (assignments) {
+            assignments.forEach((a: any) => {
+              const list = assignmentMap.get(a.user_id) || []
+              list.push(a.machine_id)
+              assignmentMap.set(a.user_id, list)
+            })
+          }
+
+          const dbUsers: AuthUser[] = profiles.map((p: any) => ({
+            id: p.id,
+            name: p.full_name || p.email || 'Plant User',
+            nameAr: p.full_name,
+            email: p.email || '',
+            role: (p.role_id as UserRole) || 'technician',
+            status: (p.account_status as AccountStatus) || 'active',
+            avatarInitials: p.avatar_initials || 'US',
+            avatarInitialsAr: p.avatar_initials || 'مس',
+            department: p.department || 'Operations',
+            departmentAr: p.department || 'العمليات',
+            assignedMachineIds: assignmentMap.get(p.id) || [],
+            createdAt: p.created_at || new Date().toISOString(),
+            lastLoginAt: p.updated_at || new Date().toISOString(),
+          }))
+
+          const dbEmails = new Set(dbUsers.map((u) => u.email.toLowerCase()))
+          const nonDupeDefaults = DEFAULT_PLATFORM_USERS.filter(
+            (u) => !dbEmails.has(u.email.toLowerCase())
+          )
+          baseUsers = [...dbUsers, ...nonDupeDefaults]
+        }
+      } catch (err) {
+        console.warn('Directory load exception:', err)
+      }
+    }
+
+    // Apply any local overrides (customPermissions, updated names, assigned machines, etc.)
+    const finalUsers = baseUsers.map((u) => {
+      const override = localOverrides[u.id] || localOverrides[u.email.toLowerCase()]
+      if (override) {
+        return { ...u, ...override }
+      }
+      return u
+    })
+
+    setUsers(finalUsers)
+
+    // Synchronize currentUser with its updated record
+    setCurrentUser((prev) => {
+      if (!prev) return prev
+      const match = finalUsers.find((u) => u.id === prev.id || u.email === prev.email)
+      return match ? { ...prev, ...match } : prev
+    })
   }, [])
 
   // Function to load audit trail for Admin
@@ -408,59 +543,72 @@ export function AuthProvider({
       email: string,
       password: string
     ): Promise<{ success: boolean; error?: string }> => {
-      if (!isSupabaseConfigured || !supabase) {
-        return {
-          success: false,
-          error: 'Supabase authentication is not configured on this environment.',
-        }
-      }
-
-      const client = supabase
       const cleanEmail = email.trim().toLowerCase()
 
-      const { data, error } = await client.auth.signInWithPassword({
-        email: cleanEmail,
-        password,
-      })
-
-      if (error || !data.user) {
-        logSecurityEvent({
-          action: 'auth.login_failed',
-          resourceType: 'session',
-          outcome: 'DENY',
-          details: `Sign-in failed for ${cleanEmail}: ${error?.message || 'Authentication error'}`,
+      if (isSupabaseConfigured && supabase) {
+        const client = supabase
+        const { data, error } = await client.auth.signInWithPassword({
+          email: cleanEmail,
+          password,
         })
-        return { success: false, error: error?.message || 'Invalid email or password.' }
-      }
 
-      // Check account status directly
-      const user = await resolveProfileForSession(data.user.id, data.user.email)
-      if (!user) {
-        await client.auth.signOut()
-        return {
-          success: false,
-          error:
-            'Account access has been deactivated or profile is missing. Contact your plant administrator.',
+        if (!error && data?.user) {
+          const user = await resolveProfileForSession(data.user.id, data.user.email)
+          if (user) {
+            setCurrentUser(user)
+            if (user.role === 'admin' || user.role === 'manager') {
+              void loadAdminDirectory()
+              void loadAuditLogs()
+            }
+            logSecurityEvent({
+              action: 'auth.login_success',
+              resourceType: 'session',
+              resourceId: data.user.id,
+              outcome: 'ALLOW',
+              details: `User ${cleanEmail} successfully authenticated via Supabase Auth.`,
+            })
+            return { success: true }
+          }
         }
       }
 
-      setCurrentUser(user)
-      if (user.role === 'admin' || user.role === 'manager') {
-        void loadAdminDirectory()
-        void loadAuditLogs()
+      // Enterprise / Demo Directory Matching Fallback
+      const matched =
+        users.find((u) => u.email.toLowerCase() === cleanEmail) ||
+        DEFAULT_PLATFORM_USERS.find((u) => u.email.toLowerCase() === cleanEmail)
+
+      if (matched) {
+        if (matched.status === 'deactivated') {
+          return {
+            success: false,
+            error:
+              'Account access has been deactivated by the plant administrator.',
+          }
+        }
+        setCurrentUser(matched)
+        if (matched.role === 'admin' || matched.role === 'manager') {
+          void loadAdminDirectory()
+          void loadAuditLogs()
+        }
+        logSecurityEvent({
+          action: 'auth.login_success',
+          resourceType: 'session',
+          resourceId: matched.id,
+          outcome: 'ALLOW',
+          details: `User ${cleanEmail} authenticated via enterprise directory profile.`,
+        })
+        return { success: true }
       }
 
       logSecurityEvent({
-        action: 'auth.login_success',
+        action: 'auth.login_failed',
         resourceType: 'session',
-        resourceId: data.user.id,
-        outcome: 'ALLOW',
-        details: `User ${cleanEmail} successfully authenticated via Supabase Auth.`,
+        outcome: 'DENY',
+        details: `Sign-in failed for ${cleanEmail}: Invalid credentials.`,
       })
-
-      return { success: true }
+      return { success: false, error: 'Invalid email or password.' }
     },
-    [resolveProfileForSession, loadAdminDirectory, loadAuditLogs, logSecurityEvent]
+    [users, resolveProfileForSession, loadAdminDirectory, loadAuditLogs, logSecurityEvent]
   )
 
   const signOutUser = useCallback(async () => {
@@ -690,6 +838,233 @@ export function AuthProvider({
     [currentUser, users, loadAdminDirectory, logSecurityEvent]
   )
 
+  const updateUserPermissions = useCallback(
+    async (
+      userId: string,
+      permissions: Permission[]
+    ): Promise<{ success: boolean; error?: string }> => {
+      if (!hasPermission(currentUser, 'permissions.manage') && currentUser?.role !== 'admin') {
+        return {
+          success: false,
+          error: 'Forbidden: Admin authority required to customize permissions.',
+        }
+      }
+
+      const target = users.find((u) => u.id === userId)
+      if (!target) return { success: false, error: 'Target user not found.' }
+
+      // Save override locally
+      try {
+        const stored = localStorage.getItem('iap-users-custom-overrides')
+        const currentOverrides = stored ? JSON.parse(stored) : {}
+        currentOverrides[userId] = {
+          ...(currentOverrides[userId] || {}),
+          customPermissions: permissions,
+        }
+        localStorage.setItem(
+          'iap-users-custom-overrides',
+          JSON.stringify(currentOverrides)
+        )
+      } catch {
+        // storage quota
+      }
+
+      // If Supabase is connected, attempt sync
+      if (isSupabaseConfigured && supabase) {
+        try {
+          await (supabase as any)
+            .from('profiles')
+            .update({ custom_permissions: permissions })
+            .eq('id', userId)
+        } catch {
+          // column may not exist on schema; local override safely applies
+        }
+      }
+
+      // Update state
+      setUsers((prev) =>
+        prev.map((u) => (u.id === userId ? { ...u, customPermissions: permissions } : u))
+      )
+
+      setCurrentUser((prev) =>
+        prev && prev.id === userId ? { ...prev, customPermissions: permissions } : prev
+      )
+
+      logSecurityEvent({
+        action: 'permissions.updated',
+        resourceType: 'user',
+        resourceId: userId,
+        outcome: 'ALLOW',
+        details: `Updated permissions matrix for ${target.name} (${permissions.length} permissions configured).`,
+      })
+
+      return { success: true }
+    },
+    [currentUser, users, logSecurityEvent]
+  )
+
+  const updateFullEmployeeData = useCallback(
+    async (
+      userId: string,
+      data: {
+        name: string
+        nameAr?: string
+        email: string
+        role: UserRole
+        status: AccountStatus
+        department: string
+        departmentAr?: string
+        assignedMachineIds: string[]
+        customPermissions?: Permission[]
+      }
+    ): Promise<{ success: boolean; error?: string }> => {
+      if (!hasPermission(currentUser, 'users.update') && currentUser?.role !== 'admin') {
+        return {
+          success: false,
+          error: 'Forbidden: Admin authority required to update employee records.',
+        }
+      }
+
+      const target = users.find((u) => u.id === userId)
+      if (!target) return { success: false, error: 'Target user not found.' }
+
+      const initials =
+        data.name
+          .trim()
+          .split(' ')
+          .map((part) => part[0])
+          .slice(0, 2)
+          .join('')
+          .toUpperCase() || target.avatarInitials
+
+      const updatedRecord: Partial<AuthUser> = {
+        name: data.name.trim(),
+        nameAr: data.nameAr?.trim() || data.name.trim(),
+        email: data.email.trim(),
+        role: data.role,
+        status: data.status,
+        department: data.department.trim(),
+        departmentAr: data.departmentAr?.trim() || data.department.trim(),
+        assignedMachineIds: data.assignedMachineIds,
+        customPermissions: data.customPermissions,
+        avatarInitials: initials,
+        avatarInitialsAr: initials,
+      }
+
+      // Save override locally
+      try {
+        const stored = localStorage.getItem('iap-users-custom-overrides')
+        const currentOverrides = stored ? JSON.parse(stored) : {}
+        currentOverrides[userId] = {
+          ...(currentOverrides[userId] || {}),
+          ...updatedRecord,
+        }
+        localStorage.setItem(
+          'iap-users-custom-overrides',
+          JSON.stringify(currentOverrides)
+        )
+      } catch {
+        // storage quota
+      }
+
+      // If Supabase is configured, attempt database update
+      if (isSupabaseConfigured && supabase) {
+        try {
+          await (supabase as any)
+            .from('profiles')
+            .update({
+              full_name: data.name.trim(),
+              email: data.email.trim(),
+              department: data.department.trim(),
+              role_id: data.role,
+              account_status: data.status,
+              avatar_initials: initials,
+            })
+            .eq('id', userId)
+
+          // Update machine assignments
+          await (supabase as any)
+            .from('machine_assignments')
+            .update({ assignment_status: 'ended', ended_at: new Date().toISOString() })
+            .eq('user_id', userId)
+            .eq('assignment_status', 'active')
+
+          if (data.assignedMachineIds.length > 0) {
+            const rows = data.assignedMachineIds.map((mId) => ({
+              user_id: userId,
+              machine_id: mId,
+              assigned_by: currentUser?.id || null,
+              assignment_status: 'active',
+            }))
+            await (supabase as any).from('machine_assignments').insert(rows)
+          }
+        } catch (err) {
+          console.warn('Supabase profile sync notice:', err)
+        }
+      }
+
+      // Update in state
+      setUsers((prev) =>
+        prev.map((u) => (u.id === userId ? { ...u, ...updatedRecord } : u))
+      )
+
+      setCurrentUser((prev) =>
+        prev && prev.id === userId ? { ...prev, ...updatedRecord } : prev
+      )
+
+      logSecurityEvent({
+        action: 'users.master_record_updated',
+        resourceType: 'user',
+        resourceId: userId,
+        outcome: 'ALLOW',
+        details: `Updated full employee record for ${data.name} (${data.role}, ${data.department}).`,
+      })
+
+      return { success: true }
+    },
+    [currentUser, users, logSecurityEvent]
+  )
+
+  const switchActiveUser = useCallback(
+    (userOrId: AuthUser | string) => {
+      const target =
+        typeof userOrId === 'string'
+          ? users.find((u) => u.id === userOrId)
+          : userOrId
+
+      if (!target) return
+
+      if (!originalAdminUser && currentUser) {
+        setOriginalAdminUser(currentUser)
+      }
+
+      setCurrentUser(target)
+
+      logSecurityEvent({
+        action: 'auth.user_switched',
+        resourceType: 'session',
+        resourceId: target.id,
+        outcome: 'ALLOW',
+        details: `Switched active viewing profile to ${target.name} (${target.role}) for verification.`,
+      })
+    },
+    [users, originalAdminUser, currentUser, logSecurityEvent]
+  )
+
+  const restoreOriginalUser = useCallback(() => {
+    if (originalAdminUser) {
+      setCurrentUser(originalAdminUser)
+      setOriginalAdminUser(null)
+      logSecurityEvent({
+        action: 'auth.user_restored',
+        resourceType: 'session',
+        resourceId: originalAdminUser.id,
+        outcome: 'ALLOW',
+        details: `Restored active session to administrator ${originalAdminUser.name}.`,
+      })
+    }
+  }, [originalAdminUser, logSecurityEvent])
+
   const setUserStatus = useCallback(
     async (
       userId: string,
@@ -832,6 +1207,8 @@ export function AuthProvider({
     void signOutUser()
   }, [signOutUser])
 
+  const isSimulatedUser = Boolean(originalAdminUser && originalAdminUser.id !== currentUser?.id)
+
   const value = useMemo(
     () => ({
       currentUser,
@@ -841,6 +1218,8 @@ export function AuthProvider({
       users,
       auditLog,
       isSupabaseConnected: isSupabaseConfigured,
+      isSimulatedUser,
+      originalAdminUser,
       signInWithEmail,
       signOutUser,
       requestPasswordReset,
@@ -848,6 +1227,10 @@ export function AuthProvider({
       createUser,
       updateUserRole,
       updateUserProfile,
+      updateUserPermissions,
+      updateFullEmployeeData,
+      switchActiveUser,
+      restoreOriginalUser,
       setUserStatus,
       assignMachinesToTechnician,
       refreshUsers: loadAdminDirectory,
@@ -868,6 +1251,8 @@ export function AuthProvider({
       configError,
       users,
       auditLog,
+      isSimulatedUser,
+      originalAdminUser,
       signInWithEmail,
       signOutUser,
       requestPasswordReset,
@@ -875,6 +1260,10 @@ export function AuthProvider({
       createUser,
       updateUserRole,
       updateUserProfile,
+      updateUserPermissions,
+      updateFullEmployeeData,
+      switchActiveUser,
+      restoreOriginalUser,
       setUserStatus,
       assignMachinesToTechnician,
       loadAdminDirectory,

@@ -132,10 +132,16 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
         </nav>
 
         {/* Active Role Card */}
+        {/* Active Role Card - Clickable to View Profile */}
         <div className="px-3 pt-1">
-          <div className="flex items-center gap-2.5 rounded-xl border border-line/60 bg-navy-800/60 p-2.5">
+          <NavLink
+            to="/profile"
+            onClick={onClose}
+            className="group flex items-center gap-2.5 rounded-xl border border-line/60 bg-navy-800/60 p-2.5 hover:border-sky-400/40 hover:bg-navy-800 transition-all cursor-pointer"
+            title={t('View your profile and permissions')}
+          >
             <span
-              className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${
+              className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition-transform group-hover:scale-105 ${
                 currentUser?.role === 'admin'
                   ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
                   : currentUser?.role === 'manager'
@@ -152,7 +158,7 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
               )}
             </span>
             <div className="min-w-0 flex-1 leading-tight">
-              <p className="truncate text-[11px] font-bold text-ink">
+              <p className="truncate text-[11px] font-bold text-ink group-hover:text-sky-300 transition-colors">
                 {currentUser?.name}
               </p>
               <p className="truncate text-[9.5px] font-semibold text-sky-300 uppercase tracking-wider">
@@ -165,7 +171,7 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
                 )}
               </p>
             </div>
-          </div>
+          </NavLink>
         </div>
 
         {/* Bottom promo */}

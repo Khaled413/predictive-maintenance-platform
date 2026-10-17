@@ -71,6 +71,21 @@ export const ROLE_PERMISSIONS: Record<UserRole, readonly Permission[]> = {
 } as const
 
 /**
+ * Retrieves the effective permissions for a user.
+ * If customPermissions are explicitly defined for the user (by the Admin), they take precedence.
+ * Otherwise, falls back to the baseline ROLE_PERMISSIONS matrix.
+ */
+export function getUserPermissions(
+  user: AuthUser | null | undefined
+): readonly Permission[] {
+  if (!user || user.status !== 'active') return []
+  if (Array.isArray(user.customPermissions)) {
+    return user.customPermissions
+  }
+  return ROLE_PERMISSIONS[user.role] ?? []
+}
+
+/**
  * Checks if a user has a specific permission.
  * Deny-by-default: returns false if user is undefined, deactivated, or missing the permission.
  */
@@ -79,8 +94,7 @@ export function hasPermission(
   permission: Permission
 ): boolean {
   if (!user || user.status !== 'active') return false
-  const permissions = ROLE_PERMISSIONS[user.role]
-  if (!permissions) return false
+  const permissions = getUserPermissions(user)
   return permissions.includes(permission)
 }
 

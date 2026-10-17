@@ -9,6 +9,8 @@ import {
   Menu,
   QrCode,
   RefreshCw,
+  ShieldAlert,
+  User,
   Users,
   Volume2,
   VolumeX,
@@ -38,7 +40,7 @@ export default function TopHeader({ onMenu }: TopHeaderProps) {
     audioMuted,
     setAudioMuted,
   } = useApp()
-  const { currentUser, signOutUser } = useAuth()
+  const { currentUser, signOutUser, isSimulatedUser, restoreOriginalUser } = useAuth()
   const { language, toggleLanguage, t } = usePreferences()
   const location = useLocation()
   const navigate = useNavigate()
@@ -439,6 +441,32 @@ export default function TopHeader({ onMenu }: TopHeaderProps) {
 
               {/* Quick Links */}
               <div className="mt-2.5 pt-2 border-t border-line space-y-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigate('/profile')
+                    setProfileOpen(false)
+                  }}
+                  className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-ink-dim hover:bg-navy-800 hover:text-sky-300 transition-colors font-medium"
+                >
+                  <User className="h-3.5 w-3.5 text-emerald-400" />
+                  {t('My Profile & Permissions')}
+                </button>
+
+                {isSimulatedUser && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      restoreOriginalUser()
+                      setProfileOpen(false)
+                    }}
+                    className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 transition-colors font-semibold"
+                  >
+                    <ShieldAlert className="h-3.5 w-3.5 text-amber-400" />
+                    {t('Exit Preview (Back to Admin)')}
+                  </button>
+                )}
+
                 {currentUser?.role === 'admin' && (
                   <button
                     type="button"

@@ -20,6 +20,7 @@ const AlertsPage = lazy(() => import('./pages/AlertsPage'))
 const ReportsPage = lazy(() => import('./pages/ReportsPage'))
 const SettingsPage = lazy(() => import('./pages/SettingsPage'))
 const UsersPage = lazy(() => import('./pages/UsersPage'))
+const ProfilePage = lazy(() => import('./pages/ProfilePage'))
 const AccessDeniedPage = lazy(() => import('./pages/AccessDeniedPage'))
 const LandingPage = lazy(() => import('./pages/LandingPage'))
 
@@ -120,6 +121,14 @@ export default function App() {
                   element={
                     <ProtectedRoute permission="settings.read">
                       <SettingsPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/profile"
+                  element={
+                    <ProtectedRoute>
+                      <ProfilePage />
                     </ProtectedRoute>
                   }
                 />

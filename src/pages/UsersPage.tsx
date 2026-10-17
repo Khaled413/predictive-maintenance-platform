@@ -3,6 +3,7 @@ import {
   Users,
   UserPlus,
   Shield,
+  ShieldCheck,
   Wrench,
   Search,
   CheckCircle2,
@@ -12,11 +13,18 @@ import {
   Lock,
   Edit2,
   Cpu,
+  Eye,
+  RotateCcw,
+  Check,
+  X,
+  Mail,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useApp } from '../context/AppContext'
 import { usePreferences } from '../context/PreferencesContext'
-import type { AccountStatus, UserRole } from '../types/auth'
+import type { AccountStatus, UserRole, Permission, AuthUser } from '../types/auth'
+import { PERMISSION_GROUPS } from '../types/auth'
+import { getUserPermissions, ROLE_PERMISSIONS } from '../utils/rbac'
 
 export default function UsersPage() {
   const {
@@ -25,7 +33,9 @@ export default function UsersPage() {
     auditLog,
     createUser,
     updateUserRole,
-    updateUserProfile,
+    updateUserPermissions,
+    updateFullEmployeeData,
+    switchActiveUser,
     setUserStatus,
     assignMachinesToTechnician,
     refreshUsers,
@@ -56,15 +66,26 @@ export default function UsersPage() {
     assigned: string[]
   } | null>(null)
   const [selectedMachineIds, setSelectedMachineIds] = useState<string[]>([])
-  const [editModalUser, setEditModalUser] = useState<{
-    id: string
-    name: string
-    department: string
-  } | null>(null)
-  const [editName, setEditName] = useState('')
+  
+  // Comprehensive Full Employee Record Editor state
+  const [fullEditUser, setFullEditUser] = useState<AuthUser | null>(null)
+  const [editFullName, setEditFullName] = useState('')
+  const [editFullNameAr, setEditFullNameAr] = useState('')
+  const [editEmail, setEditEmail] = useState('')
+  const [editRole, setEditRole] = useState<UserRole>('technician')
+  const [editStatus, setEditStatus] = useState<AccountStatus>('active')
   const [editDepartment, setEditDepartment] = useState('')
-  const [isUpdatingProfile, setIsUpdatingProfile] = useState(false)
+  const [editDepartmentAr, setEditDepartmentAr] = useState('')
+  const [editAssignedMachineIds, setEditAssignedMachineIds] = useState<string[]>([])
+  const [isSavingFullEdit, setIsSavingFullEdit] = useState(false)
+
+  // Granular Permissions & Visibility Manager state
+  const [permissionsModalUser, setPermissionsModalUser] = useState<AuthUser | null>(null)
+  const [selectedPermissions, setSelectedPermissions] = useState<Permission[]>([])
+  const [isSavingPermissions, setIsSavingPermissions] = useState(false)
+
   const [actionError, setActionError] = useState<string | null>(null)
+  const [actionSuccess, setActionSuccess] = useState<string | null>(null)
 
   // New user form state
   const [newName, setNewName] = useState('')
@@ -152,28 +173,103 @@ export default function UsersPage() {
     }
   }
 
-  const handleSaveEditProfile = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!editModalUser) return
+  const openFullEditModal = (user: AuthUser) => {
     setActionError(null)
+    setActionSuccess(null)
+    setFullEditUser(user)
+    setEditFullName(user.name)
+    setEditFullNameAr(user.nameAr || user.name)
+    setEditEmail(user.email)
+    setEditRole(user.role)
+    setEditStatus(user.status)
+    setEditDepartment(user.department)
+    setEditDepartmentAr(user.departmentAr || user.department)
+    setEditAssignedMachineIds([...user.assignedMachineIds])
+  }
 
-    if (!editName.trim()) {
+  const handleSaveFullEdit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!fullEditUser) return
+    setActionError(null)
+    setActionSuccess(null)
+
+    if (!editFullName.trim() || !editEmail.trim()) {
       setActionError(t('Please fill in all required fields'))
       return
     }
 
-    setIsUpdatingProfile(true)
-    const result = await updateUserProfile(editModalUser.id, {
-      name: editName.trim(),
+    setIsSavingFullEdit(true)
+    const result = await updateFullEmployeeData(fullEditUser.id, {
+      name: editFullName.trim(),
+      nameAr: editFullNameAr.trim() || editFullName.trim(),
+      email: editEmail.trim(),
+      role: editRole,
+      status: editStatus,
       department: editDepartment.trim() || 'Plant Operations',
+      departmentAr: editDepartmentAr.trim() || 'عمليات المصنع',
+      assignedMachineIds: editAssignedMachineIds,
+      customPermissions: fullEditUser.customPermissions,
     })
-    setIsUpdatingProfile(false)
+    setIsSavingFullEdit(false)
 
     if (result.success) {
-      setEditModalUser(null)
+      setFullEditUser(null)
+      setActionSuccess(t('Employee record updated successfully'))
+      setTimeout(() => setActionSuccess(null), 4000)
     } else {
       setActionError(result.error ?? 'Failed to update employee details')
     }
+  }
+
+  const openPermissionsModal = (user: AuthUser) => {
+    setActionError(null)
+    setActionSuccess(null)
+    setPermissionsModalUser(user)
+    setSelectedPermissions([...getUserPermissions(user)])
+  }
+
+  const handleSavePermissions = async () => {
+    if (!permissionsModalUser) return
+    setActionError(null)
+    setActionSuccess(null)
+    setIsSavingPermissions(true)
+
+    const result = await updateUserPermissions(
+      permissionsModalUser.id,
+      selectedPermissions
+    )
+    setIsSavingPermissions(false)
+
+    if (result.success) {
+      setPermissionsModalUser(null)
+      setActionSuccess(
+        `${t('Permissions updated for')} ${permissionsModalUser.name} (${selectedPermissions.length} ${t('permissions granted')})`
+      )
+      setTimeout(() => setActionSuccess(null), 4000)
+    } else {
+      setActionError(result.error ?? 'Failed to update permissions')
+    }
+  }
+
+  const togglePermission = (key: Permission) => {
+    setSelectedPermissions((prev) =>
+      prev.includes(key) ? prev.filter((p) => p !== key) : [...prev, key]
+    )
+  }
+
+  const handleResetToRolePermissions = () => {
+    if (!permissionsModalUser) return
+    const baseline = ROLE_PERMISSIONS[permissionsModalUser.role] || []
+    setSelectedPermissions([...baseline])
+  }
+
+  const handleSelectAllPermissions = () => {
+    const all = PERMISSION_GROUPS.flatMap((g) => g.permissions.map((p) => p.key))
+    setSelectedPermissions(Array.from(new Set(all)))
+  }
+
+  const handleDeselectAllPermissions = () => {
+    setSelectedPermissions([])
   }
 
   const roleBadge = (role: UserRole) => {
@@ -273,6 +369,13 @@ export default function UsersPage() {
         <div className="flex items-center gap-2 rounded-xl border border-red-500/40 bg-red-500/15 p-3.5 text-xs text-red-200">
           <AlertTriangle className="h-4 w-4 shrink-0 text-red-400" />
           <span>{actionError}</span>
+        </div>
+      )}
+
+      {actionSuccess && (
+        <div className="flex items-center gap-2 rounded-xl border border-emerald-500/40 bg-emerald-500/15 p-3.5 text-xs text-emerald-200">
+          <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-400" />
+          <span>{actionSuccess}</span>
         </div>
       )}
 
@@ -416,7 +519,32 @@ export default function UsersPage() {
                           </td>
                           <td className="px-4 py-3 text-right whitespace-nowrap">
                             {currentUser?.role === 'admin' ? (
-                              <div className="flex items-center justify-end gap-1.5">
+                              <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                                {/* Granular Permissions & Visibility Button */}
+                                <button
+                                  type="button"
+                                  onClick={() => openPermissionsModal(user)}
+                                  className="btn-ghost px-2 py-1 h-7 text-[11px] text-emerald-400 hover:text-emerald-300 hover:border-emerald-500/40"
+                                  title={t('Customize individual permissions & module visibility')}
+                                >
+                                  <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
+                                  <span className="hidden sm:inline font-medium">
+                                    {t('Permissions')}
+                                  </span>
+                                </button>
+
+                                {/* Comprehensive Edit All Employee Data Button */}
+                                <button
+                                  type="button"
+                                  onClick={() => openFullEditModal(user)}
+                                  className="btn-ghost px-2 py-1 h-7 text-[11px] text-sky-400 hover:text-sky-300 hover:border-sky-500/40"
+                                  title={t('Edit all employee data (Name, Role, Dept, Machines, etc.)')}
+                                >
+                                  <Edit2 className="h-3 w-3 text-sky-400" />
+                                  <span className="hidden sm:inline font-medium">{t('Edit All')}</span>
+                                </button>
+
+                                {/* Assign Machines for Technicians */}
                                 {user.role === 'technician' && (
                                   <button
                                     type="button"
@@ -431,54 +559,31 @@ export default function UsersPage() {
                                     className="btn-ghost px-2 py-1 h-7 text-[11px]"
                                     title={t('Assign Machines')}
                                   >
-                                    <Cpu className="h-3.5 w-3.5 text-sky-400" />
-                                    <span className="hidden sm:inline">
-                                      {t('Assign')}
-                                    </span>
+                                    <Cpu className="h-3.5 w-3.5 text-cyan-400" />
+                                    <span className="hidden sm:inline">{t('Assign')}</span>
                                   </button>
                                 )}
 
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setActionError(null)
-                                    setEditModalUser({
-                                      id: user.id,
-                                      name: user.name,
-                                      department: user.department,
-                                    })
-                                    setEditName(user.name)
-                                    setEditDepartment(user.department)
-                                  }}
-                                  className="btn-ghost px-2 py-1 h-7 text-[11px]"
-                                  title={t('Edit Employee Details')}
-                                >
-                                  <Edit2 className="h-3 w-3 text-sky-400" />
-                                  <span className="hidden sm:inline">{t('Edit')}</span>
-                                </button>
+                                {/* Switch to User for Preview/Verification */}
+                                {!isSelf && (
+                                  <button
+                                    type="button"
+                                    onClick={() => switchActiveUser(user)}
+                                    className="btn-ghost px-2 py-1 h-7 text-[11px] text-indigo-400 hover:text-indigo-300 hover:border-indigo-500/40"
+                                    title={t('Switch to this user to test visible modules and private chat')}
+                                  >
+                                    <Eye className="h-3.5 w-3.5 text-indigo-400" />
+                                    <span className="hidden sm:inline font-medium">{t('View As')}</span>
+                                  </button>
+                                )}
 
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setRoleModalUser({
-                                      id: user.id,
-                                      name: user.name,
-                                      currentRole: user.role,
-                                    })
-                                    setNewSelectedRole(user.role)
-                                  }}
-                                  className="btn-ghost px-2 py-1 h-7 text-[11px]"
-                                  title={t('Change Role')}
-                                >
-                                  <Shield className="h-3 w-3 text-amber-400" />
-                                  <span className="hidden sm:inline">{t('Role')}</span>
-                                </button>
-
+                                {/* Account Deactivation / Activation */}
                                 {!isSelf && (
                                   <button
                                     type="button"
                                     onClick={async () => {
                                       setActionError(null)
+                                      setActionSuccess(null)
                                       const next =
                                         user.status === 'active'
                                           ? 'deactivated'
@@ -488,6 +593,11 @@ export default function UsersPage() {
                                         setActionError(
                                           res.error ?? 'Failed to update user status'
                                         )
+                                      } else {
+                                        setActionSuccess(
+                                          `${t('Account')} ${next === 'active' ? t('activated') : t('deactivated')} ${t('for')} ${user.name}`
+                                        )
+                                        setTimeout(() => setActionSuccess(null), 3500)
                                       }
                                     }}
                                     className={`btn-ghost px-2 py-1 h-7 text-[11px] ${
@@ -786,62 +896,379 @@ export default function UsersPage() {
         </div>
       )}
 
-      {/* Edit User Details Modal */}
-      {editModalUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="w-full max-w-md rounded-2xl border border-line bg-navy-900 p-6 shadow-2xl animate-scaleUp">
-            <h3 className="text-base font-bold text-ink flex items-center gap-2">
-              <Edit2 className="h-4 w-4 text-sky-400" />
-              {t('Edit Employee Details')}
-            </h3>
-            <p className="mt-1 text-xs text-ink-dim">
-              {t('Update full name and department assignment for this employee.')}
-            </p>
-
-            <form onSubmit={handleSaveEditProfile} className="mt-4 space-y-4">
-              <div>
-                <label className="text-[11px] font-semibold text-ink-dim uppercase tracking-wider">
-                  {t('Full Name')} *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  className="input mt-1 w-full"
-                  placeholder="e.g. John Doe"
-                />
+      {/* Granular Permissions & Visibility Manager Modal */}
+      {permissionsModalUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-fadeIn">
+          <div className="panel w-full max-w-3xl max-h-[90vh] flex flex-col p-6 border border-sky-400/30 shadow-2xl animate-scaleUp">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-line pb-4 shrink-0">
+              <div className="flex items-center gap-3">
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                  <ShieldCheck className="h-5 w-5" />
+                </span>
+                <div>
+                  <h3 className="text-base font-bold text-ink flex items-center gap-2">
+                    <span>{t('Customize Employee Permissions & Visibility')}</span>
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-navy-800 text-sky-300 border border-sky-400/30 font-normal">
+                      {permissionsModalUser.name}
+                    </span>
+                  </h3>
+                  <p className="text-xs text-ink-dim">
+                    {t('Toggle which modules appear in their navigation and configure operational capabilities.')}
+                  </p>
+                </div>
               </div>
+              <button
+                type="button"
+                onClick={() => setPermissionsModalUser(null)}
+                className="rounded-lg p-1.5 text-ink-faint hover:bg-navy-800 hover:text-ink transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
 
-              <div>
-                <label className="text-[11px] font-semibold text-ink-dim uppercase tracking-wider">
-                  {t('Department / Line')}
-                </label>
-                <input
-                  type="text"
-                  value={editDepartment}
-                  onChange={(e) => setEditDepartment(e.target.value)}
-                  className="input mt-1 w-full"
-                  placeholder="e.g. Mechanical Reliability"
-                />
-              </div>
-
-              <div className="flex justify-end gap-2 pt-2 border-t border-line">
+            {/* Presets and Filters */}
+            <div className="py-3 flex flex-wrap items-center justify-between gap-2 border-b border-line/40 shrink-0">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="text-[11px] font-semibold text-ink-dim uppercase tracking-wider mr-1">
+                  {t('Presets')}:
+                </span>
                 <button
                   type="button"
-                  onClick={() => setEditModalUser(null)}
+                  onClick={handleResetToRolePermissions}
+                  className="btn-ghost py-1 px-2.5 text-[11px] h-7 gap-1"
+                  title={t('Reset to standard permissions for this role')}
+                >
+                  <RotateCcw className="h-3 w-3 text-amber-400" />
+                  {t('Reset to Role Default')}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSelectAllPermissions}
+                  className="btn-ghost py-1 px-2.5 text-[11px] h-7 gap-1"
+                >
+                  <Check className="h-3 w-3 text-emerald-400" />
+                  {t('Select All')}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDeselectAllPermissions}
+                  className="btn-ghost py-1 px-2.5 text-[11px] h-7 gap-1"
+                >
+                  <X className="h-3 w-3 text-red-400" />
+                  {t('Deselect All')}
+                </button>
+              </div>
+
+              <div className="rounded-lg bg-navy-950/60 border border-line px-2.5 py-1 text-[11px] font-mono text-ink-dim">
+                <span className="text-emerald-400 font-bold">{selectedPermissions.length}</span> / 28 {t('Enabled')}
+              </div>
+            </div>
+
+            {/* Permissions List by Category */}
+            <div className="flex-1 overflow-y-auto thin-scroll py-4 space-y-6 pr-1">
+              {PERMISSION_GROUPS.map((group) => {
+                const groupTitle = language === 'ar' ? group.titleAr : group.title
+                const groupDesc = language === 'ar' ? group.descriptionAr : group.description
+
+                return (
+                  <div key={group.id} className="space-y-3">
+                    <div className="bg-navy-950/40 p-2.5 rounded-xl border border-line/40">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-xs font-bold text-ink uppercase tracking-wider flex items-center gap-2">
+                          <span className="h-2 w-2 rounded-full bg-sky-400" />
+                          {groupTitle}
+                        </h4>
+                        <span className="text-[10px] text-sky-300 font-mono">
+                          {group.permissions.filter((p) => selectedPermissions.includes(p.key)).length} / {group.permissions.length}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-ink-dim mt-0.5">{groupDesc}</p>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                      {group.permissions.map((p) => {
+                        const isChecked = selectedPermissions.includes(p.key)
+                        const permName = language === 'ar' ? p.nameAr : p.name
+                        const permDesc = language === 'ar' ? p.descAr : p.desc
+
+                        return (
+                          <div
+                            key={p.key}
+                            onClick={() => togglePermission(p.key)}
+                            className={`flex items-start justify-between gap-3 p-3 rounded-xl border cursor-pointer transition-all select-none ${
+                              isChecked
+                                ? 'border-sky-400/40 bg-sky-500/10 shadow-sm'
+                                : 'border-line/40 bg-navy-900/30 opacity-70 hover:opacity-100 hover:border-line'
+                            }`}
+                          >
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-semibold text-xs text-ink">{permName}</span>
+                                {p.isNavModule && (
+                                  <span className="rounded bg-sky-400/20 text-sky-300 border border-sky-400/30 px-1 py-0.2 text-[9px] font-bold">
+                                    {t('Sidebar Tab')}
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-[10.5px] text-ink-dim mt-0.5 leading-relaxed">
+                                {permDesc}
+                              </p>
+                            </div>
+
+                            {/* Custom Toggle Switch */}
+                            <div
+                              className={`relative mt-0.5 h-5 w-9 shrink-0 rounded-full transition-colors ${
+                                isChecked ? 'bg-sky-500' : 'bg-navy-800 border border-line'
+                              }`}
+                            >
+                              <span
+                                className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${
+                                  isChecked ? 'left-4' : 'left-0.5'
+                                }`}
+                              />
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Footer Buttons */}
+            <div className="pt-4 border-t border-line flex items-center justify-between shrink-0">
+              <p className="text-[11px] text-ink-faint">
+                {t('Changes apply immediately to this user upon saving.')}
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPermissionsModalUser(null)}
                   className="btn-ghost"
-                  disabled={isUpdatingProfile}
+                  disabled={isSavingPermissions}
                 >
                   {t('Cancel')}
                 </button>
                 <button
-                  type="submit"
+                  type="button"
+                  onClick={handleSavePermissions}
                   className="btn-primary"
-                  disabled={isUpdatingProfile}
+                  disabled={isSavingPermissions}
                 >
-                  {isUpdatingProfile ? t('Saving...') : t('Save Changes')}
+                  {isSavingPermissions ? t('Saving...') : t('Save Permissions Matrix')}
                 </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Comprehensive Employee Master Record Editor Modal */}
+      {fullEditUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-fadeIn">
+          <div className="panel w-full max-w-2xl max-h-[90vh] flex flex-col p-6 border border-sky-400/30 shadow-2xl animate-scaleUp">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-line pb-4 shrink-0">
+              <div className="flex items-center gap-3">
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-sky-500/20 text-sky-300 border border-sky-400/30">
+                  <Edit2 className="h-5 w-5" />
+                </span>
+                <div>
+                  <h3 className="text-base font-bold text-ink">
+                    {t('Edit Complete Employee Record')}
+                  </h3>
+                  <p className="text-xs text-ink-dim">
+                    {t('Modify names, contact info, job role, status, and machine authorizations.')}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setFullEditUser(null)}
+                className="rounded-lg p-1.5 text-ink-faint hover:bg-navy-800 hover:text-ink transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleSaveFullEdit} className="flex-1 overflow-y-auto thin-scroll py-4 space-y-4 pr-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="label">{t('Full Name (English)')} *</label>
+                  <input
+                    type="text"
+                    required
+                    value={editFullName}
+                    onChange={(e) => setEditFullName(e.target.value)}
+                    className="input"
+                    placeholder="e.g. Youssef Nabil"
+                  />
+                </div>
+
+                <div>
+                  <label className="label">{t('Full Name (Arabic)')}</label>
+                  <input
+                    type="text"
+                    value={editFullNameAr}
+                    onChange={(e) => setEditFullNameAr(e.target.value)}
+                    className="input"
+                    placeholder="مثال: يوسف نبيل"
+                    dir="rtl"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="label">{t('Corporate Email Address')} *</label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-ink-faint" />
+                  <input
+                    type="email"
+                    required
+                    value={editEmail}
+                    onChange={(e) => setEditEmail(e.target.value)}
+                    className="input pl-9 font-mono text-xs"
+                    placeholder="employee@factory-ai.local"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="label">{t('Organizational Role')} *</label>
+                  <select
+                    value={editRole}
+                    onChange={(e) => setEditRole(e.target.value as UserRole)}
+                    className="input text-xs"
+                  >
+                    <option value="technician">{t('Technician (Assigned scope only)')}</option>
+                    <option value="manager">{t('Maintenance Manager (Fleet-wide scope)')}</option>
+                    <option value="admin">{t('Admin (Full system authority)')}</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="label">{t('Account Status')} *</label>
+                  <select
+                    value={editStatus}
+                    onChange={(e) => setEditStatus(e.target.value as AccountStatus)}
+                    className="input text-xs"
+                  >
+                    <option value="active">{t('Active (Granted system access)')}</option>
+                    <option value="deactivated">{t('Deactivated (Suspended access)')}</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="label">{t('Department / Line (English)')}</label>
+                  <input
+                    type="text"
+                    value={editDepartment}
+                    onChange={(e) => setEditDepartment(e.target.value)}
+                    className="input text-xs"
+                    placeholder="e.g. CNC & Robotic Milling Line"
+                  />
+                </div>
+
+                <div>
+                  <label className="label">{t('Department / Line (Arabic)')}</label>
+                  <input
+                    type="text"
+                    value={editDepartmentAr}
+                    onChange={(e) => setEditDepartmentAr(e.target.value)}
+                    className="input text-xs"
+                    placeholder="مثال: خط آلات التفريز والروبوتات"
+                    dir="rtl"
+                  />
+                </div>
+              </div>
+
+              {/* Machine Assignments Section */}
+              <div className="pt-2 border-t border-line/40 space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="label mb-0">{t('Assigned Machinery Assets')}</label>
+                  <span className="text-[10.5px] text-ink-faint">
+                    {editAssignedMachineIds.length} {t('Selected')}
+                  </span>
+                </div>
+                <p className="text-[11px] text-ink-dim">
+                  {t('Select which machines this technician is authorized to inspect, service, and monitor:')}
+                </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto thin-scroll p-1 border border-line/40 rounded-xl bg-navy-950/40">
+                  {machines.map((m) => {
+                    const isSelected = editAssignedMachineIds.includes(m.id)
+                    return (
+                      <label
+                        key={m.id}
+                        className={`flex items-center justify-between p-2 rounded-lg border text-xs cursor-pointer transition-all ${
+                          isSelected
+                            ? 'border-sky-400/40 bg-sky-500/15 text-white'
+                            : 'border-line/30 bg-navy-900/40 text-ink-dim hover:text-ink'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setEditAssignedMachineIds((prev) => [...prev, m.id])
+                              } else {
+                                setEditAssignedMachineIds((prev) => prev.filter((id) => id !== m.id))
+                              }
+                            }}
+                            className="rounded border-line bg-navy-950 text-sky-500"
+                          />
+                          <span className="font-mono font-bold text-sky-300">{m.id}</span>
+                          <span className="truncate max-w-[120px]">{m.name}</span>
+                        </div>
+                        <span className="text-[9.5px] uppercase font-semibold text-ink-faint">
+                          {m.type}
+                        </span>
+                      </label>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="pt-4 border-t border-line flex items-center justify-between shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const targetUser = fullEditUser
+                    setFullEditUser(null)
+                    openPermissionsModal(targetUser)
+                  }}
+                  className="btn-ghost text-xs text-emerald-400 gap-1.5"
+                >
+                  <ShieldCheck className="h-3.5 w-3.5" />
+                  <span>{t('Configure Permissions Matrix')}</span>
+                </button>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setFullEditUser(null)}
+                    className="btn-ghost"
+                    disabled={isSavingFullEdit}
+                  >
+                    {t('Cancel')}
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn-primary"
+                    disabled={isSavingFullEdit}
+                  >
+                    {isSavingFullEdit ? t('Saving...') : t('Save Employee Data')}
+                  </button>
+                </div>
               </div>
             </form>
           </div>

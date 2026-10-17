@@ -25,6 +25,7 @@ import {
   X,
 } from 'lucide-react'
 import { useApp } from '../context/AppContext'
+import { useAuth } from '../context/AuthContext'
 import { playSuccessChime } from '../utils/audioAlerts'
 import { usePreferences } from '../context/PreferencesContext'
 import Panel, { PanelHeader } from '../components/ui/Panel'
@@ -94,7 +95,6 @@ const SUGGESTED_PROMPTS_AR = [
 
 const DOC_TYPES = ['PDF', 'TXT']
 const VERCEL_REQUEST_BODY_LIMIT_BYTES = 4 * 1024 * 1024
-const SAVED_CONVERSATIONS_KEY = 'iap-assistant-conversations-v1'
 
 function isSavedConversation(value: unknown): value is Conversation {
   if (!value || typeof value !== 'object') return false
@@ -656,6 +656,7 @@ function generateOperationalFallbackReply(
 }
 
 export default function AssistantPage() {
+  const { currentUser } = useAuth()
   const {
     machines,
     maintenance,
@@ -672,6 +673,10 @@ export default function AssistantPage() {
   const { language, t } = usePreferences()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
+
+  const userChatKey = currentUser?.id
+    ? `iap-assistant-conversations-${currentUser.id}`
+    : 'iap-assistant-conversations-guest'
 
   const [ctx, setCtx] = useState<AskContext>('factory')
   const [machineId, setMachineId] = useState('M-003')
@@ -802,22 +807,36 @@ export default function AssistantPage() {
   }, [])
 
   useEffect(() => {
+    // When the authenticated user changes, reset all active chat state immediately
+    // to strictly enforce private isolation so other users never see residual chats
+    chatRequestId.current += 1
+    activeChatIdRef.current = `cv-${Date.now()}`
+    setMessages([])
+    setInput('')
+    setImageFile(null)
+    setTyping(false)
+
     try {
-      const stored = localStorage.getItem(SAVED_CONVERSATIONS_KEY)
-      if (!stored) return
+      const stored = localStorage.getItem(userChatKey)
+      if (!stored) {
+        setConversations([])
+        return
+      }
       const parsed: unknown = JSON.parse(stored)
       if (!Array.isArray(parsed) || !parsed.every(isSavedConversation)) {
-        throw new Error('Saved chat data has an invalid format.')
+        setConversations([])
+        return
       }
       setConversations(parsed)
     } catch (error) {
+      setConversations([])
       notify(
         'warning',
         'Saved conversations could not be loaded',
         error instanceof Error ? error.message : 'The local chat history is unavailable.'
       )
     }
-  }, [notify])
+  }, [userChatKey, notify])
 
   useEffect(() => {
     if (indexedDocs.some((document) => document.id === docId)) return
@@ -886,7 +905,7 @@ export default function AssistantPage() {
         ? prev.map((c) => (c.id === id ? entry : c))
         : [entry, ...prev]
       try {
-        localStorage.setItem(SAVED_CONVERSATIONS_KEY, JSON.stringify(next))
+        localStorage.setItem(userChatKey, JSON.stringify(next))
       } catch {
         // storage quota
       }
@@ -1042,7 +1061,7 @@ export default function AssistantPage() {
     e.stopPropagation()
     const updatedConversations = conversations.filter((c) => c.id !== id)
     try {
-      localStorage.setItem(SAVED_CONVERSATIONS_KEY, JSON.stringify(updatedConversations))
+      localStorage.setItem(userChatKey, JSON.stringify(updatedConversations))
     } catch (error) {
       notify(
         'error',
@@ -1964,6 +1983,22 @@ export default function AssistantPage() {
               </button>
             }
           />
+          {/* User Isolation Badge */}
+          <div className="border-b border-line/40 bg-navy-950/50 px-3 py-2 flex items-center justify-between text-[11px]">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className="h-2 w-2 rounded-full bg-emerald-400 shrink-0" />
+              <span className="text-ink truncate font-medium">
+                {currentUser
+                  ? language === 'ar' && currentUser.nameAr
+                    ? currentUser.nameAr
+                    : currentUser.name
+                  : t('Guest')}
+              </span>
+            </div>
+            <span className="shrink-0 text-[9.5px] uppercase font-bold text-sky-300 bg-sky-500/15 border border-sky-400/25 px-1.5 py-0.5 rounded">
+              {t('Private Chat')}
+            </span>
+          </div>
           <div className="thin-scroll flex-1 space-y-1.5 overflow-y-auto px-2.5 py-3">
             <button
               type="button"

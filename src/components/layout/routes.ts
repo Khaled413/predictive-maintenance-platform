@@ -120,4 +120,8 @@ export const PAGE_META: Record<string, { title: string; subtitle: string }> = {
     title: 'Settings',
     subtitle: 'Configure platform thresholds, notifications and AI behavior',
   },
+  '/profile': {
+    title: 'Employee Profile & Permissions',
+    subtitle: 'View your profile details, assigned machinery, and permissions granted by administration',
+  },
 }
