@@ -1822,7 +1822,6 @@ Object.assign(translations, {
   'Save Complete Record': 'حفظ البيانات كاملة',
   'Employee record updated successfully': 'تم حفظ وتحديث بيانات الموظف بنجاح',
   'Permissions matrix updated successfully': 'تم تحديث مصفوفة الصلاحيات بنجاح',
-  'Assigned Machines': 'الآلات المسندة',
   'No machines assigned': 'لا توجد آلات مسندة',
   'Navigation Modules': 'أقسام وتبويبات التنقل',
   'Equipment Management': 'إدارة الآلات والمعدات',
