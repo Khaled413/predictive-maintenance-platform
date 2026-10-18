@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import io
+import os
 import sys
 import unittest
 from pathlib import Path
@@ -32,13 +33,20 @@ def png_bytes() -> bytes:
 
 class QualityModelReadinessTests(unittest.TestCase):
     def test_reports_missing_checkpoint_without_claiming_model_ready(self):
-        with patch(
-            "app.quality_inference.checkpoint_path",
-            return_value=Path("missing-patchcore.ckpt"),
-        ):
+        with patch.dict(os.environ, {"QUALITY_SERVICE_URL": ""}):
+            with patch(
+                "app.quality_inference.checkpoint_path",
+                return_value=Path("missing-patchcore.ckpt"),
+            ):
+                ready, message = model_readiness()
+            self.assertFalse(ready)
+            self.assertIn("checkpoint is missing", message)
+
+    def test_reports_ready_when_remote_service_configured(self):
+        with patch.dict(os.environ, {"QUALITY_SERVICE_URL": "https://example.hf.space"}):
             ready, message = model_readiness()
-        self.assertFalse(ready)
-        self.assertIn("checkpoint is missing", message)
+        self.assertTrue(ready)
+        self.assertIsNone(message)
 
     def test_heatmap_is_a_png_data_url_with_original_dimensions(self):
         encoded = _encode_heatmap(png_bytes(), np.array([[0.0, 1.0], [0.25, 0.75]]))

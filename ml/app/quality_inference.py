@@ -33,6 +33,9 @@ def checkpoint_path() -> Path:
 
 
 def model_readiness() -> tuple[bool, str | None]:
+    service_url = os.getenv("QUALITY_SERVICE_URL", "").strip().rstrip("/")
+    if service_url:
+        return True, None
     path = checkpoint_path()
     if not path.is_file():
         return False, f"PatchCore checkpoint is missing: {path}"
@@ -42,6 +45,48 @@ def model_readiness() -> tuple[bool, str | None]:
             "Quality inspection dependencies are missing; install ml/quality/requirements.txt.",
         )
     return True, None
+
+
+class RemoteQualityInspector:
+    def __init__(self, service_url: str, hf_token: str = ""):
+        self.service_url = service_url.rstrip("/")
+        self.hf_token = hf_token
+
+    def inspect(self, image_bytes: bytes, image_format: str) -> dict[str, Any]:
+        import httpx
+
+        headers = {}
+        if self.hf_token:
+            headers["Authorization"] = f"Bearer {self.hf_token}"
+
+        ext = {"JPEG": "jpg", "PNG": "png", "WEBP": "webp"}.get(image_format, "jpg")
+        files = {"image": (f"product_inspection.{ext}", image_bytes, f"image/{ext}")}
+
+        try:
+            with httpx.Client(timeout=90.0) as client:
+                response = client.post(
+                    f"{self.service_url}/api/inspect",
+                    files=files,
+                    headers=headers,
+                )
+                if response.status_code != 200:
+                    raise QualityModelUnavailable(
+                        f"Remote quality service failed ({response.status_code}): {response.text[:200]}"
+                    )
+                data = response.json()
+                if not isinstance(data, dict) or "label" not in data or "heatmap" not in data:
+                    raise QualityModelUnavailable("Remote quality service returned an invalid response.")
+                return {
+                    "label": data["label"],
+                    "score": float(data.get("score", 0.0)),
+                    "heatmap": data["heatmap"],
+                    "prediction_source": data.get("prediction_source", "PatchCore"),
+                    "model_status": "ready",
+                }
+        except QualityModelUnavailable:
+            raise
+        except Exception as exc:
+            raise QualityModelUnavailable(f"Could not connect to remote quality service: {exc}") from exc
 
 
 class PatchCoreInspector:
@@ -104,8 +149,12 @@ class PatchCoreInspector:
                 temporary_path.unlink(missing_ok=True)
 
 
-def get_quality_inspector() -> PatchCoreInspector:
+def get_quality_inspector() -> PatchCoreInspector | RemoteQualityInspector:
     global _inspector
+    service_url = os.getenv("QUALITY_SERVICE_URL", "").strip().rstrip("/")
+    if service_url:
+        token = os.getenv("HF_TOKEN") or os.getenv("HUGGINGFACE_TOKEN") or ""
+        return RemoteQualityInspector(service_url, token)
     if _inspector is None:
         with _inspector_lock:
             if _inspector is None:

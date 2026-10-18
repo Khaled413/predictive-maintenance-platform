@@ -928,12 +928,13 @@ def create_app(models_dir: str | Path | None = None) -> FastAPI:
     @application.get("/api/quality/health", response_model=QualityHealthResponse)
     def quality_health() -> dict[str, Any]:
         ready, message = model_readiness()
-        path = checkpoint_path()
+        service_url = os.getenv("QUALITY_SERVICE_URL", "").strip()
+        checkpoint_name = "remote (Hugging Face Space)" if service_url else checkpoint_path().name
         return {
             "status": "ready" if ready else "unavailable",
             "model_available": ready,
             "max_image_bytes": MAX_INSPECTION_IMAGE_BYTES,
-            "checkpoint": path.name,
+            "checkpoint": checkpoint_name,
             "message": message,
         }
 
