@@ -581,8 +581,7 @@ export function AuthProvider({
         if (matched.status === 'deactivated') {
           return {
             success: false,
-            error:
-              'Account access has been deactivated by the plant administrator.',
+            error: 'Account access has been deactivated by the plant administrator.',
           }
         }
         setCurrentUser(matched)
@@ -843,7 +842,10 @@ export function AuthProvider({
       userId: string,
       permissions: Permission[]
     ): Promise<{ success: boolean; error?: string }> => {
-      if (!hasPermission(currentUser, 'permissions.manage') && currentUser?.role !== 'admin') {
+      if (
+        !hasPermission(currentUser, 'permissions.manage') &&
+        currentUser?.role !== 'admin'
+      ) {
         return {
           success: false,
           error: 'Forbidden: Admin authority required to customize permissions.',
@@ -1028,9 +1030,7 @@ export function AuthProvider({
   const switchActiveUser = useCallback(
     (userOrId: AuthUser | string) => {
       const target =
-        typeof userOrId === 'string'
-          ? users.find((u) => u.id === userOrId)
-          : userOrId
+        typeof userOrId === 'string' ? users.find((u) => u.id === userOrId) : userOrId
 
       if (!target) return
 
@@ -1207,7 +1207,9 @@ export function AuthProvider({
     void signOutUser()
   }, [signOutUser])
 
-  const isSimulatedUser = Boolean(originalAdminUser && originalAdminUser.id !== currentUser?.id)
+  const isSimulatedUser = Boolean(
+    originalAdminUser && originalAdminUser.id !== currentUser?.id
+  )
 
   const value = useMemo(
     () => ({

@@ -77,8 +77,12 @@ export default function ProfilePage() {
   }
 
   const isArabic = language === 'ar'
-  const displayName = isArabic && currentUser.nameAr ? currentUser.nameAr : currentUser.name
-  const displayDept = isArabic && currentUser.departmentAr ? currentUser.departmentAr : currentUser.department
+  const displayName =
+    isArabic && currentUser.nameAr ? currentUser.nameAr : currentUser.name
+  const displayDept =
+    isArabic && currentUser.departmentAr
+      ? currentUser.departmentAr
+      : currentUser.department
 
   return (
     <div className="space-y-6 animate-fadeIn pb-12">
@@ -94,8 +98,11 @@ export default function ProfilePage() {
                 {t('Simulated Profile Verification Mode')}
               </p>
               <p className="text-[11px] text-amber-300/80">
-                {t('Viewing platform as')} <strong>{displayName}</strong> ({currentUser.role}).{' '}
-                {t('All features and navigation are currently constrained by what the admin configured for this user.')}
+                {t('Viewing platform as')} <strong>{displayName}</strong> (
+                {currentUser.role}).{' '}
+                {t(
+                  'All features and navigation are currently constrained by what the admin configured for this user.'
+                )}
               </p>
             </div>
           </div>
@@ -179,9 +186,13 @@ export default function ProfilePage() {
                 </span>
                 <span className="rounded-full border border-line bg-navy-800/80 px-2 py-0.5 text-[10px] font-semibold text-ink-dim">
                   {currentUser.status === 'active' ? (
-                    <span className="text-emerald-400 font-bold">{t('Active Account')}</span>
+                    <span className="text-emerald-400 font-bold">
+                      {t('Active Account')}
+                    </span>
                   ) : (
-                    <span className="text-red-400 font-bold">{t('Deactivated Account')}</span>
+                    <span className="text-red-400 font-bold">
+                      {t('Deactivated Account')}
+                    </span>
                   )}
                 </span>
               </div>
@@ -235,7 +246,9 @@ export default function ProfilePage() {
                   {t('Permissions & Access Matrix Configured by Admin')}
                 </h2>
                 <p className="text-xs text-ink-dim mt-0.5">
-                  {t('The features, pages, and actions below reflect what the Plant Administrator has permitted for your account.')}
+                  {t(
+                    'The features, pages, and actions below reflect what the Plant Administrator has permitted for your account.'
+                  )}
                 </p>
               </div>
 
@@ -285,7 +298,9 @@ export default function ProfilePage() {
                   {t('Administrative Governance Notice')}
                 </p>
                 <p className="mt-0.5">
-                  {t('If you require access to a restricted section (e.g. AI Assistant, Work Orders, or Fleet Management), contact your authorized Plant Administrator to update your employee permissions.')}
+                  {t(
+                    'If you require access to a restricted section (e.g. AI Assistant, Work Orders, or Fleet Management), contact your authorized Plant Administrator to update your employee permissions.'
+                  )}
                 </p>
               </div>
             </div>
@@ -400,7 +415,9 @@ export default function ProfilePage() {
                 </div>
                 <div className="flex items-center justify-between text-[11px]">
                   <span className="text-ink-dim">{t('Saved Conversations')}</span>
-                  <span className="font-bold font-mono text-sky-300">{savedChatsCount}</span>
+                  <span className="font-bold font-mono text-sky-300">
+                    {savedChatsCount}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between text-[11px]">
                   <span className="text-ink-dim">{t('User Privacy')}</span>
@@ -447,8 +464,12 @@ export default function ProfilePage() {
 
             <p className="text-xs text-ink-dim mb-3">
               {currentUser.role === 'admin' || currentUser.role === 'manager'
-                ? t('You hold organizational fleet scope and have full visibility across all machinery.')
-                : t('You are authorized by administration to service and inspect the following machinery units:')}
+                ? t(
+                    'You hold organizational fleet scope and have full visibility across all machinery.'
+                  )
+                : t(
+                    'You are authorized by administration to service and inspect the following machinery units:'
+                  )}
             </p>
 
             <div className="space-y-2 max-h-72 overflow-y-auto thin-scroll pr-1">

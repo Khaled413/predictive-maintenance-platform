@@ -41,7 +41,11 @@ function loadEnv() {
 
 const env = loadEnv()
 const supabaseUrl =
-  process.env.SUPABASE_URL || env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || env.VITE_SUPABASE_URL || ''
+  process.env.SUPABASE_URL ||
+  env.SUPABASE_URL ||
+  process.env.VITE_SUPABASE_URL ||
+  env.VITE_SUPABASE_URL ||
+  ''
 const serviceRoleKey =
   process.env.SUPABASE_SERVICE_ROLE_KEY || env.SUPABASE_SERVICE_ROLE_KEY || ''
 

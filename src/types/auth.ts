@@ -85,8 +85,10 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
     id: 'nav_modules',
     title: 'Navigation & Module Visibility',
     titleAr: 'ظهور الأقسام والصفحات في القائمة',
-    description: 'Control which main sections and screens are visible and accessible to the employee',
-    descriptionAr: 'تحديد الأقسام والصفحات الرئيسية التي تظهر للموظف ويستطيع الدخول إليها',
+    description:
+      'Control which main sections and screens are visible and accessible to the employee',
+    descriptionAr:
+      'تحديد الأقسام والصفحات الرئيسية التي تظهر للموظف ويستطيع الدخول إليها',
     permissions: [
       {
         key: 'dashboard.view',
@@ -166,7 +168,8 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
     id: 'machines_mgmt',
     title: 'Equipment & Fleet Management',
     titleAr: 'إدارة وتعديل الآلات',
-    description: 'Permissions for adding, modifying, assigning, or deleting machine profiles',
+    description:
+      'Permissions for adding, modifying, assigning, or deleting machine profiles',
     descriptionAr: 'صلاحيات إضافة وتحديث وإسناد وحذف الآلات والمعدات',
     permissions: [
       {
@@ -240,7 +243,8 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
     id: 'admin_security',
     title: 'Administration, Users & Security',
     titleAr: 'الإدارة وصلاحيات المستخدمين والأمان',
-    description: 'Full administrative governance, employee record management, and audit trail',
+    description:
+      'Full administrative governance, employee record management, and audit trail',
     descriptionAr: 'التحكم الإداري الكامل وتعديل بيانات الموظفين وسجل التدقيق الأمني',
     permissions: [
       {

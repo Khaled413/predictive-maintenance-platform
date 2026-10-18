@@ -66,7 +66,7 @@ export default function UsersPage() {
     assigned: string[]
   } | null>(null)
   const [selectedMachineIds, setSelectedMachineIds] = useState<string[]>([])
-  
+
   // Comprehensive Full Employee Record Editor state
   const [fullEditUser, setFullEditUser] = useState<AuthUser | null>(null)
   const [editFullName, setEditFullName] = useState('')
@@ -525,7 +525,9 @@ export default function UsersPage() {
                                   type="button"
                                   onClick={() => openPermissionsModal(user)}
                                   className="btn-ghost px-2 py-1 h-7 text-[11px] text-emerald-400 hover:text-emerald-300 hover:border-emerald-500/40"
-                                  title={t('Customize individual permissions & module visibility')}
+                                  title={t(
+                                    'Customize individual permissions & module visibility'
+                                  )}
                                 >
                                   <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
                                   <span className="hidden sm:inline font-medium">
@@ -538,10 +540,14 @@ export default function UsersPage() {
                                   type="button"
                                   onClick={() => openFullEditModal(user)}
                                   className="btn-ghost px-2 py-1 h-7 text-[11px] text-sky-400 hover:text-sky-300 hover:border-sky-500/40"
-                                  title={t('Edit all employee data (Name, Role, Dept, Machines, etc.)')}
+                                  title={t(
+                                    'Edit all employee data (Name, Role, Dept, Machines, etc.)'
+                                  )}
                                 >
                                   <Edit2 className="h-3 w-3 text-sky-400" />
-                                  <span className="hidden sm:inline font-medium">{t('Edit All')}</span>
+                                  <span className="hidden sm:inline font-medium">
+                                    {t('Edit All')}
+                                  </span>
                                 </button>
 
                                 {/* Assign Machines for Technicians */}
@@ -560,7 +566,9 @@ export default function UsersPage() {
                                     title={t('Assign Machines')}
                                   >
                                     <Cpu className="h-3.5 w-3.5 text-cyan-400" />
-                                    <span className="hidden sm:inline">{t('Assign')}</span>
+                                    <span className="hidden sm:inline">
+                                      {t('Assign')}
+                                    </span>
                                   </button>
                                 )}
 
@@ -570,10 +578,14 @@ export default function UsersPage() {
                                     type="button"
                                     onClick={() => switchActiveUser(user)}
                                     className="btn-ghost px-2 py-1 h-7 text-[11px] text-indigo-400 hover:text-indigo-300 hover:border-indigo-500/40"
-                                    title={t('Switch to this user to test visible modules and private chat')}
+                                    title={t(
+                                      'Switch to this user to test visible modules and private chat'
+                                    )}
                                   >
                                     <Eye className="h-3.5 w-3.5 text-indigo-400" />
-                                    <span className="hidden sm:inline font-medium">{t('View As')}</span>
+                                    <span className="hidden sm:inline font-medium">
+                                      {t('View As')}
+                                    </span>
                                   </button>
                                 )}
 
@@ -914,7 +926,9 @@ export default function UsersPage() {
                     </span>
                   </h3>
                   <p className="text-xs text-ink-dim">
-                    {t('Toggle which modules appear in their navigation and configure operational capabilities.')}
+                    {t(
+                      'Toggle which modules appear in their navigation and configure operational capabilities.'
+                    )}
                   </p>
                 </div>
               </div>
@@ -961,7 +975,10 @@ export default function UsersPage() {
               </div>
 
               <div className="rounded-lg bg-navy-950/60 border border-line px-2.5 py-1 text-[11px] font-mono text-ink-dim">
-                <span className="text-emerald-400 font-bold">{selectedPermissions.length}</span> / 28 {t('Enabled')}
+                <span className="text-emerald-400 font-bold">
+                  {selectedPermissions.length}
+                </span>{' '}
+                / 28 {t('Enabled')}
               </div>
             </div>
 
@@ -969,7 +986,8 @@ export default function UsersPage() {
             <div className="flex-1 overflow-y-auto thin-scroll py-4 space-y-6 pr-1">
               {PERMISSION_GROUPS.map((group) => {
                 const groupTitle = language === 'ar' ? group.titleAr : group.title
-                const groupDesc = language === 'ar' ? group.descriptionAr : group.description
+                const groupDesc =
+                  language === 'ar' ? group.descriptionAr : group.description
 
                 return (
                   <div key={group.id} className="space-y-3">
@@ -980,7 +998,12 @@ export default function UsersPage() {
                           {groupTitle}
                         </h4>
                         <span className="text-[10px] text-sky-300 font-mono">
-                          {group.permissions.filter((p) => selectedPermissions.includes(p.key)).length} / {group.permissions.length}
+                          {
+                            group.permissions.filter((p) =>
+                              selectedPermissions.includes(p.key)
+                            ).length
+                          }{' '}
+                          / {group.permissions.length}
                         </span>
                       </div>
                       <p className="text-[11px] text-ink-dim mt-0.5">{groupDesc}</p>
@@ -1004,7 +1027,9 @@ export default function UsersPage() {
                           >
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-1.5">
-                                <span className="font-semibold text-xs text-ink">{permName}</span>
+                                <span className="font-semibold text-xs text-ink">
+                                  {permName}
+                                </span>
                                 {p.isNavModule && (
                                   <span className="rounded bg-sky-400/20 text-sky-300 border border-sky-400/30 px-1 py-0.2 text-[9px] font-bold">
                                     {t('Sidebar Tab')}
@@ -1019,7 +1044,9 @@ export default function UsersPage() {
                             {/* Custom Toggle Switch */}
                             <div
                               className={`relative mt-0.5 h-5 w-9 shrink-0 rounded-full transition-colors ${
-                                isChecked ? 'bg-sky-500' : 'bg-navy-800 border border-line'
+                                isChecked
+                                  ? 'bg-sky-500'
+                                  : 'bg-navy-800 border border-line'
                               }`}
                             >
                               <span
@@ -1080,7 +1107,9 @@ export default function UsersPage() {
                     {t('Edit Complete Employee Record')}
                   </h3>
                   <p className="text-xs text-ink-dim">
-                    {t('Modify names, contact info, job role, status, and machine authorizations.')}
+                    {t(
+                      'Modify names, contact info, job role, status, and machine authorizations.'
+                    )}
                   </p>
                 </div>
               </div>
@@ -1094,7 +1123,10 @@ export default function UsersPage() {
             </div>
 
             {/* Form */}
-            <form onSubmit={handleSaveFullEdit} className="flex-1 overflow-y-auto thin-scroll py-4 space-y-4 pr-1">
+            <form
+              onSubmit={handleSaveFullEdit}
+              className="flex-1 overflow-y-auto thin-scroll py-4 space-y-4 pr-1"
+            >
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="label">{t('Full Name (English)')} *</label>
@@ -1144,8 +1176,12 @@ export default function UsersPage() {
                     onChange={(e) => setEditRole(e.target.value as UserRole)}
                     className="input text-xs"
                   >
-                    <option value="technician">{t('Technician (Assigned scope only)')}</option>
-                    <option value="manager">{t('Maintenance Manager (Fleet-wide scope)')}</option>
+                    <option value="technician">
+                      {t('Technician (Assigned scope only)')}
+                    </option>
+                    <option value="manager">
+                      {t('Maintenance Manager (Fleet-wide scope)')}
+                    </option>
                     <option value="admin">{t('Admin (Full system authority)')}</option>
                   </select>
                 </div>
@@ -1158,7 +1194,9 @@ export default function UsersPage() {
                     className="input text-xs"
                   >
                     <option value="active">{t('Active (Granted system access)')}</option>
-                    <option value="deactivated">{t('Deactivated (Suspended access)')}</option>
+                    <option value="deactivated">
+                      {t('Deactivated (Suspended access)')}
+                    </option>
                   </select>
                 </div>
               </div>
@@ -1197,7 +1235,9 @@ export default function UsersPage() {
                   </span>
                 </div>
                 <p className="text-[11px] text-ink-dim">
-                  {t('Select which machines this technician is authorized to inspect, service, and monitor:')}
+                  {t(
+                    'Select which machines this technician is authorized to inspect, service, and monitor:'
+                  )}
                 </p>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto thin-scroll p-1 border border-line/40 rounded-xl bg-navy-950/40">
@@ -1220,7 +1260,9 @@ export default function UsersPage() {
                               if (e.target.checked) {
                                 setEditAssignedMachineIds((prev) => [...prev, m.id])
                               } else {
-                                setEditAssignedMachineIds((prev) => prev.filter((id) => id !== m.id))
+                                setEditAssignedMachineIds((prev) =>
+                                  prev.filter((id) => id !== m.id)
+                                )
                               }
                             }}
                             className="rounded border-line bg-navy-950 text-sky-500"
