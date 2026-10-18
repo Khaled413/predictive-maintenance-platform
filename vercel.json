@@ -16,9 +16,11 @@
     "ml": {
       "root": "ml",
       "entrypoint": "main:app",
+      "includeFiles": "models/**",
       "functions": {
         "main.py": {
-          "maxDuration": 60
+          "maxDuration": 60,
+          "includeFiles": "models/**"
         }
       }
     }
