@@ -484,7 +484,7 @@ export function AuthProvider({
       isMounted = false
       subscription.unsubscribe()
     }
-  }, [resolveProfileForSession, loadAdminDirectory, loadAuditLogs])
+  }, [initialUser, resolveProfileForSession, loadAdminDirectory, loadAuditLogs])
 
   const logSecurityEvent = useCallback(
     (

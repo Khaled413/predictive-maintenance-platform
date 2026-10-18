@@ -5,6 +5,7 @@ import { AppProvider } from './context/AppContext'
 import { PreferencesProvider } from './context/PreferencesContext'
 import AppLayout from './components/layout/AppLayout'
 import ProtectedRoute from './components/auth/ProtectedRoute'
+import AccessDeniedPage from './pages/AccessDeniedPage'
 
 /**
  * Pages are code-split so the heavy charting bundle (Recharts) is only fetched
@@ -21,7 +22,6 @@ const ReportsPage = lazy(() => import('./pages/ReportsPage'))
 const SettingsPage = lazy(() => import('./pages/SettingsPage'))
 const UsersPage = lazy(() => import('./pages/UsersPage'))
 const ProfilePage = lazy(() => import('./pages/ProfilePage'))
-const AccessDeniedPage = lazy(() => import('./pages/AccessDeniedPage'))
 const LandingPage = lazy(() => import('./pages/LandingPage'))
 
 export default function App() {
