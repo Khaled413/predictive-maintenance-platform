@@ -64,6 +64,7 @@ Thumbs.db
 *.njsproj
 *.sln
 *.sw?
+*.exe
 
 # Local env files
 .env

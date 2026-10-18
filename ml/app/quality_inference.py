@@ -33,7 +33,8 @@ def checkpoint_path() -> Path:
 
 
 def model_readiness() -> tuple[bool, str | None]:
-    service_url = os.getenv("QUALITY_SERVICE_URL", "").strip().rstrip("/")
+    is_worker = os.getenv("QUALITY_WORKER_MODE", "").strip().lower() in {"1", "true", "yes"}
+    service_url = "" if is_worker else os.getenv("QUALITY_SERVICE_URL", "").strip().rstrip("/")
     if service_url:
         return True, None
     path = checkpoint_path()
@@ -151,7 +152,8 @@ class PatchCoreInspector:
 
 def get_quality_inspector() -> PatchCoreInspector | RemoteQualityInspector:
     global _inspector
-    service_url = os.getenv("QUALITY_SERVICE_URL", "").strip().rstrip("/")
+    is_worker = os.getenv("QUALITY_WORKER_MODE", "").strip().lower() in {"1", "true", "yes"}
+    service_url = "" if is_worker else os.getenv("QUALITY_SERVICE_URL", "").strip().rstrip("/")
     if service_url:
         token = os.getenv("HF_TOKEN") or os.getenv("HUGGINGFACE_TOKEN") or ""
         return RemoteQualityInspector(service_url, token)
