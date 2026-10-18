@@ -193,28 +193,85 @@ def _assistant_index_document(
         )
     return page_count, total_chunks, list(dict.fromkeys(warnings))
 
+def _resolve_models_dir(preferred: str | Path | None = None) -> Path:
+    candidates: list[Path] = []
+    if preferred:
+        p = Path(preferred)
+        candidates.append(p)
+        if "ml" in p.parts:
+            clean_parts = [part for part in p.parts if part != "ml"]
+            if clean_parts:
+                candidates.append(Path(*clean_parts))
+
+    env_dir = os.getenv("MODEL_DIR")
+    if env_dir:
+        p = Path(env_dir)
+        candidates.append(p)
+        if "ml" in p.parts:
+            clean_parts = [part for part in p.parts if part != "ml"]
+            if clean_parts:
+                candidates.append(Path(*clean_parts))
+
+    candidates.extend(
+        [
+            DEFAULT_MODELS_DIR,
+            Path(__file__).resolve().parent.parent / "models",
+            Path(__file__).resolve().parent / "models",
+            Path.cwd() / "models",
+            Path.cwd() / "ml" / "models",
+        ]
+    )
+
+    for candidate in candidates:
+        try:
+            if candidate.is_dir() and any(candidate.glob("*.joblib")):
+                return candidate.resolve()
+        except OSError:
+            continue
+
+    return DEFAULT_MODELS_DIR
+
+
 def create_app(models_dir: str | Path | None = None) -> FastAPI:
-    configured_models_dir = Path(models_dir or os.getenv("MODEL_DIR", DEFAULT_MODELS_DIR))
+    configured_models_dir = _resolve_models_dir(models_dir)
+
+    def _ensure_models_loaded(application: FastAPI):
+        if getattr(application.state, "model_bundle", None) is not None:
+            return application.state.model_bundle
+        try:
+            target_dir = _resolve_models_dir(models_dir)
+            bundle = load_models(target_dir)
+            application.state.model_bundle = bundle
+            application.state.model_load_error = None
+            logger.info("Loaded predictive-maintenance models from %s", target_dir)
+            return bundle
+        except Exception as exc:
+            application.state.model_bundle = None
+            application.state.model_load_error = str(exc)
+            logger.exception("Could not initialize predictive-maintenance models from %s", configured_models_dir)
+            return None
 
     @asynccontextmanager
     async def lifespan(application: FastAPI):
         try:
             get_settings()
-            application.state.model_bundle = load_models(configured_models_dir)
-            logger.info("Loaded predictive-maintenance models from %s", configured_models_dir)
         except Exception:
-            logger.exception("Could not initialize predictive-maintenance models from %s", configured_models_dir)
-            raise
+            logger.exception("Failed loading settings")
+        _ensure_models_loaded(application)
         yield
 
     application = FastAPI(title="Predictive Maintenance Inference API", lifespan=lifespan)
     application.state.assistant_index_lock = threading.Lock()
     application.state.assistant_index_ready = False
+    application.state.model_bundle = None
+    application.state.model_load_error = None
 
     @application.get("/api/health", response_model=HealthResponse)
     @application.get("/health", response_model=HealthResponse)
     def health() -> dict[str, Any]:
         bundle = getattr(application.state, "model_bundle", None)
+        if not isinstance(bundle, ModelBundle):
+            bundle = _ensure_models_loaded(application)
         failure_model_ready = isinstance(bundle, ModelBundle) and bundle.failure_model is not None
         failure_type_model_ready = (
             isinstance(bundle, ModelBundle) and bundle.failure_type_model is not None
@@ -240,7 +297,10 @@ def create_app(models_dir: str | Path | None = None) -> FastAPI:
     def predict(request: PredictionRequest) -> dict[str, Any]:
         bundle = getattr(application.state, "model_bundle", None)
         if not isinstance(bundle, ModelBundle):
-            raise HTTPException(status_code=503, detail="Inference models are not loaded")
+            bundle = _ensure_models_loaded(application)
+        if not isinstance(bundle, ModelBundle):
+            err = getattr(application.state, "model_load_error", "Inference models are not loaded")
+            raise HTTPException(status_code=503, detail=f"Inference models are not loaded: {err}")
         machine_features = maintenance_features(
             request.air_temperature,
             request.process_temperature,
