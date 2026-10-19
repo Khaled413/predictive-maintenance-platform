@@ -1,5 +1,5 @@
 -c ../requirements.txt
-groq>=0.13,<1
+groq>=1.7.0,<2
 qdrant-client>=1.12,<2
 sentence-transformers>=3.3,<6
 hf-xet>=1,<2
