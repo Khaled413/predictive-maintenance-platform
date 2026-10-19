@@ -251,16 +251,7 @@ def create_app(models_dir: str | Path | None = None) -> FastAPI:
             logger.exception("Could not initialize predictive-maintenance models from %s", configured_models_dir)
             return None
 
-    @asynccontextmanager
-    async def lifespan(application: FastAPI):
-        try:
-            get_settings()
-        except Exception:
-            logger.exception("Failed loading settings")
-        _ensure_models_loaded(application)
-        yield
-
-    application = FastAPI(title="Predictive Maintenance Inference API", lifespan=lifespan)
+    application = FastAPI(title="Predictive Maintenance Inference API")
     application.state.assistant_index_lock = threading.Lock()
     application.state.assistant_index_ready = False
     application.state.model_bundle = None
