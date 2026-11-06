@@ -9,6 +9,7 @@ interface UploadZoneProps {
   onFile: (file: File) => void
   icon?: React.ReactNode
   compact?: boolean
+  disabled?: boolean
 }
 
 export default function UploadZone({
@@ -18,11 +19,13 @@ export default function UploadZone({
   onFile,
   icon,
   compact,
+  disabled = false,
 }: UploadZoneProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [drag, setDrag] = useState(false)
 
   const handleFiles = (files: FileList | null) => {
+    if (disabled) return
     const f = files?.[0]
     if (f) onFile(f)
   }
@@ -30,9 +33,12 @@ export default function UploadZone({
   return (
     <div
       role="button"
-      tabIndex={0}
-      onClick={() => inputRef.current?.click()}
+      tabIndex={disabled ? -1 : 0}
+      onClick={() => {
+        if (!disabled) inputRef.current?.click()
+      }}
       onKeyDown={(e) => {
+        if (disabled) return
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault()
           inputRef.current?.click()
@@ -40,29 +46,33 @@ export default function UploadZone({
       }}
       onDragOver={(e) => {
         e.preventDefault()
-        setDrag(true)
+        if (!disabled) setDrag(true)
       }}
       onDragLeave={() => setDrag(false)}
       onDrop={(e) => {
         e.preventDefault()
         setDrag(false)
-        handleFiles(e.dataTransfer.files)
+        if (!disabled) handleFiles(e.dataTransfer.files)
       }}
       className={cx(
-        'group flex w-full cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed text-center transition-all duration-200',
+        'group flex w-full flex-col items-center justify-center rounded-2xl border-2 border-dashed text-center transition-all duration-200',
+        disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer',
         compact ? 'px-4 py-5' : 'px-6 py-10',
         drag
           ? 'border-sky-400/70 bg-sky-500/10'
-          : 'border-line bg-navy-900/40 hover:border-sky-400/40 hover:bg-navy-800/50'
+          : disabled
+            ? 'border-line/60 bg-navy-950/20'
+            : 'border-line bg-navy-900/40 hover:border-sky-400/40 hover:bg-navy-800/50'
       )}
     >
       <input
         ref={inputRef}
         type="file"
         accept={accept}
+        disabled={disabled}
         className="hidden"
         onChange={(e) => {
-          handleFiles(e.target.files)
+          if (!disabled) handleFiles(e.target.files)
           e.target.value = ''
         }}
       />

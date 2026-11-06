@@ -65,20 +65,41 @@ async function readError(response: Response) {
 }
 
 export async function getQualityModelStatus(): Promise<QualityModelStatus> {
-  const response = await fetch('/api/quality/health')
-  if (!response.ok) {
-    if (response.status === 404) {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), 6000)
+
+  try {
+    const response = await fetch('/api/quality/health', {
+      signal: controller.signal,
+    })
+    clearTimeout(timer)
+    if (!response.ok) {
+      if (response.status === 404) {
+        throw new Error(
+          'The running ML backend does not expose the PatchCore endpoint yet. Restart the backend with "npm run dev" to load the updated API.'
+        )
+      }
+      throw new Error(await readError(response))
+    }
+    const result: unknown = await response.json()
+    if (!isQualityModelStatus(result)) {
+      throw new Error('Quality service returned an invalid readiness response.')
+    }
+    return result
+  } catch (error: unknown) {
+    clearTimeout(timer)
+    if (error instanceof DOMException && error.name === 'AbortError') {
       throw new Error(
-        'The running ML backend does not expose the PatchCore endpoint yet. Restart the backend with "npm run dev" to load the updated API.'
+        'Connection timed out checking ML backend. Ensure the ML service is running ("npm run dev" or "start-quality-worker.bat").'
       )
     }
-    throw new Error(await readError(response))
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      throw new Error(
+        'Could not connect to the ML backend. Start it with "npm run dev" or run "start-quality-worker.bat".'
+      )
+    }
+    throw error
   }
-  const result: unknown = await response.json()
-  if (!isQualityModelStatus(result)) {
-    throw new Error('Quality service returned an invalid readiness response.')
-  }
-  return result
 }
 
 export async function inspectQualityImage(

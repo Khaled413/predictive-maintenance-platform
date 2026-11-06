@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process'
+import fs from 'node:fs'
 import { setTimeout as delay } from 'node:timers/promises'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
@@ -9,8 +10,24 @@ const viteExecutable = path.join(root, 'node_modules', 'vite', 'bin', 'vite.js')
 const configuredOrigin = process.env.ML_API_DEV_ORIGIN || 'http://127.0.0.1:8001'
 const backendOrigin = new URL(configuredOrigin)
 const localHosts = new Set(['127.0.0.1', 'localhost', '[::1]'])
-const pythonExecutable =
-  process.env.PYTHON || (process.platform === 'win32' ? 'python' : 'python3')
+
+function resolvePython() {
+  if (process.env.PYTHON) return process.env.PYTHON
+  const candidates = [
+    path.join(root, '.venv', 'Scripts', 'python.exe'),
+    path.join(root, 'ml', '.venv', 'Scripts', 'python.exe'),
+    path.join(root, 'venv', 'Scripts', 'python.exe'),
+    path.join(root, 'ml', 'venv', 'Scripts', 'python.exe'),
+    path.join(root, '.venv', 'bin', 'python'),
+    path.join(root, 'ml', '.venv', 'bin', 'python'),
+  ]
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) return candidate
+  }
+  return process.platform === 'win32' ? 'python' : 'python3'
+}
+
+const pythonExecutable = resolvePython()
 const startupTimeoutMs = Number(process.env.ML_API_STARTUP_TIMEOUT_MS || 120_000)
 
 if (!['http:', 'https:'].includes(backendOrigin.protocol)) {

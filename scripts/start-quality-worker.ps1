@@ -16,12 +16,18 @@ if (-not (Test-Path $checkpoint)) {
 # 2. Check cloudflared
 $cloudflared = "$projectRoot\scripts\cloudflared.exe"
 if (-not (Test-Path $cloudflared)) {
-    Write-Host "[ERROR] cloudflared.exe not found at: $cloudflared" -ForegroundColor Red
-    exit 1
+    $systemCloudflared = Get-Command cloudflared -ErrorAction SilentlyContinue
+    if ($systemCloudflared) {
+        $cloudflared = $systemCloudflared.Source
+    } else {
+        Write-Host "[ERROR] cloudflared.exe not found at: $cloudflared" -ForegroundColor Red
+        exit 1
+    }
 }
 
 $port = 8008
 $env:QUALITY_WORKER_MODE = "1"
+$env:QUALITY_MODEL_CHECKPOINT = $checkpoint
 
 # Kill any previous process on port 8008
 $occupied = Get-NetTCPConnection -LocalPort $port -ErrorAction SilentlyContinue
@@ -31,14 +37,84 @@ if ($occupied) {
     Start-Sleep -Seconds 1
 }
 
-# 3. Start Uvicorn Server
+# 3. Locate Python executable
+$pythonExe = $null
+
+if ($env:PYTHON -and (Test-Path $env:PYTHON)) {
+    $pythonExe = $env:PYTHON
+}
+
+if (-not $pythonExe) {
+    $venvCandidates = @(
+        "$projectRoot\.venv\Scripts\python.exe",
+        "$projectRoot\ml\.venv\Scripts\python.exe",
+        "$projectRoot\venv\Scripts\python.exe",
+        "$projectRoot\ml\venv\Scripts\python.exe"
+    )
+    foreach ($cand in $venvCandidates) {
+        if (Test-Path $cand) {
+            $pythonExe = $cand
+            break
+        }
+    }
+}
+
+if (-not $pythonExe) {
+    $condaCandidates = @(
+        "$env:USERPROFILE\anaconda3\python.exe",
+        "$env:USERPROFILE\miniconda3\python.exe",
+        "C:\ProgramData\anaconda3\python.exe",
+        "C:\ProgramData\miniconda3\python.exe"
+    )
+    foreach ($cand in $condaCandidates) {
+        if (Test-Path $cand) {
+            $pythonExe = $cand
+            break
+        }
+    }
+}
+
+if (-not $pythonExe) {
+    $cmd = Get-Command python -ErrorAction SilentlyContinue
+    if ($cmd -and $cmd.Source -notmatch "WindowsApps") {
+        $pythonExe = $cmd.Source
+    }
+}
+
+if (-not $pythonExe) {
+    $pyCmd = Get-Command py -ErrorAction SilentlyContinue
+    if ($pyCmd) {
+        $pythonExe = "py"
+    }
+}
+
+if (-not $pythonExe) {
+    $pythonExe = "python"
+}
+
+# 4. Start Uvicorn Server
+Write-Host "[INFO] Using Python: $pythonExe" -ForegroundColor Gray
 Write-Host "[INFO] Starting local PatchCore model server on http://127.0.0.1:$port..." -ForegroundColor Yellow
-$serverProcess = Start-Process python -ArgumentList "-m uvicorn ml.app.api:app --host 127.0.0.1 --port $port" -PassThru -NoNewWindow
+
+$serverLog = "$env:TEMP\quality_worker_uvicorn.log"
+if (Test-Path $serverLog) { Remove-Item $serverLog -Force }
+
+$serverArgs = "-m uvicorn main:app --app-dir ml --host 127.0.0.1 --port $port"
+$serverProcess = Start-Process -FilePath $pythonExe -ArgumentList $serverArgs -RedirectStandardError $serverLog -RedirectStandardOutput $serverLog -PassThru -NoNewWindow
 
 # Wait for server to respond
 $serverReady = $false
 for ($i = 0; $i -lt 25; $i++) {
     Start-Sleep -Seconds 1
+    if ($serverProcess.HasExited) {
+        Write-Host "[ERROR] Model server process exited unexpectedly with code $($serverProcess.ExitCode)." -ForegroundColor Red
+        if (Test-Path $serverLog) {
+            Write-Host "--- Uvicorn Log Output ---" -ForegroundColor Yellow
+            Get-Content $serverLog -Tail 25 | Write-Host -ForegroundColor Red
+            Write-Host "--------------------------" -ForegroundColor Yellow
+        }
+        break
+    }
     try {
         $res = Invoke-RestMethod -Uri "http://127.0.0.1:$port/api/quality/health" -TimeoutSec 2 -ErrorAction Stop
         if ($res.model_available) {
@@ -50,13 +126,18 @@ for ($i = 0; $i -lt 25; $i++) {
 
 if (-not $serverReady) {
     Write-Host "[ERROR] Server failed to initialize PatchCore model." -ForegroundColor Red
+    if (Test-Path $serverLog) {
+        Write-Host "--- Server Log Output ---" -ForegroundColor Yellow
+        Get-Content $serverLog -Tail 25 | Write-Host -ForegroundColor Yellow
+        Write-Host "-------------------------" -ForegroundColor Yellow
+    }
     if ($serverProcess -and -not $serverProcess.HasExited) { Stop-Process -Id $serverProcess.Id -Force }
     exit 1
 }
 
 Write-Host "[SUCCESS] Model server is ready with PatchCore checkpoint!" -ForegroundColor Green
 
-# 4. Start Cloudflare Tunnel
+# 5. Start Cloudflare Tunnel
 Write-Host "[INFO] Creating secure public tunnel (Cloudflare)..." -ForegroundColor Yellow
 $logFile = "$env:TEMP\cf_tunnel_output.log"
 if (Test-Path $logFile) { Remove-Item $logFile -Force }
@@ -66,6 +147,13 @@ $tunnelProcess = Start-Process -FilePath $cloudflared -ArgumentList "tunnel --ur
 $tunnelUrl = ""
 for ($i = 0; $i -lt 30; $i++) {
     Start-Sleep -Seconds 1
+    if ($tunnelProcess.HasExited) {
+        Write-Host "[ERROR] Cloudflare tunnel process exited unexpectedly with code $($tunnelProcess.ExitCode)." -ForegroundColor Red
+        if (Test-Path $logFile) {
+            Get-Content $logFile -Tail 20 | Write-Host -ForegroundColor Yellow
+        }
+        break
+    }
     if (Test-Path $logFile) {
         $content = Get-Content $logFile -Raw
         if ($content -match '(https://[a-zA-Z0-9-]+\.trycloudflare\.com)') {

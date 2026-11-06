@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Activity,
   AlertTriangle,
   CheckCircle2,
   Loader2,
+  RefreshCw,
   ScanLine,
   XCircle,
 } from 'lucide-react'
@@ -47,33 +48,33 @@ export default function QualityPage() {
   const { t } = usePreferences()
   const [modelStatus, setModelStatus] = useState<QualityModelStatus | null>(null)
   const [statusError, setStatusError] = useState<string | null>(null)
+  const [checking, setChecking] = useState(true)
   const [result, setResult] = useState<QualityResult | null>(null)
   const [running, setRunning] = useState(false)
   const [requestError, setRequestError] = useState<string | null>(null)
   const [filter, setFilter] = useState<'all' | 'NORMAL' | 'ANOMALOUS'>('all')
 
-  useEffect(() => {
-    let active = true
-    void getQualityModelStatus()
-      .then((status) => {
-        if (active) {
-          setModelStatus(status)
-          setStatusError(null)
-        }
-      })
-      .catch((error: unknown) => {
-        if (active) {
-          setStatusError(
-            error instanceof Error
-              ? error.message
-              : 'Could not check PatchCore readiness.'
-          )
-        }
-      })
-    return () => {
-      active = false
+  const checkReadiness = useCallback(async () => {
+    setChecking(true)
+    try {
+      const status = await getQualityModelStatus()
+      setModelStatus(status)
+      setStatusError(null)
+    } catch (error: unknown) {
+      setModelStatus(null)
+      setStatusError(
+        error instanceof Error
+          ? error.message
+          : 'Could not check PatchCore readiness.'
+      )
+    } finally {
+      setChecking(false)
     }
   }, [])
+
+  useEffect(() => {
+    void checkReadiness()
+  }, [checkReadiness])
 
   useEffect(
     () => () => {
@@ -105,6 +106,12 @@ export default function QualityPage() {
   const imageSizeLimit = formatUploadLimit(maxImageBytes)
 
   const handleFile = async (file: File) => {
+    if (!modelStatus?.model_available) {
+      setRequestError(
+        t('A trained PatchCore checkpoint is required before images can be inspected.')
+      )
+      return
+    }
     if (!ACCEPTED_IMAGE_TYPES.has(file.type)) {
       setRequestError('Choose a JPEG, PNG, or WEBP image.')
       return
@@ -162,30 +169,51 @@ export default function QualityPage() {
       <div
         className={cx(
           'flex items-start gap-3 rounded-xl border px-4 py-3 text-[11px] leading-relaxed',
-          modelStatus?.model_available
-            ? 'border-emerald-400/25 bg-emerald-400/5 text-emerald-100/80'
-            : 'border-amber-400/25 bg-amber-400/5 text-amber-100/80'
+          checking
+            ? 'border-sky-400/25 bg-sky-400/5 text-sky-100/80'
+            : modelStatus?.model_available
+              ? 'border-emerald-400/25 bg-emerald-400/5 text-emerald-100/80'
+              : 'border-amber-400/25 bg-amber-400/5 text-amber-100/80'
         )}
       >
-        {modelStatus?.model_available ? (
-          <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
+        {checking ? (
+          <Loader2 className="mt-0.5 h-4 w-4 shrink-0 animate-spin text-sky-400" />
+        ) : modelStatus?.model_available ? (
+          <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
         ) : (
-          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
         )}
-        <div className="min-w-0">
-          <p className="font-semibold">
-            {modelStatus?.model_available
-              ? `${t('PatchCore available ·')} ${modelStatus.checkpoint}`
-              : t('PatchCore is not ready')}
-          </p>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center justify-between gap-2">
+            <p className="font-semibold">
+              {checking
+                ? t('Checking PatchCore availability…')
+                : modelStatus?.model_available
+                  ? `${t('PatchCore available ·')} ${modelStatus.checkpoint}`
+                  : t('PatchCore is not ready')}
+            </p>
+            {!checking && (
+              <button
+                type="button"
+                onClick={() => void checkReadiness()}
+                className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-medium text-slate-300 hover:bg-slate-700/50 hover:text-white transition-colors"
+                title={t('Re-check status')}
+              >
+                <RefreshCw className="h-3 w-3" />
+                {t('Retry')}
+              </button>
+            )}
+          </div>
           <p className="mt-0.5">
-            {modelStatus?.model_available
-              ? t(
-                  'This model detects visual anomalies and highlights regions; it does not identify defect names or certify product quality.'
-                )
-              : (modelStatus?.message ??
-                statusError ??
-                t('Checking model and checkpoint availability…'))}
+            {checking
+              ? t('Checking model and checkpoint availability…')
+              : modelStatus?.model_available
+                ? t(
+                    'This model detects visual anomalies and highlights regions; it does not identify defect names or certify product quality.'
+                  )
+                : (modelStatus?.message ??
+                  statusError ??
+                  t('Quality service is unavailable. Start the ML service or run start-quality-worker.bat.'))}
           </p>
         </div>
       </div>
@@ -238,6 +266,7 @@ export default function QualityPage() {
               hint={`${t('JPEG, PNG, or WEBP · Maximum ')}${imageSizeLimit}`}
               onFile={(file) => void handleFile(file)}
               icon={<ScanLine className="h-6 w-6" />}
+              disabled={running || checking || !modelStatus?.model_available}
             />
             {!modelStatus?.model_available && (
               <p className="mt-3 text-center text-[11px] text-ink-faint">

@@ -62,11 +62,13 @@ class RemoteQualityInspector:
 
         ext = {"JPEG": "jpg", "PNG": "png", "WEBP": "webp"}.get(image_format, "jpg")
         files = {"image": (f"product_inspection.{ext}", image_bytes, f"image/{ext}")}
+        base_url = self.service_url.removesuffix("/api/inspect").removesuffix("/inspect")
+        endpoint = f"{base_url}/api/inspect"
 
         try:
-            with httpx.Client(timeout=90.0) as client:
+            with httpx.Client(timeout=90.0, follow_redirects=True) as client:
                 response = client.post(
-                    f"{self.service_url}/api/inspect",
+                    endpoint,
                     files=files,
                     headers=headers,
                 )
@@ -132,11 +134,14 @@ class PatchCoreInspector:
                 raise RuntimeError("PatchCore returned no inspection result.")
 
             prediction = predictions[0]
-            score = float(prediction.pred_score[0])
+            pred_score = prediction.pred_score
+            score = float(pred_score.squeeze().item() if hasattr(pred_score, "item") else pred_score[0])
             if not np.isfinite(score) or score < 0:
                 raise RuntimeError("PatchCore returned an invalid anomaly score.")
-            label = "ANOMALOUS" if bool(prediction.pred_label[0]) else "NORMAL"
-            anomaly_map = prediction.anomaly_map[0].detach().cpu().numpy()
+            pred_label = prediction.pred_label
+            is_anomalous = bool(pred_label.squeeze().item() if hasattr(pred_label, "item") else pred_label[0])
+            label = "ANOMALOUS" if is_anomalous else "NORMAL"
+            anomaly_map = prediction.anomaly_map.squeeze().detach().cpu().numpy()
             heatmap = _encode_heatmap(image_bytes, anomaly_map)
             return {
                 "label": label,

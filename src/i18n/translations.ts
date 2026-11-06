@@ -1718,7 +1718,12 @@ Object.assign(translations, {
   // Quality Page items
   'AI Visual Quality Inspection': 'فحص الجودة البصري بالذكاء الاصطناعي',
   'PatchCore is not ready': 'نموذج PatchCore غير جاهز',
+  'Checking PatchCore availability…': 'جارٍ فحص توفر PatchCore…',
   'Checking model and checkpoint availability…': 'جارٍ فحص توفر النموذج ونقاط الفحص…',
+  'Re-check status': 'إعادة فحص الحالة',
+  Retry: 'إعادة المحاولة',
+  'Quality service is unavailable. Start the ML service or run start-quality-worker.bat.':
+    'خدمة فحص الجودة غير متاحة. قم بتشغيل خدمة الذكاء الاصطناعي أو تشغيل start-quality-worker.bat.',
   'This model detects visual anomalies and highlights regions; it does not identify defect names or certify product quality.':
     'يكتشف هذا النموذج الشذوذ البصري ويحدد المناطق المتأثرة؛ ولا يحدد أسماء العيوب أو يمنح شهادات جودة المنتج.',
   'PatchCore Inspections': 'فحوصات PatchCore',
